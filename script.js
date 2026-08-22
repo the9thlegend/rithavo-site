@@ -74,3 +74,18 @@
     }
   });
 })();
+
+// Attribution passthrough for diagnostic CTAs
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var utmKeys = ["utm_source", "utm_medium", "utm_campaign"];
+  var ctas = document.querySelectorAll(".diagnostic-cta");
+  if (!ctas.length) return;
+  ctas.forEach(function (a) {
+    var url = new URL(a.href);
+    utmKeys.forEach(function (key) {
+      if (params.has(key)) url.searchParams.set(key, params.get(key));
+    });
+    a.href = url.toString();
+  });
+})();
