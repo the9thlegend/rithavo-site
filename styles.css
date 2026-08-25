@@ -22,6 +22,7 @@
   --g-cyan: #33c2c8; /* subtle ambient accent only */
   --gradient: linear-gradient(115deg, var(--g1) 0%, var(--g2) 52%, var(--g3) 100%);
   --gradient-soft: linear-gradient(115deg, color-mix(in srgb, var(--g1) 16%, transparent), color-mix(in srgb, var(--g2) 16%, transparent) 52%, color-mix(in srgb, var(--g3) 16%, transparent) 100%);
+  --gradient-soft-strong: linear-gradient(115deg, color-mix(in srgb, var(--g1) 28%, transparent), color-mix(in srgb, var(--g2) 28%, transparent) 52%, color-mix(in srgb, var(--g3) 28%, transparent) 100%);
 
   /* ---- Semantic (scorecard) ---- */
   --strong: #2f8f66;
@@ -204,6 +205,8 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .btn-primary:hover { transform: translateY(-2px); background-position: 100% 0; box-shadow: var(--shadow-lg); }
 .btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--ink); }
 .btn-ghost:hover { border-color: var(--ink-faint); transform: translateY(-1px); }
+.btn-ghost-accent { background: var(--gradient-soft); border-color: color-mix(in srgb, var(--g2) 45%, var(--line-strong)); }
+.btn-ghost-accent:hover { background: var(--gradient-soft-strong); border-color: var(--g2); }
 .btn:focus-visible { outline: 2px solid var(--g2); outline-offset: 3px; }
 .btn-arrow { display: inline-flex; transition: transform 0.25s var(--ease-standard); }
 .btn:hover .btn-arrow { transform: translateX(4px); }
@@ -272,24 +275,25 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 @keyframes drift3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-25px, 25px); } }
 
 /* ---- Hero visual: abstract silhouette + capability network ---- */
-.hero-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 360px; pointer-events: none; }
-.hero-visual svg { width: 100%; max-width: 360px; height: auto; }
-.hero-node-pulse { transform-box: fill-box; transform-origin: center; animation: node-pulse 4s ease-in-out infinite; }
-@keyframes node-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.4); } }
+.hero-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 480px; pointer-events: none; }
+.hero-visual svg { width: 100%; max-width: 520px; height: auto; overflow: visible; }
+.hero-node-pulse { transform-box: fill-box; transform-origin: center; animation: node-pulse 5s ease-in-out infinite; }
+@keyframes node-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.5); } }
 .hero-traveling-dot {
-  offset-path: path("M225 150 C 270 155 305 170 335 190");
-  animation: travel-dot 10s linear infinite;
+  offset-path: path("M271,210 C311,207 345,221 373,245");
+  animation: travel-dot 9s linear infinite;
 }
 @keyframes travel-dot {
   0%   { offset-distance: 0%;   opacity: 0; }
-  5%   { opacity: 1; }
-  95%  { opacity: 1; }
+  6%   { opacity: 1; }
+  94%  { opacity: 1; }
   100% { offset-distance: 100%; opacity: 0; }
 }
 @media (max-width: 720px) {
   .hero-visual { min-height: 0; }
-  .hero-visual svg { width: 220px; }
+  .hero-visual svg { width: 260px; }
   .hero-traveling-dot, .hero-node-pulse { animation: none; opacity: 0.6; }
+  .hero-branch-sub, .hero-mesh { display: none; }
 }
 
 /* ---- Footer ---- */
