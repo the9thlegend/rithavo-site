@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Free Demo — Career Intelligence</title>
+<meta name="description" content="A free, fictional demonstration of Rithavo Career Intelligence — the same real assessment engine, shown with a synthetic example profile.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='f' x1='0' y1='1' x2='1' y2='0'><stop offset='0%' stop-color='%234b3bd4'/><stop offset='52%' stop-color='%23a24bd6'/><stop offset='100%' stop-color='%23f2734a'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(%23f)'/><path d='M22 16 L40 32 L22 48' fill='none' stroke='%23faf9f6' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<style>
+  .band { display:inline-flex; align-items:center; padding:4px 12px; border-radius:var(--r-pill); font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; font-weight:700; }
+  .band-strong, .band-ready { background:var(--strong-tint); color:var(--strong); }
+  .band-moderate, .band-nearly { background:var(--mid-tint); color:var(--mid); }
+  .band-limited, .band-weak, .band-insufficient, .band-major { background:var(--weak-tint); color:var(--weak); }
+  .demo-section { padding-top:48px; padding-bottom:48px; }
+  .demo-num { font-family:var(--font-mono); color:var(--ink-faint); font-size:0.78rem; }
+  .why-box { margin-top:14px; padding:16px 18px; border-left:2px solid var(--line-strong); background:var(--surface-muted); border-radius:0 var(--r-md) var(--r-md) 0; }
+  .why-box .why-label { font-family:var(--font-mono); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-faint); margin-bottom:6px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="markGradSoft" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="var(--g1)"/>
+      <stop offset="100%" stop-color="var(--g2)"/>
+    </linearGradient>
+    <linearGradient id="markGrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="var(--g2)"/>
+      <stop offset="100%" stop-color="var(--g3)"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<nav class="site">
+  <div class="wrap inner">
+    <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5 L12.5 12 L4 19" fill="none" stroke="url(#markGradSoft)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/><path d="M11 4 L21 12 L11 20" fill="none" stroke="url(#markGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rithavo</span></a>
+    <ul class="navlinks">
+      <li><a href="/career/">Career</a></li>
+      <li><a href="/systems/">Systems</a></li>
+      <li><a href="/growth/">Growth</a></li>
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
+    <a class="btn btn-primary" href="https://tally.so/r/XxPDAd?landing_page=/career/career-intelligence/demo&cta_source=nav" style="padding:10px 20px; font-size:0.85rem;">Get my own — ₹499</a>
+  </div>
+</nav>
+
+<!-- Demo banner -->
+<div style="background:var(--mid-tint); border-bottom:1px solid var(--line); text-align:center; padding:12px 20px;">
+  <span class="mono" style="color:var(--mid); font-weight:700; letter-spacing:0.04em; font-size:0.85rem;">DEMO MODE — fictional example, not a real career assessment</span>
+</div>
+
+<!-- Hero -->
+<section style="padding-top:56px; padding-bottom:40px;">
+  <div class="wrap">
+    <span class="label reveal">Free demo · Career Intelligence</span>
+    <h1 class="h1 mt-16 reveal reveal-delay-1">This is the real product —<br>with a <span class="grad-text">fictional</span> profile.</h1>
+    <p class="lede mt-24 reveal reveal-delay-2">Every section below is real output from Rithavo's actual Career Intelligence engine — the same fit, gap, recommendation, and readiness logic a paying customer gets. The only thing that's fictional is the person: "Alex Rivera" is a synthetic example, not a real customer.</p>
+  </div>
+</section>
+
+<!-- 01 Career Snapshot -->
+<section class="demo-section">
+  <div class="wrap">
+    <span class="demo-num">01 · CAREER SNAPSHOT</span>
+    <h2 class="h2 mt-8">Where you are, at a glance</h2>
+    <div class="card mt-24" style="padding:28px;">
+      <div class="grid-3" style="gap:20px;">
+        <div><span class="label">Current role</span><p style="font-weight:600; margin-top:4px;">IT Sales Manager</p></div>
+        <div><span class="label">Industry</span><p style="font-weight:600; margin-top:4px;">Information Technology</p></div>
+        <div><span class="label">Target</span><p style="font-weight:600; margin-top:4px;">IT Sales</p></div>
+      </div>
+      <div style="margin-top:16px;"><span class="label">Overall readiness</span> <span class="band band-ready" style="margin-left:8px;">Ready</span> <span class="body-md" style="font-size:0.82rem; color:var(--ink-faint);">Confidence: High</span></div>
+      <p class="body-md mt-16" style="font-size:0.88rem;">Strongest demonstrated: Client-facing communication, Quota/pipeline ownership, Stakeholder management</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 Where You Stand -->
+<section class="demo-section" style="background:var(--surface-muted);">
+  <div class="wrap">
+    <span class="demo-num">02 · WHERE YOU STAND</span>
+    <h2 class="h2 mt-8">Your profile diagnosis</h2>
+    <div class="card mt-24" style="padding:28px;">
+      <div class="row gap-24" style="flex-wrap:wrap;">
+        <div><span class="label">Current fit</span><div class="mt-8"><span class="band band-strong">Strong</span></div></div>
+        <div><span class="label">Transferable fit</span><div class="mt-8"><span class="band band-strong">Strong</span></div></div>
+        <div><span class="label">Transition effort</span><div class="mt-8"><span class="band band-strong">Low Friction</span></div></div>
+      </div>
+      <p class="body-md mt-16" style="font-size:0.9rem;">Current fit is Strong, transferable fit is Strong, and transition effort looks Low Friction. Supported by: Client-facing communication; Quota/pipeline ownership; Stakeholder management. Confidence: High.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 03 Where You Can Go + Stay vs Transition -->
+<section class="demo-section">
+  <div class="wrap">
+    <span class="demo-num">03 · WHERE YOU CAN GO</span>
+    <h2 class="h2 mt-8">Your options</h2>
+    <p class="body-md mt-8" style="font-size:0.88rem; color:var(--ink-faint);">Rithavo separates roles worth exploring from industries worth exploring — it does not further distinguish "near-term" from "adjacent" from "industry transition" within those; that finer distinction isn't something the current engine can support, so it isn't invented here.</p>
+
+    <div class="card mt-24" style="padding:20px 24px; border-color:var(--line-strong);"><strong>IT Sales</strong> <span class="pill pill-live" style="margin-left:8px;">Your chosen direction</span></div>
+
+    <div class="grid-2 mt-24" style="gap:20px;">
+      <div class="card" style="padding:24px;">
+        <strong>AI Sales / Solutions</strong> <span class="label" style="color:var(--ink-faint);">Rithavo discovery</span>
+        <div class="mt-8"><span class="band band-moderate">Moderate</span> <span class="body-md" style="font-size:0.8rem;">Confidence: Medium</span></div>
+        <div class="why-box"><div class="why-label">Why Rithavo identified this direction</div><p class="body-md" style="font-size:0.86rem;">Current fit is Moderate, transferable fit is Moderate, and transition effort looks Moderate Friction. Supported by: Client-facing communication. What appears to be missing: Translating technical capability into business value; AI/ML product literacy. Confidence: Medium.</p></div>
+      </div>
+      <div class="card" style="padding:24px;">
+        <strong>Training &amp; Quality Specialist</strong> <span class="label" style="color:var(--ink-faint);">Rithavo discovery</span>
+        <div class="mt-8"><span class="band band-moderate">Moderate</span> <span class="body-md" style="font-size:0.8rem;">Confidence: Medium</span></div>
+        <div class="why-box"><div class="why-label">Why Rithavo identified this direction</div><p class="body-md" style="font-size:0.86rem;">Current fit is Not a Realistic Fit, transferable fit is Moderate, and transition effort looks Major Transition. What appears to be missing: Instructional design / training methodology; Process improvement. The mismatch here runs in the direction of missing capability/experience, not excess. Confidence: Medium.</p></div>
+      </div>
+    </div>
+
+    <div class="section-label mt-32" style="font-weight:600;">Stay or transition — what the evidence shows</div>
+    <p class="body-md mt-8" style="font-size:0.85rem; color:var(--ink-faint);">Both options below describe what the evidence currently shows — neither is a prediction of what will be achieved.</p>
+    <div class="grid-2 mt-16" style="gap:20px;">
+      <div class="card" style="padding:24px;">
+        <span class="label">Option 1 · Continue toward IT Sales</span>
+        <p class="body-md mt-8" style="font-size:0.85rem;">Current role on file: IT Sales Manager · Information Technology</p>
+        <div class="mt-8"><span class="band band-strong">Strong</span> <span class="body-md" style="font-size:0.8rem;">Confidence: High</span></div>
+        <p class="body-md mt-12" style="font-size:0.86rem;">The evidence shows: current fit Strong, transferable fit Strong, transition effort Low Friction.</p>
+      </div>
+      <div class="card" style="padding:24px;">
+        <span class="label">Option 2 · Transition toward AI Sales / Solutions</span>
+        <div class="mt-8"><span class="band band-moderate">Moderate transferable</span> <span class="band band-moderate">Moderate friction</span></div>
+        <p class="body-md mt-12" style="font-size:0.86rem;">This transition would require: current fit Moderate, transferable fit Moderate. Supported by Client-facing communication; missing Translating technical capability into business value and AI/ML product literacy.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 + 05 + 06: the stretch-target view (AI Sales / Solutions) -->
+<section class="demo-section" style="background:var(--surface-muted);">
+  <div class="wrap">
+    <span class="label reveal">Analyzing a real stretch target</span>
+    <h2 class="h2 mt-16 reveal">Same profile, a harder target: AI Sales / Solutions</h2>
+    <p class="body-md mt-8" style="font-size:0.88rem;">This is what the same engine shows for the same person when the target is a genuine stretch rather than a strong match — real gaps, real recommendations, real (lower) readiness.</p>
+
+    <div class="mt-32">
+      <span class="demo-num">04 · WHAT'S HOLDING YOU BACK</span>
+      <h3 class="h3 mt-8">Gaps, classified and explained</h3>
+      <div class="grid-2 mt-16" style="gap:16px;">
+        <div class="card" style="padding:20px;"><strong>Translating technical capability into business value</strong> <span class="band band-moderate" style="margin-left:6px;">Significant</span><div class="body-md mt-8" style="font-size:0.82rem; color:var(--ink-faint);">Type: Information Gap</div></div>
+        <div class="card" style="padding:20px;"><strong>AI/ML product literacy</strong> <span class="band band-moderate" style="margin-left:6px;">Significant</span><div class="body-md mt-8" style="font-size:0.82rem; color:var(--ink-faint);">Type: Information Gap</div></div>
+      </div>
+    </div>
+
+    <div class="mt-32">
+      <span class="demo-num">05 · WHAT RITHAVO RECOMMENDS</span>
+      <h3 class="h3 mt-8">Recommendations, with the reasoning behind them</h3>
+      <div class="card mt-16" style="padding:22px;">
+        <strong>Gather Information</strong> <span class="label" style="color:var(--ink-faint);">for: Translating technical capability into business value</span>
+        <div class="why-box"><div class="why-label">Why this is recommended</div><p class="body-md" style="font-size:0.86rem;">Rithavo doesn't have enough information to say whether this is actually a gap — the honest next step is finding out, not guessing.</p><p class="body-md mt-8" style="font-size:0.82rem;"><strong>Expected outcome:</strong> enough information to determine whether this is a real gap at all. <strong>Confidence:</strong> High.</p></div>
+      </div>
+    </div>
+
+    <div class="mt-32">
+      <span class="demo-num">06 · YOUR ACTION PLAN</span>
+      <h3 class="h3 mt-8">What to do next, in order</h3>
+      <ol class="body-md mt-16" style="padding-left:20px;">
+        <li>Gather Information — Translating technical capability into business value <span class="label" style="color:var(--ink-faint);">Pending</span></li>
+        <li>Gather Information — AI/ML product literacy <span class="label" style="color:var(--ink-faint);">Pending</span></li>
+      </ol>
+    </div>
+
+    <div class="mt-32">
+      <span class="demo-num">READINESS</span>
+      <h3 class="h3 mt-8">Plain-language readiness, not a score</h3>
+      <div class="card mt-16" style="padding:22px; text-align:center;">
+        <span class="band band-insufficient" style="font-size:0.85rem; padding:8px 20px;">Insufficient Information</span>
+        <p class="body-md mt-16" style="font-size:0.86rem; text-align:left;">Missing information is never read as low ability — Rithavo says plainly when it doesn't yet know enough to judge readiness, rather than guessing a band.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 Professional Positioning -->
+<section class="demo-section">
+  <div class="wrap">
+    <span class="demo-num">07 · PROFESSIONAL POSITIONING</span>
+    <h2 class="h2 mt-8">How to position your experience</h2>
+    <div class="card mt-24" style="padding:28px;">
+      <p class="body-md">Based on this diagnosis, the strongest positioning leads with what's actually demonstrated — Client-facing communication, Quota/pipeline ownership, Stakeholder management — rather than job title alone.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08 Methodology (condensed, same language as the real report) -->
+<section class="demo-section" style="background:var(--surface-muted);">
+  <div class="wrap">
+    <span class="label reveal">Assessment methodology</span>
+    <h2 class="h2 mt-16 reveal">How this was built — no invented step</h2>
+    <div class="card mt-24" style="padding:24px;">
+      <p class="body-md" style="font-size:0.9rem;">This diagnosis is built from information supplied directly, verbatim evidence extracted from it, the capabilities that evidence supports, and Rithavo's curated role and industry requirements — never by searching the internet, and never by an AI model asked to "just judge" a resume.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 09 Career Paths / Role Explorer -->
+<section class="demo-section">
+  <div class="wrap">
+    <span class="demo-num">09 · CAREER PATHS &amp; ROLE EXPLORER</span>
+    <h2 class="h2 mt-8">AI Sales / Solutions — what this role requires</h2>
+    <p class="body-md mt-8" style="font-size:0.88rem;">Selling AI-driven products/solutions, translating technical capability into business value.</p>
+    <div class="stack mt-24" style="gap:12px;">
+      <div class="card" style="padding:18px 22px;"><strong>Client-facing communication</strong> <span class="pill pill-live" style="margin-left:8px;">Core</span> <span class="label" style="margin-left:8px;">Skill</span></div>
+      <div class="card" style="padding:18px 22px;"><strong>Translating technical capability into business value</strong> <span class="pill pill-soon" style="margin-left:8px;">Important</span> <span class="label" style="margin-left:8px;">Skill</span></div>
+      <div class="card" style="padding:18px 22px;"><strong>AI/ML product literacy</strong> <span class="pill pill-soon" style="margin-left:8px;">Important</span> <span class="label" style="margin-left:8px;">Knowledge</span></div>
+    </div>
+    <div class="card mt-24" style="padding:20px; background:var(--surface-muted); border-style:dashed;">
+      <span class="label">Coming in the Knowledge Bank phase</span>
+      <p class="body-md mt-8" style="font-size:0.85rem;">Example job descriptions, interview questions, and expert resources aren't part of Rithavo yet — when added, every one will be individually curated and verified, never fabricated or scraped.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 + 11 Resume + DOCX -->
+<section class="demo-section" style="background:var(--surface-muted);">
+  <div class="wrap">
+    <span class="demo-num">10 · RECOMMENDED RESUME</span>
+    <h2 class="h2 mt-8">Alex Rivera (Demo Profile)</h2>
+    <p class="body-md" style="font-size:0.88rem;">IT Sales Manager exploring a move into AI</p>
+    <div class="card mt-24" style="padding:28px;">
+      <span class="label">Summary</span>
+      <p class="body-md mt-8">IT Sales Manager exploring a move into AI — in Information Technology — positioning toward IT Sales</p>
+      <div class="section-label mt-24" style="font-weight:600;">Professional Experience</div>
+      <ul class="body-md mt-8" style="padding-left:20px;">
+        <li>Current role: IT Sales Manager</li>
+        <li>Account Executive</li>
+        <li>Sales Development Rep</li>
+      </ul>
+      <p class="body-md mt-8" style="font-size:0.82rem; font-style:italic; color:var(--ink-faint);">Each previous role is shown exactly as entered — Rithavo does not infer, pair, or date anything on the customer's behalf.</p>
+      <div class="section-label mt-24" style="font-weight:600;">Demonstrated Capabilities</div>
+      <ul class="body-md mt-8" style="padding-left:20px;">
+        <li>Client-facing communication (High)</li>
+        <li>Quota/pipeline ownership (High)</li>
+        <li>Stakeholder management (High)</li>
+      </ul>
+      <div class="section-label mt-24" style="font-weight:600;">Additional Skills (self-reported, not yet evidence-backed)</div>
+      <ul class="body-md mt-8" style="padding-left:20px;"><li>Leadership</li></ul>
+    </div>
+
+    <span class="demo-num" style="display:block; margin-top:32px;">11 · DOWNLOAD</span>
+    <h3 class="h3 mt-8">See the actual DOCX this produces</h3>
+    <p class="body-md mt-8" style="font-size:0.88rem;">This is the real file Rithavo's DOCX engine generated for this exact demo profile — not a mockup. ATS-friendly by construction: plain headings and bullet lists, no tables, no images.</p>
+    <div class="cta-row mt-16">
+      <a class="btn btn-primary" href="/career/career-intelligence/demo/rithavo-demo-recommended-resume.docx" download>Download example DOCX</a>
+    </div>
+  </div>
+</section>
+
+<section class="center">
+  <div class="wrap">
+    <h2 class="h1 reveal">This was a fictional example.<br>Your real assessment is next.</h2>
+    <div class="row gap-16 mt-40 reveal reveal-delay-1" style="justify-content:center;">
+      <a class="btn btn-primary" href="https://tally.so/r/XxPDAd?landing_page=/career/career-intelligence/demo&cta_source=final">Get My Career Intelligence Assessment — ₹499</a>
+      <a class="btn btn-ghost" href="/career/career-intelligence/">Back to Career Intelligence</a>
+    </div>
+  </div>
+</section>
+
+<footer id="about" class="site">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5 L12.5 12 L4 19" fill="none" stroke="url(#markGradSoft)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/><path d="M11 4 L21 12 L11 20" fill="none" stroke="url(#markGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rithavo</span></a>
+        <p class="foot-note">Digital products and services designed to help people and businesses take their next step.</p>
+      </div>
+      <ul class="foot-links">
+        <li><a href="/career/">Career</a></li>
+        <li><a href="/systems/">Systems</a></li>
+        <li><a href="/growth/">Growth</a></li>
+        <li><a href="/privacy/">Privacy</a></li>
+        <li><a href="/terms/">Terms</a></li>
+        <li><a href="mailto:hello@rithavo.com">Contact</a></li>
+      </ul>
+    </div>
+    <p class="foot-note">© Rithavo. This page shows a fictional demo profile ("Alex Rivera") for illustration only — not a real customer, not a real assessment, not a guarantee of any outcome.</p>
+  </div>
+</footer>
+
+<script src="/script.js"></script>
+</body>
+</html>
