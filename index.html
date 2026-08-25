@@ -35,7 +35,19 @@
       <li><a href="/#about">About</a></li>
       <li><a href="/#contact">Contact</a></li>
     </ul>
+    <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mobileNav" aria-label="Open menu">
+      <span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span>
+    </button>
     <a class="btn btn-primary" href="/career/" style="padding:10px 20px; font-size:0.85rem;">Start with Career</a>
+  </div>
+  <div class="mobile-nav" id="mobileNav" data-open="false">
+    <ul class="mobile-nav-links">
+      <li><a href="/career/">Career</a></li>
+      <li><a href="/systems/">Systems</a></li>
+      <li><a href="/growth/">Growth</a></li>
+      <li><a href="/#about">About</a></li>
+      <li><a href="/#contact">Contact</a></li>
+    </ul>
   </div>
 </nav>
 
@@ -47,12 +59,36 @@
     <div class="blob blob-3"></div>
   </div>
   <div class="wrap">
-    <span class="label reveal">Rithavo</span>
-    <h1 class="display mt-16 reveal reveal-delay-1">Move <span class="grad-text">forward.</span></h1>
-    <p class="lede mt-24 reveal reveal-delay-2">Digital products and services designed to help people and businesses take their next step — starting with a sharper look at where you stand today.</p>
-    <div class="row gap-16 mt-40 reveal reveal-delay-3">
-      <a class="btn btn-primary" href="/career/">Start with Career</a>
-      <a class="btn btn-ghost" href="#ecosystem">See the ecosystem</a>
+    <div class="grid-2" style="align-items:center;">
+      <div>
+        <span class="label reveal">Rithavo</span>
+        <h1 class="display mt-16 reveal reveal-delay-1">Move <span class="grad-text">forward.</span></h1>
+        <p class="lede mt-24 reveal reveal-delay-2">Digital products and services designed to help people and businesses take their next step — starting with a sharper look at where you stand today.</p>
+        <div class="row gap-16 mt-40 reveal reveal-delay-3">
+          <a class="btn btn-primary" href="/career/">Start with Career<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+          <a class="btn btn-ghost" href="#ecosystem">See the ecosystem</a>
+        </div>
+      </div>
+      <div class="hero-visual reveal reveal-delay-2" aria-hidden="true">
+        <svg viewBox="0 0 360 360" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="heroLineG1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--g1)"/><stop offset="100%" stop-color="var(--g2)"/></linearGradient>
+            <linearGradient id="heroLineG2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--g2)"/><stop offset="100%" stop-color="var(--g3)"/></linearGradient>
+            <linearGradient id="heroLineG3" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="var(--g1)"/><stop offset="100%" stop-color="var(--g3)"/></linearGradient>
+          </defs>
+          <circle cx="180" cy="130" r="42" fill="none" stroke="var(--ink-faint)" stroke-width="1.8"/>
+          <path d="M96 300 C96 230 132 188 180 188 C228 188 264 230 264 300" fill="none" stroke="var(--ink-faint)" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M210 120 C 260 100 300 80 330 60" fill="none" stroke="url(#heroLineG1)" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+          <path d="M225 150 C 270 155 305 170 335 190" fill="none" stroke="url(#heroLineG2)" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
+          <path d="M150 115 C 105 90 65 75 30 65" fill="none" stroke="url(#heroLineG3)" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+          <path d="M140 165 C 95 175 60 195 25 220" fill="none" stroke="url(#heroLineG1)" stroke-width="1.4" stroke-linecap="round" opacity="0.5"/>
+          <circle cx="330" cy="60" r="4" fill="var(--g1)"/>
+          <circle cx="335" cy="190" r="4" fill="var(--g2)"/>
+          <circle cx="30" cy="65" r="4" class="hero-node-pulse" fill="var(--g3)"/>
+          <circle cx="25" cy="220" r="4" fill="var(--g1)"/>
+          <circle class="hero-traveling-dot" cx="225" cy="150" r="3" fill="var(--g2)"/>
+        </svg>
+      </div>
     </div>
   </div>
 </section>
@@ -61,23 +97,23 @@
 <section class="problem">
   <div class="wrap-narrow">
     <span class="label reveal">The gap</span>
-    <h2 class="h1 mt-16 reveal">Applying isn't the same<br>as being <span class="grad-text">positioned.</span></h2>
-    <p class="lede mt-24 reveal reveal-delay-1">Most effort goes into doing the work. Very little goes into showing it clearly, to the right audience, at the right moment. That gap — between what you've done and how it reads to someone deciding fast — is where opportunities quietly disappear.</p>
+    <h2 class="h1 mt-16 reveal reveal-delay-1">Applying isn't the same<br>as being <span class="grad-text">positioned.</span></h2>
+    <p class="lede mt-24 reveal reveal-delay-2">Most effort goes into doing the work. Very little goes into showing it clearly, to the right audience, at the right moment. That gap — between what you've done and how it reads to someone deciding fast — is where opportunities quietly disappear.</p>
   </div>
 </section>
 
 <!-- ============ 3. PHILOSOPHY ============ -->
-<section class="philosophy" style="background:var(--surface-muted);">
+<section class="philosophy section-muted">
   <div class="wrap center">
     <span class="label reveal">How we think about it</span>
-    <div class="row gap-24 mt-40" style="justify-content:center; flex-wrap:wrap;">
-      <h2 class="h1 reveal">Understand</h2>
-      <span class="h1 reveal reveal-delay-1" style="color:var(--ink-faint); font-weight:400;">→</span>
-      <h2 class="h1 reveal reveal-delay-1">Improve</h2>
-      <span class="h1 reveal reveal-delay-2" style="color:var(--ink-faint); font-weight:400;">→</span>
-      <h2 class="h1 reveal reveal-delay-2"><span class="grad-text">Move forward</span></h2>
+    <div class="row gap-24 mt-40 reveal reveal-delay-1" style="justify-content:center; flex-wrap:wrap;">
+      <h2 class="h1">Understand</h2>
+      <span class="h1" style="color:var(--ink-faint); font-weight:400;">→</span>
+      <h2 class="h1">Improve</h2>
+      <span class="h1" style="color:var(--ink-faint); font-weight:400;">→</span>
+      <h2 class="h1"><span class="grad-text">Move forward</span></h2>
     </div>
-    <p class="lede mx-auto mt-40 reveal reveal-delay-3" style="text-align:center;">Every Rithavo product follows the same shape: a clear-eyed look at where things stand, a specific plan to improve it, and a practical next step — never a guess dressed up as advice.</p>
+    <p class="lede mx-auto mt-40 reveal reveal-delay-2">Every Rithavo product follows the same shape: a clear-eyed look at where things stand, a specific plan to improve it, and a practical next step — never a guess dressed up as advice.</p>
   </div>
 </section>
 
@@ -85,12 +121,12 @@
 <section id="ecosystem" class="ecosystem">
   <div class="wrap">
     <span class="label reveal">The ecosystem</span>
-    <h2 class="h1 mt-16 reveal">Three ways forward.</h2>
-    <p class="lede mt-16 reveal reveal-delay-1">One way of working, applied to three different moments — your career, your systems, your business.</p>
+    <h2 class="h1 mt-16 reveal reveal-delay-1">Three ways forward.</h2>
+    <p class="lede mt-16 reveal reveal-delay-2">One way of working, applied to three different moments — your career, your systems, your business.</p>
 
     <div class="grid-3 mt-64">
       <!-- Career -->
-      <div class="card card-hover reveal" style="padding:32px; display:flex; flex-direction:column; gap:16px;">
+      <div class="card card-hover card-body reveal">
         <div class="row" style="justify-content:space-between;">
           <span class="label" style="color:var(--ink);">Career</span>
           <span class="pill pill-live"><span class="pill-dot"></span>Live</span>
@@ -98,7 +134,7 @@
         <h3 class="h3">For people</h3>
         <p class="body-md">Helping professionals position themselves, improve applications, and navigate career transitions.</p>
         <div style="flex:1;"></div>
-        <div style="border-top:1px solid var(--line); padding-top:16px;">
+        <div class="card-meta">
           <span class="label">Live products</span>
           <p style="color:var(--ink); font-weight:600; margin-top:4px;">Application Diagnostic &amp; Career Intelligence — ₹499 each</p>
         </div>
@@ -106,7 +142,7 @@
       </div>
 
       <!-- Systems -->
-      <div class="card card-hover reveal reveal-delay-1" style="padding:32px; display:flex; flex-direction:column; gap:16px;">
+      <div class="card card-hover card-body reveal reveal-delay-1">
         <div class="row" style="justify-content:space-between;">
           <span class="label" style="color:var(--ink);">Systems</span>
           <span class="pill pill-soon"><span class="pill-dot"></span>Coming soon</span>
@@ -114,7 +150,7 @@
         <h3 class="h3">For productivity</h3>
         <p class="body-md">Digital products, templates, and workflows that help people and businesses work better, with less friction.</p>
         <div style="flex:1;"></div>
-        <div style="border-top:1px solid var(--line); padding-top:16px;">
+        <div class="card-meta">
           <span class="label">Status</span>
           <p style="color:var(--ink-faint); margin-top:4px;">In development</p>
         </div>
@@ -122,7 +158,7 @@
       </div>
 
       <!-- Growth -->
-      <div class="card card-hover reveal reveal-delay-2" style="padding:32px; display:flex; flex-direction:column; gap:16px;">
+      <div class="card card-hover card-body reveal reveal-delay-2">
         <div class="row" style="justify-content:space-between;">
           <span class="label" style="color:var(--ink);">Growth</span>
           <span class="pill pill-soon"><span class="pill-dot"></span>Coming soon</span>
@@ -130,7 +166,7 @@
         <h3 class="h3">For businesses</h3>
         <p class="body-md">Acquisition, content, and automation systems built for small and growing businesses.</p>
         <div style="flex:1;"></div>
-        <div style="border-top:1px solid var(--line); padding-top:16px;">
+        <div class="card-meta">
           <span class="label">Status</span>
           <p style="color:var(--ink-faint); margin-top:4px;">In development</p>
         </div>
@@ -153,9 +189,9 @@
 </section>
 
 <!-- ============ 5. APPLICATION DIAGNOSTIC SHOWCASE ============ -->
-<section class="showcase" style="background:var(--surface-muted);">
+<section class="showcase section-muted">
   <div class="wrap">
-    <div class="grid-2" style="align-items:center; gap:60px;">
+    <div class="grid-2 grid-2-gap-lg" style="align-items:center;">
       <div class="reveal">
         <span class="label">Rithavo Career · Application Diagnostic</span>
         <h2 class="h1 mt-16">See exactly where<br>your application <span class="grad-text">stands.</span></h2>
@@ -176,28 +212,28 @@
 
           <div class="stack gap-16">
             <div data-score="72" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>Role Alignment</span><span class="mono" style="font-weight:600;">72</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--mid); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>Role Alignment</span><span class="mono" style="font-weight:600;">72</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
             </div>
             <div data-score="58" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>Achievement Strength</span><span class="mono" style="font-weight:600;">58</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--weak); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>Achievement Strength</span><span class="mono" style="font-weight:600;">58</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-weak"></div></div>
             </div>
             <div data-score="81" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>Keyword Alignment</span><span class="mono" style="font-weight:600;">81</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--strong); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>Keyword Alignment</span><span class="mono" style="font-weight:600;">81</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-strong"></div></div>
             </div>
             <div data-score="61" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>Evidence &amp; Impact</span><span class="mono" style="font-weight:600;">61</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--mid); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>Evidence &amp; Impact</span><span class="mono" style="font-weight:600;">61</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
             </div>
             <div data-score="86" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>ATS Structure</span><span class="mono" style="font-weight:600;">86</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--strong); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>ATS Structure</span><span class="mono" style="font-weight:600;">86</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-strong"></div></div>
             </div>
             <div data-score="74" data-max="100">
-              <div class="row" style="justify-content:space-between; font-size:0.85rem; margin-bottom:6px;"><span>Positioning</span><span class="mono" style="font-weight:600;">74</span></div>
-              <div style="height:6px; background:var(--surface-sunken); border-radius:3px; overflow:hidden;"><div class="sc-fill" style="height:100%; width:0; background:var(--mid); border-radius:3px; transition:width 1.1s cubic-bezier(.2,.8,.2,1);"></div></div>
+              <div class="score-row"><span>Positioning</span><span class="mono" style="font-weight:600;">74</span></div>
+              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
             </div>
           </div>
         </div>
@@ -210,8 +246,8 @@
 <section class="how">
   <div class="wrap">
     <span class="label reveal">How it works</span>
-    <h2 class="h1 mt-16 reveal">Four steps. No guesswork.</h2>
-    <div class="grid-3 mt-64" style="grid-template-columns:repeat(4,1fr);">
+    <h2 class="h1 mt-16 reveal reveal-delay-1">Four steps. No guesswork.</h2>
+    <div class="grid-4 mt-64">
       <div class="reveal">
         <span class="mono" style="color:var(--ink-faint); font-size:0.85rem;">01</span>
         <h3 class="h3 mt-16">Submit</h3>
@@ -237,11 +273,11 @@
 </section>
 
 <!-- ============ 7. WHY RITHAVO ============ -->
-<section class="why" style="background:var(--surface-muted);">
+<section class="why section-muted">
   <div class="wrap">
     <span class="label reveal">Why Rithavo</span>
-    <h2 class="h1 mt-16 reveal">Built to be trusted<br>with something real.</h2>
-    <div class="grid-2 mt-64" style="gap:24px 40px;">
+    <h2 class="h1 mt-16 reveal reveal-delay-1">Built to be trusted<br>with something real.</h2>
+    <div class="grid-2 mt-64">
       <div class="reveal">
         <h3 class="h3">Structured methodology</h3>
         <p class="body-md mt-8">Every score traces back to explicit, written criteria — not a vibe.</p>
@@ -266,8 +302,8 @@
 <section class="future">
   <div class="wrap center">
     <span class="label reveal">What's next</span>
-    <h2 class="h1 mt-16 reveal">Career is the <span class="grad-text">first move.</span></h2>
-    <p class="lede mx-auto mt-24 reveal reveal-delay-1" style="text-align:center;">Systems and Growth are built on the same foundation — understand, improve, move forward — applied next to how you work, and how your business finds its customers.</p>
+    <h2 class="h1 mt-16 reveal reveal-delay-1">Career is the <span class="grad-text">first move.</span></h2>
+    <p class="lede mx-auto mt-24 reveal reveal-delay-2">Systems and Growth are built on the same foundation — understand, improve, move forward — applied next to how you work, and how your business finds its customers.</p>
   </div>
 </section>
 
@@ -281,7 +317,7 @@
     <span class="label reveal">Start here</span>
     <h2 class="display mt-16 reveal reveal-delay-1">Start with your <span class="grad-text">next move.</span></h2>
     <div class="row gap-16 mt-40 reveal reveal-delay-2" style="justify-content:center;">
-      <a class="btn btn-primary" href="/career/application-diagnostic/">Start your diagnostic</a>
+      <a class="btn btn-primary" href="/career/#products">Explore Career<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
     </div>
   </div>
 </section>

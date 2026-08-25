@@ -73,6 +73,36 @@
       a.setAttribute("aria-current", "page");
     }
   });
+
+  // Mobile nav toggle
+  var navToggle = document.getElementById("navToggle");
+  var mobileNav = document.getElementById("mobileNav");
+  if (navToggle && mobileNav) {
+    function closeMobileNav() {
+      navToggle.setAttribute("aria-expanded", "false");
+      mobileNav.setAttribute("data-open", "false");
+    }
+    function openMobileNav() {
+      navToggle.setAttribute("aria-expanded", "true");
+      mobileNav.setAttribute("data-open", "true");
+    }
+    navToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var isOpen = mobileNav.getAttribute("data-open") === "true";
+      isOpen ? closeMobileNav() : openMobileNav();
+    });
+    mobileNav.querySelectorAll("a").forEach(function (a) {
+      a.addEventListener("click", closeMobileNav);
+    });
+    document.addEventListener("click", function (e) {
+      if (mobileNav.getAttribute("data-open") === "true" && !mobileNav.contains(e.target) && e.target !== navToggle) {
+        closeMobileNav();
+      }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeMobileNav();
+    });
+  }
 })();
 
 // Attribution passthrough for diagnostic CTAs
