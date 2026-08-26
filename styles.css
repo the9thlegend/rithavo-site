@@ -175,8 +175,6 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .wordmark .mark { width: 21px; height: 21px; flex-shrink: 0; transition: transform 0.3s var(--ease-standard); }
 .wordmark:hover .mark { transform: translateX(2px); }
 .navlinks { display: flex; gap: 30px; list-style: none; margin: 0; padding: 0; }
-.navlinks a { text-decoration: none; font-size: 0.9rem; color: var(--ink-soft); font-weight: 500; transition: color 0.2s ease; }
-.navlinks a:hover, .navlinks a[aria-current="page"] { color: var(--ink); }
 @media (max-width: 720px) { .navlinks { display: none; } }
 
 /* Secondary header CTA — "Create your Rithavo Card." Desktop only; the
@@ -196,22 +194,22 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .mobile-nav { display: none; border-top: 1px solid var(--line); background: var(--bg); }
 .mobile-nav[data-open="true"] { display: block; }
 .mobile-nav-links { list-style: none; margin: 0; padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 4px; }
-.mobile-nav-links a { display: block; padding: 12px 8px; font-size: 0.95rem; font-weight: 500; color: var(--ink-soft); text-decoration: none; border-radius: var(--r-sm); transition: color 0.2s ease, background 0.2s ease; }
-.mobile-nav-links a:hover, .mobile-nav-links a[aria-current="page"] { color: var(--ink); background: var(--surface-muted); }
 @media (min-width: 721px) { .mobile-nav { display: none !important; } }
 
 /* "Learn Products" — groups Career Intelligence + Application Diagnostic
    under one nav entry instead of two more top-level links. Native
    <details>/<summary>, no JS: click-to-toggle works identically on desktop
-   and mobile, so the same markup pattern serves both .navlinks (floating
-   panel) and .mobile-nav-links (inline indented list). */
+   and mobile. The summary label is folded into the exact same selectors as
+   the plain nav links (.navlinks a / .mobile-nav-links a) below so it is
+   byte-identical typography, not a matching copy — and carries no visible
+   marker/arrow of any kind; the only interaction affordance is the pointer
+   cursor and a non-visual aria-haspopup hint. */
 .nav-dropdown { position: relative; }
-.nav-dropdown > summary { cursor: pointer; list-style: none; }
-.nav-dropdown > summary::-webkit-details-marker { display: none; }
-.nav-dropdown > summary::after { content: "\25BE"; display: inline-block; margin-left: 4px; font-size: 0.65em; opacity: 0.6; transition: transform 0.2s ease; }
-.nav-dropdown[open] > summary::after { transform: rotate(180deg); }
-.navlinks .nav-dropdown > summary { font-size: 0.9rem; color: var(--ink-soft); font-weight: 500; transition: color 0.2s ease; }
-.navlinks .nav-dropdown > summary:hover { color: var(--ink); }
+.nav-dropdown summary { cursor: pointer; display: block; list-style: none; list-style-type: none; }
+.nav-dropdown summary::-webkit-details-marker { display: none; }
+.nav-dropdown summary::marker { content: none; }
+.navlinks a, .navlinks .nav-dropdown summary { text-decoration: none; font-size: 0.9rem; color: var(--ink-soft); font-weight: 500; transition: color 0.2s ease; }
+.navlinks a:hover, .navlinks a[aria-current="page"], .navlinks .nav-dropdown summary:hover { color: var(--ink); }
 .navlinks .nav-dropdown-panel {
   position: absolute; top: calc(100% + 14px); left: 50%; transform: translateX(-50%);
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -220,7 +218,8 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 }
 .nav-dropdown-panel a { display: block; padding: 10px 14px; border-radius: var(--r-sm); color: var(--ink-soft); font-size: 0.88rem; text-decoration: none; transition: color 0.2s ease, background 0.2s ease; }
 .nav-dropdown-panel a:hover { background: var(--surface-muted); color: var(--ink); }
-.mobile-nav-links .nav-dropdown > summary { padding: 12px 8px; font-size: 0.95rem; font-weight: 500; color: var(--ink-soft); border-radius: var(--r-sm); }
+.mobile-nav-links a, .mobile-nav-links .nav-dropdown summary { display: block; padding: 12px 8px; font-size: 0.95rem; font-weight: 500; color: var(--ink-soft); text-decoration: none; border-radius: var(--r-sm); transition: color 0.2s ease, background 0.2s ease; }
+.mobile-nav-links a:hover, .mobile-nav-links a[aria-current="page"], .mobile-nav-links .nav-dropdown summary:hover { color: var(--ink); background: var(--surface-muted); }
 .mobile-nav-links .nav-dropdown-panel { position: static; transform: none; border: none; box-shadow: none; background: none; padding: 2px 0 4px 16px; margin: 0; }
 .mobile-nav-links .nav-dropdown-panel a { padding: 10px 8px; font-size: 0.9rem; }
 
