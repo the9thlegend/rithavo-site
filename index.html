@@ -60,7 +60,7 @@
   </div>
   <div class="wrap">
     <div class="grid-2" style="align-items:center;">
-      <div>
+      <div class="hero-copy">
         <span class="label reveal">Rithavo</span>
         <h1 class="display mt-16 reveal reveal-delay-1">Move <span class="grad-text">forward.</span></h1>
         <p class="lede mt-24 reveal reveal-delay-2">Digital products and services designed to help people and businesses take their next step — starting with a sharper look at where you stand today.</p>
@@ -70,99 +70,7 @@
         </div>
       </div>
       <div class="hero-visual reveal reveal-delay-2" aria-hidden="true">
-        <svg viewBox="0 0 480 560" role="img" aria-hidden="true">
-          <defs>
-            <linearGradient id="hvisFlow1" gradientUnits="userSpaceOnUse" x1="160" y1="205" x2="452" y2="138">
-              <stop offset="0%" stop-color="var(--g1)" stop-opacity="0.55"/>
-              <stop offset="40%" stop-color="var(--ink-faint)" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="var(--g2)" stop-opacity="0.9"/>
-            </linearGradient>
-            <linearGradient id="hvisFlow2" gradientUnits="userSpaceOnUse" x1="358" y1="265" x2="456" y2="322">
-              <stop offset="0%" stop-color="var(--g3)" stop-opacity="0.45"/>
-              <stop offset="42%" stop-color="var(--ink-faint)" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="var(--g3)" stop-opacity="0.65"/>
-            </linearGradient>
-            <linearGradient id="hvisFlow3" gradientUnits="userSpaceOnUse" x1="175" y1="430" x2="318" y2="476">
-              <stop offset="0%" stop-color="var(--g2)" stop-opacity="0.4"/>
-              <stop offset="45%" stop-color="var(--ink-faint)" stop-opacity="0.25"/>
-              <stop offset="100%" stop-color="var(--g1)" stop-opacity="0.5"/>
-            </linearGradient>
-            <radialGradient id="hvisProfileGlow" cx="50%" cy="42%" r="60%">
-              <stop offset="0%" stop-color="var(--g2)" stop-opacity="0.28"/>
-              <stop offset="100%" stop-color="var(--g2)" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
-
-          <!-- Background field: two faint arc fragments suggesting a larger system, not a network -->
-          <path class="hvis-arc hvis-arc-1" d="M20,460 A320,320 0 0 1 400,120" fill="none" stroke="var(--line-strong)" stroke-width="1"/>
-          <path class="hvis-arc hvis-arc-2" d="M60,60 A300,300 0 0 1 420,300" fill="none" stroke="var(--g2)" stroke-width="1"/>
-
-          <!-- One continuous flow per branch: evidence chip -> (behind the profile panel) -> capability -> direction.
-               Each branch is two path segments sharing one gradient in real coordinate space, so the colour
-               continues unbroken even though the panel visually sits over the middle of the line. -->
-          <path class="hvis-path" d="M160,205 C200,200 230,205 255,215 C285,228 310,235 330,235" fill="none" stroke="url(#hvisFlow1)" stroke-width="1.8" stroke-linecap="round"/>
-          <path class="hvis-path" d="M330,235 C378,205 415,175 452,138" fill="none" stroke="url(#hvisFlow1)" stroke-width="2.4" stroke-linecap="round"/>
-
-          <path class="hvis-path" d="M358,265 C325,271 290,280 260,288 C283,295 305,298 330,300" fill="none" stroke="url(#hvisFlow2)" stroke-width="1.4" stroke-linecap="round"/>
-          <path class="hvis-path" d="M330,300 C378,308 415,315 456,322" fill="none" stroke="url(#hvisFlow2)" stroke-width="1.7" stroke-linecap="round"/>
-
-          <path class="hvis-path hvis-path-faint" d="M175,430 C198,423 220,417 240,412 C246,411 250,410 255,410" fill="none" stroke="url(#hvisFlow3)" stroke-width="1.1" stroke-linecap="round"/>
-          <path class="hvis-path hvis-path-faint" d="M255,410 C278,432 298,452 318,476" fill="none" stroke="url(#hvisFlow3)" stroke-width="1.3" stroke-linecap="round"/>
-
-          <!-- Capabilities — the quiet, inferred middle stage, sitting just past the panel's edge where each flow re-emerges -->
-          <g class="hvis-capability" transform="translate(354,226) rotate(-20)">
-            <rect x="-15" y="-6.5" width="30" height="13" rx="6.5" fill="var(--ink-faint)" fill-opacity="0.16" stroke="var(--ink-faint)" stroke-opacity="0.45" stroke-width="1"/>
-          </g>
-          <g class="hvis-capability" transform="translate(354,301) rotate(4)">
-            <rect x="-13" y="-5.5" width="26" height="11" rx="5.5" fill="var(--ink-faint)" fill-opacity="0.16" stroke="var(--ink-faint)" stroke-opacity="0.45" stroke-width="1"/>
-          </g>
-          <g class="hvis-capability hvis-marker-faint" transform="translate(256,435) rotate(35)">
-            <rect x="-11" y="-5" width="22" height="10" rx="5" fill="var(--ink-faint)" fill-opacity="0.14" stroke="var(--ink-faint)" stroke-opacity="0.35" stroke-width="1"/>
-          </g>
-
-          <!-- Central object: the career profile panel — an asymmetric editorial tonal wash, not an avatar card -->
-          <rect x="150" y="175" width="190" height="250" rx="22" fill="var(--surface)" fill-opacity="0.55" stroke="var(--line-strong)" stroke-width="1.2"/>
-          <ellipse cx="215" cy="228" rx="88" ry="58" fill="url(#hvisProfileGlow)" transform="rotate(-12 215 228)"/>
-          <path d="M187,344 C212,336 248,336 274,347" fill="none" stroke="var(--ink-faint)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
-          <line x1="187" y1="378" x2="303" y2="378" stroke="var(--line-strong)" stroke-width="1" opacity="0.4"/>
-          <rect x="187" y="391" width="30" height="4" rx="2" fill="var(--ink-faint)" opacity="0.3"/>
-
-          <!-- Evidence fragments — small scattered cards feeding the profile -->
-          <g class="hvis-chip hvis-chip-float" transform="rotate(-8 160 205)">
-            <rect x="128" y="189" width="64" height="32" rx="8" fill="var(--surface)" fill-opacity="0.85" stroke="var(--line-strong)" stroke-width="1"/>
-            <circle cx="140" cy="205" r="3" fill="var(--g1)"/>
-            <rect x="150" y="201" width="32" height="4" rx="2" fill="var(--ink-faint)" opacity="0.6"/>
-            <rect x="150" y="209" width="20" height="3" rx="1.5" fill="var(--ink-faint)" opacity="0.35"/>
-          </g>
-          <g class="hvis-chip" transform="rotate(5 358 265)">
-            <rect x="326" y="249" width="64" height="32" rx="8" fill="var(--surface)" fill-opacity="0.85" stroke="var(--line-strong)" stroke-width="1"/>
-            <circle cx="338" cy="265" r="3" fill="var(--g3)"/>
-            <rect x="348" y="261" width="32" height="4" rx="2" fill="var(--ink-faint)" opacity="0.6"/>
-            <rect x="348" y="269" width="20" height="3" rx="1.5" fill="var(--ink-faint)" opacity="0.35"/>
-          </g>
-          <g class="hvis-chip hvis-chip-3" transform="rotate(-4 175 430)">
-            <rect x="143" y="414" width="64" height="32" rx="8" fill="var(--surface)" fill-opacity="0.85" stroke="var(--line-strong)" stroke-width="1"/>
-            <circle cx="155" cy="430" r="3" fill="var(--g2)"/>
-            <rect x="165" y="426" width="32" height="4" rx="2" fill="var(--ink-faint)" opacity="0.6"/>
-            <rect x="165" y="434" width="20" height="3" rx="1.5" fill="var(--ink-faint)" opacity="0.35"/>
-          </g>
-
-          <!-- Possible directions — capsule markers at the end of each trajectory, not circular network nodes -->
-          <g class="hvis-marker hvis-marker-pulse" transform="translate(440,124) rotate(-24)">
-            <rect x="0" y="-12" width="54" height="24" rx="12" fill="var(--g2)" fill-opacity="0.18" stroke="var(--g2)" stroke-opacity="0.6" stroke-width="1"/>
-            <rect x="10" y="-3" width="30" height="5" rx="2.5" fill="var(--g1)"/>
-          </g>
-          <g class="hvis-marker" transform="translate(452,310) rotate(6)">
-            <rect x="0" y="-10" width="44" height="20" rx="10" fill="var(--g3)" fill-opacity="0.16" stroke="var(--g3)" stroke-opacity="0.5" stroke-width="1"/>
-            <rect x="9" y="-2.5" width="24" height="4" rx="2" fill="var(--g3)" opacity="0.7"/>
-          </g>
-          <g class="hvis-marker hvis-marker-faint" transform="translate(312,472) rotate(38)">
-            <rect x="0" y="-9" width="36" height="18" rx="9" fill="var(--g1)" fill-opacity="0.14" stroke="var(--g1)" stroke-opacity="0.4" stroke-width="1"/>
-          </g>
-
-          <!-- Subtle motion — one point of light travelling the strongest trajectory only -->
-          <circle class="hvis-travel" cx="160" cy="205" r="3" fill="var(--g2)"/>
-        </svg>
+        <img class="hp-artwork" src="/assets/hero/hero-final.png" alt="" width="1536" height="1024" loading="eager">
       </div>
     </div>
   </div>

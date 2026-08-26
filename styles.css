@@ -274,36 +274,29 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-30px, -20px) scale(1.05); } }
 @keyframes drift3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-25px, 25px); } }
 
-/* ---- Hero visual: career intelligence panel ---- */
-.hero-visual { position: relative; display: flex; align-items: center; justify-content: center; min-height: 560px; pointer-events: none; }
-.hero-visual svg { width: 100%; max-width: 460px; height: auto; overflow: visible; }
-
-.hvis-arc { animation: hvis-arc-breathe 16s ease-in-out infinite; }
-.hvis-arc-1 { opacity: 0.1; }
-.hvis-arc-2 { opacity: 0.07; animation-delay: -8s; }
-@keyframes hvis-arc-breathe { 0%, 100% { opacity: 0.06; } 50% { opacity: 0.13; } }
-
-.hvis-chip-float { transform-box: fill-box; transform-origin: center; animation: hvis-float 7s ease-in-out infinite; }
-@keyframes hvis-float { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-5px) rotate(-8deg); } }
-
-.hvis-marker-pulse { animation: hvis-pulse 5s ease-in-out infinite; }
-@keyframes hvis-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-
-.hvis-travel {
-  offset-path: path("M160,205 C200,200 230,205 255,215 C285,228 310,235 330,235 C378,205 415,175 452,138");
-  animation: hvis-travel-dot 11s linear infinite;
+/* ---- Hero visual: the approved hero artwork (assets/hero/hero-final.png), used as-is.
+   Anchored to the left edge of its column (not centered) so growing it wider only extends
+   rightward into the page's outer margin, never left into the copy column. The source PNG
+   already carries a soft alpha vignette, but it isn't fully transparent along the top/right
+   edges (content sits close to those edges) — an additional CSS mask forces a clean fade on
+   all four sides at display time so no rectangle is ever visible, without touching the file. */
+.hero-copy { position: relative; z-index: 2; }
+.hero-visual { position: relative; z-index: 1; display: flex; align-items: center; justify-content: flex-start; min-height: 480px; min-width: 0; pointer-events: none; }
+.hp-artwork {
+  width: min(52vw, 1000px); max-width: none; height: auto; display: block; margin-left: -100px;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
+  mask-composite: intersect;
 }
-@keyframes hvis-travel-dot {
-  0%   { offset-distance: 0%;   opacity: 0; }
-  6%   { opacity: 1; }
-  94%  { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-@media (max-width: 720px) {
-  .hero-visual { min-height: 0; }
-  .hero-visual svg { width: 300px; }
-  .hvis-travel, .hvis-marker-pulse, .hvis-chip-float, .hvis-arc { animation: none; }
-  .hvis-arc-2, .hvis-path-faint, .hvis-chip-3, .hvis-marker-faint { display: none; }
+
+@media (max-width: 860px) {
+  .hero-visual { min-height: 0; margin-top: 8px; justify-content: center; }
+  .hp-artwork { width: min(440px, 88vw); margin-left: 0; }
 }
 
 /* ---- Footer ---- */
