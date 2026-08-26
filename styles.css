@@ -179,6 +179,13 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .navlinks a:hover, .navlinks a[aria-current="page"] { color: var(--ink); }
 @media (max-width: 720px) { .navlinks { display: none; } }
 
+/* Secondary header CTA — "Create your Rithavo Card." Desktop only; the
+   mobile-nav-links panel carries its own equivalent entry (.mobile-card-cta)
+   so registration never depends on the Discover link specifically. */
+.btn.header-card-cta { border-color: var(--line-strong); }
+@media (max-width: 900px) { .btn.header-card-cta { display: none; } }
+.mobile-card-cta { color: var(--g2) !important; font-weight: 600; }
+
 .nav-toggle { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; padding: 0; background: none; border: none; cursor: pointer; }
 .nav-toggle-bar { display: block; width: 20px; height: 2px; background: var(--ink); border-radius: 2px; transition: transform 0.25s var(--ease-standard), opacity 0.25s var(--ease-standard); }
 @media (max-width: 720px) { .nav-toggle { display: flex; } }
