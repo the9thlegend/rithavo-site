@@ -200,6 +200,30 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .mobile-nav-links a:hover, .mobile-nav-links a[aria-current="page"] { color: var(--ink); background: var(--surface-muted); }
 @media (min-width: 721px) { .mobile-nav { display: none !important; } }
 
+/* "Learn Products" — groups Career Intelligence + Application Diagnostic
+   under one nav entry instead of two more top-level links. Native
+   <details>/<summary>, no JS: click-to-toggle works identically on desktop
+   and mobile, so the same markup pattern serves both .navlinks (floating
+   panel) and .mobile-nav-links (inline indented list). */
+.nav-dropdown { position: relative; }
+.nav-dropdown > summary { cursor: pointer; list-style: none; }
+.nav-dropdown > summary::-webkit-details-marker { display: none; }
+.nav-dropdown > summary::after { content: "\25BE"; display: inline-block; margin-left: 4px; font-size: 0.65em; opacity: 0.6; transition: transform 0.2s ease; }
+.nav-dropdown[open] > summary::after { transform: rotate(180deg); }
+.navlinks .nav-dropdown > summary { font-size: 0.9rem; color: var(--ink-soft); font-weight: 500; transition: color 0.2s ease; }
+.navlinks .nav-dropdown > summary:hover { color: var(--ink); }
+.navlinks .nav-dropdown-panel {
+  position: absolute; top: calc(100% + 14px); left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg); padding: 8px; min-width: 210px; z-index: 40;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-dropdown-panel a { display: block; padding: 10px 14px; border-radius: var(--r-sm); color: var(--ink-soft); font-size: 0.88rem; text-decoration: none; transition: color 0.2s ease, background 0.2s ease; }
+.nav-dropdown-panel a:hover { background: var(--surface-muted); color: var(--ink); }
+.mobile-nav-links .nav-dropdown > summary { padding: 12px 8px; font-size: 0.95rem; font-weight: 500; color: var(--ink-soft); border-radius: var(--r-sm); }
+.mobile-nav-links .nav-dropdown-panel { position: static; transform: none; border: none; box-shadow: none; background: none; padding: 2px 0 4px 16px; margin: 0; }
+.mobile-nav-links .nav-dropdown-panel a { padding: 10px 8px; font-size: 0.9rem; }
+
 /* ---- Buttons ---- */
 .btn {
   display: inline-flex; align-items: center; gap: 10px;
