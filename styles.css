@@ -297,6 +297,23 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 @media (max-width: 860px) {
   .hero-visual { min-height: 0; margin-top: 8px; justify-content: center; }
   .hp-artwork { width: min(440px, 88vw); margin-left: 0; }
+
+  /* Mobile only: the artwork's own alpha vignette has almost no headroom left at the bottom
+     edge before it starts eating into real content (her sweater/hand and the lowest card),
+     so a harder mask isn't safe here. Instead, bridge the edge with a soft blurred glow behind
+     the image — reusing the same gradient tokens as the artwork's own warm/violet atmosphere —
+     so the transition into the page background reads as continuous haze rather than a cutoff. */
+  .hero-visual::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    left: -14%; right: -14%; top: -10%; bottom: -26%;
+    background:
+      radial-gradient(ellipse 65% 55% at 66% 82%, color-mix(in srgb, var(--g3) 24%, transparent) 0%, transparent 68%),
+      radial-gradient(ellipse 55% 45% at 30% 20%, color-mix(in srgb, var(--g1) 16%, transparent) 0%, transparent 70%);
+    filter: blur(26px);
+    pointer-events: none;
+  }
 }
 
 /* ---- Footer ---- */
