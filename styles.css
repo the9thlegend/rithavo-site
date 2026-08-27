@@ -358,6 +358,34 @@ footer.site .foot-note { font-size: 0.78rem; color: var(--ink-faint); margin-top
 .connector { width: 100%; height: 60px; }
 .connector path { fill: none; stroke: url(#rithavo-line-gradient); stroke-width: 2; stroke-dasharray: 6 8; stroke-linecap: round; }
 
+/* ---- Ecosystem journey — Understand -> Diagnose -> Represent -> Discover
+   -> Connect. Editorial steps, not a technical diagram or SaaS card grid:
+   a small gradient numeral, a mono eyebrow, a serif product name, one line
+   of description, joined by a thin arrow on desktop. */
+.journey { display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px; }
+.journey-step { position: relative; }
+.journey-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; color: #fff;
+  font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;
+}
+.journey-eyebrow { display: block; margin-top: 16px; }
+.journey-title {
+  display: block; margin-top: 6px; font-family: var(--font-display); font-weight: 500;
+  font-size: 1.08rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em;
+}
+a.journey-title { border-bottom: 1px solid transparent; transition: border-color 0.2s ease, color 0.2s ease; }
+a.journey-title:hover { border-color: var(--line-strong); }
+.journey-desc { margin-top: 8px; font-size: 0.88rem; color: var(--ink-soft); }
+.journey-step:not(:last-child)::after {
+  content: "→"; position: absolute; top: 2px; right: -22px; color: var(--ink-faint); font-size: 0.9rem;
+}
+.journey-close { margin-top: 48px; }
+@media (max-width: 860px) {
+  .journey { grid-template-columns: 1fr; gap: 32px; }
+  .journey-step:not(:last-child)::after { content: none; }
+}
+
 /* ---- Utility ---- */
 .center { text-align: center; }
 .mx-auto { margin-left: auto; margin-right: auto; }
