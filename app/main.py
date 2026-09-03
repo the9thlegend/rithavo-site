@@ -25,7 +25,7 @@ import config
 from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
-from app.email_sender import ConsoleEmailSender
+from app.email_sender import get_email_sender
 from app.payment_gateway import get_gateway
 from app.rate_limit import RateLimiter
 from app.resume_export import build_tailored_resume, render_tailored_resume_docx, TailoredResume
@@ -41,7 +41,7 @@ app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, https_on
 
 app.state.db = Database(config.DATABASE_URL or config.DB_PATH)
 app.state.db.init_schema()
-app.state.email_sender = ConsoleEmailSender()
+app.state.email_sender = get_email_sender()
 app.state.payment_gateway = get_gateway()
 app.state.auth_rate_limiter = RateLimiter()
 
@@ -68,11 +68,32 @@ def auth_start(request: Request, email: str = Form(...)):
     db = request.app.state.db
     token = issue_magic_link_token(db, config.SESSION_SECRET, email)
     link = f"{request.base_url}auth/verify?token={token}"
-    request.app.state.email_sender.send(
-        to=normalized_email,
-        subject="Your Rithavo sign-in link",
-        body=f"Click to sign in: {link}\n\nExpires in 15 minutes, works once.",
+    body = (
+        "Hi,\n\n"
+        "Use the link below to sign in to your Rithavo account:\n\n"
+        f"{link}\n\n"
+        "This link expires in 15 minutes and can only be used once. If you "
+        "didn't request this, you can safely ignore this email — no one can "
+        "access your account without clicking it.\n\n"
+        "Need help? Reply to this email or reach us at hello@rithavo.com.\n\n"
+        "— Rithavo"
     )
+    try:
+        request.app.state.email_sender.send(
+            to=normalized_email,
+            subject="Your Rithavo sign-in link",
+            body=body,
+        )
+    except Exception:
+        # Never leak provider internals (host, credentials, SMTP response
+        # text) to the client, and never log the token or the link itself
+        # — only that a send attempt failed, which is enough to diagnose
+        # from server-side provider logs.
+        logger.warning("auth_start email_send_failed to_domain=%s", normalized_email.split("@")[-1])
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't send your sign-in email right now. Please try again in a moment.",
+        )
     return {"status": "sent"}
 
 
