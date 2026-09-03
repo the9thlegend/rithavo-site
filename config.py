@@ -45,5 +45,15 @@ DATABASE_POOL_MAX = 5
 # share is the row in the `users` table a given email resolves to.
 SESSION_SECRET = os.environ.get("RITHAVO_WEB_SESSION_SECRET", secrets.token_hex(32))
 
+# Phase 2B-1.5 finding (production smoke test): the session cookie was
+# missing the Secure flag — harmless for local HTTP dev, a real gap once
+# this serves real HTTPS traffic. Tied to DATABASE_URL (the same signal
+# already used above to distinguish "real deployment" from "local dev")
+# rather than a separate env var, so it can never be forgotten when
+# pointing this service at production and never wrongly forces Secure
+# during local http://127.0.0.1 development or the SQLite-backed test
+# suite (both would silently drop the cookie, breaking every session).
+SESSION_COOKIE_HTTPS_ONLY = bool(DATABASE_URL)
+
 if not DATABASE_URL:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -37,7 +37,7 @@ from app.security import (
 logger = logging.getLogger("rithavo_web.diagnosis")
 
 app = FastAPI(title="Rithavo Web Platform")
-app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET)
+app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, https_only=config.SESSION_COOKIE_HTTPS_ONLY)
 
 app.state.db = Database(config.DATABASE_URL or config.DB_PATH)
 app.state.db.init_schema()
