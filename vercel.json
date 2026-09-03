@@ -10,6 +10,12 @@
     { "src": "CNAME", "use": "@vercel/static" }
   ],
   "routes": [
+    {
+      "src": "/(.*)",
+      "has": [{ "type": "host", "value": "www.rithavo.com" }],
+      "headers": { "Location": "https://rithavo.com/$1" },
+      "status": 308
+    },
     { "src": "/api/(.*)", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
