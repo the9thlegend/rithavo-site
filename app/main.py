@@ -23,6 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import config
 from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
+from app.career_intelligence import get_career_intelligence_view
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
 from app.email_sender import get_email_sender
@@ -136,6 +137,18 @@ def get_profile(request: Request):
     session_user_id = require_user(request)
     profile = owned_career_profile(db, session_user_id, session_user_id)
     return {"user_id": session_user_id, "career_profile": _row_to_dict(profile)}
+
+
+@app.get("/career-intelligence")
+def get_career_intelligence(request: Request):
+    """Phase 2B-1.7A: read-only presentation of the caller's existing
+    Career Intelligence results — see app/career_intelligence.py's
+    module docstring for exactly what is a verbatim read versus the two
+    small pieces of assembly this does itself. Never runs, reruns, or
+    modifies anything in the sibling app's CI engine."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    return get_career_intelligence_view(db, session_user_id)
 
 
 @app.get("/me")

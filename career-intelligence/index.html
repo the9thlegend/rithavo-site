@@ -1,16 +1,16 @@
 <!--
-  Phase 2B-1.7A — DRAFT, pending your decision (see the phase report's
-  "Decision Required" section). This is a real, visible nav entry point,
-  not a disabled/"coming soon" page — but its content is deliberately
-  limited to what's honestly true today: this new backend has no safe
-  way to read or display your existing Career Intelligence results
-  without either re-implementing the sibling app's synthesis logic
-  (a second CI engine) or creating a live runtime dependency between the
-  two services, both out of bounds per the brief. The copy below says
-  that honestly, without exposing implementation detail to a real
-  customer. Do not deploy this page as final customer-facing copy
-  without confirming the wording and the underlying integration
-  decision.
+  Phase 2B-1.7A — reads the caller's existing Career Intelligence
+  results via GET /api/career-intelligence (a read-only presentation
+  adapter over already-persisted sibling-app data; see
+  rithavo-web-platform/app/career_intelligence.py). The CLASSIFICATION
+  label (Stay / New Role / New Industry / Major Transition) is this
+  service's own inference from which target fields are populated —
+  there is no stored field for it anywhere — flagged in the phase
+  report for confirmation. "Create My Resume for..." is shown as the
+  correct label but is not yet wired to a working action: generating a
+  NEW resume for a Career Intelligence target requires the sibling
+  app's own resume-building capability, which this service doesn't
+  have access to. Clicking it says so honestly rather than pretending.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -28,32 +28,117 @@
 <body>
 <div class="app-topbar" id="app-topbar"></div>
 
-<div class="app-main">
+<div class="app-main app-main-wide">
   <p class="label">Career Intelligence</p>
   <h1 class="h2" style="margin:8px 0 24px;">Where your career stands</h1>
-
-  <div class="card card-body">
-    <p style="color:var(--ink);">
-      Career Intelligence — understanding whether you're doing well in your current role,
-      whether you could do better elsewhere, and what other roles or industries could look
-      like — is an active Rithavo product.
-    </p>
-    <p>
-      Viewing your existing Career Intelligence results here, on rithavo.com, isn't available
-      yet — bringing them into this new experience safely (without recomputing or duplicating
-      the assessment itself) needs one more decision before it's built. In the meantime, if
-      you've already completed a Career Intelligence assessment, it remains exactly where it
-      was created.
-    </p>
-  </div>
+  <div id="content" class="app-skeleton">Loading…</div>
 </div>
 
 <script src="/app-shell.js"></script>
 <script>
+const CLASSIFICATION_LABEL = {
+  STAY: "Stay / Current Career",
+  NEW_ROLE: "New Role",
+  NEW_INDUSTRY: "New Industry",
+  MAJOR_TRANSITION: "Major Transition",
+};
+
+function targetLabel(t) {
+  if (!t) return "your current career";
+  return t.name || (t.type === "ROLE" ? "a new role" : "a new industry");
+}
+
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return;
   RithavoApp.renderTopbar("career-intelligence", me.email);
+
+  const content = document.getElementById("content");
+  let data;
+  try {
+    data = await RithavoApp.apiJson("/career-intelligence");
+  } catch (err) {
+    content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+    return;
+  }
+
+  if (!data.has_assessment) {
+    content.innerHTML = `<div class="app-banner app-banner-info">
+      You don't have a completed Career Intelligence assessment yet. Career Intelligence
+      (₹799 one-time) helps you understand whether you're doing well in your current role,
+      whether you could do better elsewhere, and what other roles or industries could look
+      like — contact hello@rithavo.com to get started.
+    </div>`;
+    return;
+  }
+
+  const standing = data.current_standing;
+  content.innerHTML = `
+    <div class="card card-body">
+      <span class="label">Your direction</span>
+      <h2 class="h3" style="margin:0;">${CLASSIFICATION_LABEL[data.classification] || data.classification}</h2>
+      <p>${data.stated_direction_fit_summary || ""}</p>
+      ${data.primary_target ? `<p style="color:var(--ink);">Target: <strong>${targetLabel(data.primary_target)}</strong></p>` : ""}
+    </div>
+
+    ${standing ? `
+      <h3 class="h3" style="margin-top:32px;">Current standing</h3>
+      <div class="card card-body" style="margin-top:16px;">
+        <p><strong style="color:var(--ink);">Current fit:</strong> ${standing.current_fit_band}</p>
+        <p><strong style="color:var(--ink);">Transferable fit:</strong> ${standing.transferable_fit_band}</p>
+        <p><strong style="color:var(--ink);">Transition effort:</strong> ${standing.transition_effort_band}</p>
+        <p>${standing.reasoning || ""}</p>
+      </div>
+    ` : ""}
+
+    ${data.alternative_targets && data.alternative_targets.length ? `
+      <h3 class="h3" style="margin-top:32px;">Alternatives considered</h3>
+      <ul class="app-list" style="margin-top:16px;">
+        ${data.alternative_targets.map(t => `<li class="card app-list-row"><div>${targetLabel(t)}</div></li>`).join("")}
+      </ul>
+    ` : ""}
+
+    ${data.gaps && data.gaps.length ? `
+      <h3 class="h3" style="margin-top:32px;">What's missing</h3>
+      <div style="margin-top:16px;">
+        ${data.gaps.map(g => `
+          <div class="card app-finding">
+            <div class="dim">${g.gap_type} — ${g.severity}</div>
+            <div>${g.description}</div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
+
+    ${data.next_actions && data.next_actions.length ? `
+      <h3 class="h3" style="margin-top:32px;">Next actions</h3>
+      <div style="margin-top:16px;">
+        ${data.next_actions.map(a => `
+          <div class="card app-finding">
+            <div class="dim">${a.recommendation_type} — ${a.status}</div>
+            <div>${a.rationale}</div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
+
+    ${data.readiness ? `
+      <h3 class="h3" style="margin-top:32px;">Readiness</h3>
+      <div class="card card-body" style="margin-top:16px;">
+        <p><strong style="color:var(--ink);">${data.readiness.overall_band}</strong></p>
+        <p>${data.readiness.reasoning || ""}</p>
+      </div>
+    ` : ""}
+
+    <button class="btn btn-primary" style="margin-top:32px;" id="resume-cta">${data.resume_cta_label}</button>
+    <div id="resume-note" style="margin-top:12px;"></div>
+  `;
+
+  document.getElementById("resume-cta").addEventListener("click", () => {
+    document.getElementById("resume-note").innerHTML = `<div class="app-banner app-banner-info">
+      Generating a new resume for a Career Intelligence target isn't available on rithavo.com yet.
+    </div>`;
+  });
 })();
 </script>
 </body>

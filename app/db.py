@@ -186,6 +186,163 @@ CREATE TABLE IF NOT EXISTS diagnostic_findings (
     promoted_to_capability_id INTEGER,
     promoted_to_evidence_id INTEGER
 );
+
+-- Phase 2B-1.7A: read-only presentation adapter for the sibling app's
+-- Career Intelligence data model. Every field this service reads back
+-- out of these tables is a VERBATIM, already-computed value — fit
+-- bands, gap descriptions, recommendation text, readiness bands are
+-- all written by the sibling's own Fit/Gap/Recommendation/Readiness
+-- engines and never recomputed, rescored, or reinterpreted here. The
+-- only "logic" this service adds (see app/career_intelligence.py) is
+-- mechanical: which already-persisted row is "the active one" (a plain
+-- status='ACTIVE' filter, the exact same convention every table below
+-- already uses) and which of Stay/New Role/New Industry/Major
+-- Transition a target's populated foreign keys correspond to (i.e.
+-- reading which of target_role_id/target_industry_id is set — not a
+-- scoring decision). No CI scoring, matching, synthesis, or
+-- recommendation logic is reimplemented anywhere in this service.
+-- Verbatim copies of the sibling's real schema; no-ops in production.
+CREATE TABLE IF NOT EXISTS roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS industries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS career_paths (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    source_context TEXT NOT NULL DEFAULT '',
+    target_role_id INTEGER REFERENCES roles(id),
+    target_industry_id INTEGER REFERENCES industries(id),
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS career_direction_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    stated_direction_career_path_id INTEGER REFERENCES career_paths(id),
+    stated_direction_fit_summary TEXT NOT NULL DEFAULT '',
+    stated_direction_confidence TEXT,
+    alternative_career_path_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS role_fits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    role_id INTEGER NOT NULL REFERENCES roles(id),
+    current_fit_band TEXT NOT NULL,
+    transferable_fit_band TEXT NOT NULL,
+    transition_effort_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    supporting_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS industry_fits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    industry_id INTEGER NOT NULL REFERENCES industries(id),
+    current_fit_band TEXT NOT NULL,
+    transferable_fit_band TEXT NOT NULL,
+    transition_effort_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    supporting_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS career_transitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    career_path_id INTEGER NOT NULL REFERENCES career_paths(id),
+    role_fit_id INTEGER REFERENCES role_fits(id),
+    industry_fit_id INTEGER REFERENCES industry_fits(id),
+    transferable_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    difficulty_band TEXT NOT NULL,
+    suggested_next_steps TEXT NOT NULL DEFAULT '[]',
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS gaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    career_transition_id INTEGER REFERENCES career_transitions(id),
+    gap_type TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    severity TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'HELPFUL',
+    depends_on_gap_ids TEXT NOT NULL DEFAULT '[]',
+    applicable_stages TEXT NOT NULL DEFAULT '[]',
+    evidence_ids TEXT NOT NULL DEFAULT '[]',
+    recommended_action_type TEXT NOT NULL,
+    reasoning TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS learning_recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gap_id INTEGER NOT NULL REFERENCES gaps(id),
+    recommendation_type TEXT NOT NULL,
+    rationale TEXT NOT NULL DEFAULT '',
+    importance_band TEXT NOT NULL,
+    would_meaningfully_help INTEGER,
+    would_meaningfully_help_explanation TEXT NOT NULL DEFAULT '',
+    expected_outcome TEXT NOT NULL DEFAULT '',
+    evidence_of_completion TEXT NOT NULL DEFAULT '',
+    applicable_stages TEXT NOT NULL DEFAULT '[]',
+    confidence TEXT,
+    alternative_paths_considered TEXT NOT NULL DEFAULT '[]',
+    decision TEXT NOT NULL DEFAULT 'PENDING',
+    decided_at TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS readiness_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    career_transition_id INTEGER NOT NULL REFERENCES career_transitions(id),
+    current_readiness_json TEXT NOT NULL,
+    transition_readiness_json TEXT NOT NULL,
+    target_readiness_json TEXT NOT NULL,
+    overall_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    strengths TEXT NOT NULL DEFAULT '[]',
+    transfers TEXT NOT NULL DEFAULT '[]',
+    barrier_gap_ids TEXT NOT NULL DEFAULT '[]',
+    next_step_recommendation_ids TEXT NOT NULL DEFAULT '[]',
+    success_looks_like TEXT NOT NULL DEFAULT '[]',
+    missing_information TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
 """
 
 # ---- NEW tables: owned by this service, additive ----
@@ -411,6 +568,84 @@ class Database:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM career_profiles WHERE user_id = ?", (user_id,)
+            ).fetchone()
+
+    # ---- Career Intelligence (READ ONLY presentation adapter — Phase
+    #      2B-1.7A; see the schema comment above SCHEMA_SHARED_REPLICA's
+    #      CI tables). Every query below is a plain status='ACTIVE' or
+    #      foreign-key lookup, the exact same convention the sibling
+    #      app's own db.py uses for these same tables — no scoring, no
+    #      synthesis, nothing recomputed. ----
+
+    def get_role(self, role_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
+
+    def get_industry(self, industry_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM industries WHERE id = ?", (industry_id,)).fetchone()
+
+    def get_career_path(self, path_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM career_paths WHERE id = ?", (path_id,)).fetchone()
+
+    def list_career_paths_for_user(self, user_id: int) -> list:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_paths WHERE profile_id = ? ORDER BY id", (user_id,)
+            ).fetchall()
+
+    def find_active_career_direction_assessment(self, user_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_direction_assessments WHERE profile_id = ? AND status = 'ACTIVE'",
+                (user_id,),
+            ).fetchone()
+
+    def find_active_role_fit(self, user_id: int, role_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM role_fits WHERE profile_id = ? AND role_id = ? AND status = 'ACTIVE'",
+                (user_id, role_id),
+            ).fetchone()
+
+    def find_active_industry_fit(self, user_id: int, industry_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM industry_fits WHERE profile_id = ? AND industry_id = ? AND status = 'ACTIVE'",
+                (user_id, industry_id),
+            ).fetchone()
+
+    def find_active_career_transition_for_path(self, career_path_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_transitions WHERE career_path_id = ? AND status = 'ACTIVE'",
+                (career_path_id,),
+            ).fetchone()
+
+    def list_active_gaps_for_transition(self, career_transition_id: int) -> list:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM gaps WHERE career_transition_id = ? AND status = 'ACTIVE' ORDER BY id",
+                (career_transition_id,),
+            ).fetchall()
+
+    def list_recommendations_for_gap(self, gap_id: int) -> list:
+        # "REJECTED never appears here" — the exact same customer-facing
+        # exclusion rule the sibling app's own NextAction presentation
+        # uses (app/intelligence/synthesis_engine.py), reproduced as a
+        # literal filter, not a decision this service is making itself.
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM learning_recommendations WHERE gap_id = ? AND decision != 'REJECTED' ORDER BY id",
+                (gap_id,),
+            ).fetchall()
+
+    def find_active_readiness_for_transition(self, career_transition_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM readiness_assessments WHERE career_transition_id = ? AND status = 'ACTIVE'",
+                (career_transition_id,),
             ).fetchone()
 
     # ---- magic link (owned by this service) ----
