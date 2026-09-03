@@ -1,0 +1,13 @@
+# Python (backend, added Phase 2B-1.5)
+__pycache__/
+*.pyc
+.pytest_cache/
+storage/
+*.db
+
+# Vercel
+.vercel
+
+# Env / secrets — never commit
+.env
+.env.*

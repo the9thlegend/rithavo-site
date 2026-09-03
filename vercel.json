@@ -1,0 +1,22 @@
+{
+  "framework": null,
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python" },
+    { "src": "**/*.html", "use": "@vercel/static" },
+    { "src": "*.css", "use": "@vercel/static" },
+    { "src": "*.js", "use": "@vercel/static" },
+    { "src": "**/*.png", "use": "@vercel/static" },
+    { "src": "**/*.docx", "use": "@vercel/static" },
+    { "src": "CNAME", "use": "@vercel/static" }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "has": [{ "type": "host", "value": "www.rithavo.com" }],
+      "headers": { "Location": "https://rithavo.com/$1" },
+      "status": 308
+    },
+    { "src": "/api/(.*)", "dest": "api/index.py" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}
