@@ -16,17 +16,41 @@ Two small pieces of assembly happen here, and only these two:
    the sibling app's own db.py. Not a judgment call.
 
 2. Classifying a target as Stay / New Role / New Industry / Major
-   Transition. There is NO stored field anywhere in the schema that
-   names this classification — it does not exist as data, only as
-   product language. The rule below is inferred, not verified against
-   a real persisted example, from the two facts that ARE structural:
-   career_paths.target_role_id/target_industry_id are populated
-   mutually-exclusively per row (confirmed from the sibling's own
-   schema comments), and a CareerDirectionAssessment with no stated
-   target at all is the only way "no specific new direction" can be
-   represented. This is flagged explicitly in the Phase 2B-1.7A report
-   as this service's own inference, not a fact read from a table — a
-   human familiar with the real product should confirm or correct it.
+   Transition. Phase 2B-1.7A Task 1 re-inspected this specifically —
+   findings, not assumptions:
+
+   - There is NO stored field anywhere in the schema that names this
+     classification (confirmed by reading every CI table's real DDL).
+   - There is no "current_role_id"/"current_industry_id" anywhere
+     either — discover_role_paths/discover_industry_paths
+     (app/intelligence/discovery.py) score EVERY seeded Role/Industry
+     against the profile's derived capabilities; nothing marks one as
+     "the current one" to diff a target against.
+   - discovery.py's own docstring states the constraint directly:
+     "ROLE/INDUSTRY SEPARATION: discover_role_paths and
+     discover_industry_paths never combine into one score... no
+     combined Role x Industry scoring" — i.e. the engine itself has no
+     concept of "a single target that changes both role AND industry
+     together." A combined "Major Transition" evaluation, as one fit
+     computation, does not exist in the source of truth to read.
+   - career_paths.target_role_id/target_industry_id are populated
+     mutually-exclusively per row (confirmed from the sibling's own
+     schema comments) — structurally, one path is either a role
+     change or an industry change, never both.
+
+   Given the product's four-way framework has no corresponding stored
+   or computable representation, the rule below is the minimum
+   deterministic presentation rule that can express it from what
+   IS structural: STAY when the assessment has no stated target;
+   NEW_ROLE/NEW_INDUSTRY from which single field is populated on the
+   stated path; MAJOR_TRANSITION only when the stated-plus-alternative
+   path set includes both a role-type and an industry-type path (the
+   only way "both dimensions" can appear at all, given the engine's own
+   role/industry separation). This is presentation-level labeling over
+   already-computed facts, not a new scoring model — but it is this
+   service's own construction, not a fact read from a table, and
+   should be treated as provisional until confirmed against real
+   production CI data.
 
 Explicitly NOT reproduced (by design, not oversight): evidence-level
 capability detail (needs the sibling's `evidence` table, not added —
@@ -135,6 +159,50 @@ CTA_FOR_CLASSIFICATION = {
     "NEW_INDUSTRY": "Create My Resume for This Industry",
     "MAJOR_TRANSITION": "Create My Resume for This Target",
 }
+
+
+RESUME_CONTEXT_FOR_CLASSIFICATION = {
+    "STAY": "SAME_CAREER",
+    "NEW_ROLE": "NEW_TARGET",
+    "NEW_INDUSTRY": "NEW_TARGET",
+    "MAJOR_TRANSITION": "NEW_TARGET",
+}
+
+
+def resume_inputs_for_view(view: dict):
+    """Phase 2B-1.7A Task 2. Derives what app/resume_export.py's
+    build_tailored_resume() needs to produce a CI-tailored resume,
+    using ONLY fields already present in get_career_intelligence_view's
+    output — no new persisted-data read, no engine call.
+
+    - resume_context: SAME_CAREER for Stay, NEW_TARGET for every other
+      classification (per the approved mapping).
+    - target_label: stands in for build_tailored_resume's `jd_text`
+      parameter, which it only ever uses for a short display label
+      (its first line) — never parsed as a real job description. Using
+      the CI target's name here is exactly that same "short label"
+      role, not a repurposing of JD-parsing logic.
+    - matched_keywords: the ACTIVE ReadinessAssessment's own persisted
+      `strengths`/`transfers` lists (verbatim, already read by
+      get_career_intelligence_view) stand in for build_tailored_resume's
+      keyword-prioritization input — real, already-computed CI output,
+      not a fabricated JD-keyword-match. Empty (a plain, unprioritized
+      resume) when no readiness data exists yet for this target — never
+      invented.
+    """
+    if not view.get("has_assessment"):
+        return None
+    classification = view["classification"]
+    resume_context = RESUME_CONTEXT_FOR_CLASSIFICATION[classification]
+    target = view.get("primary_target")
+    target_label = target["name"] if target and target.get("name") else "your current career"
+    readiness = view.get("readiness") or {}
+    matched_keywords = list(readiness.get("strengths") or []) + list(readiness.get("transfers") or [])
+    return {
+        "resume_context": resume_context,
+        "target_label": target_label,
+        "matched_keywords": matched_keywords,
+    }
 
 
 def get_career_intelligence_view(db, user_id: int) -> dict:

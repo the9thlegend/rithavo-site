@@ -4,13 +4,17 @@
   adapter over already-persisted sibling-app data; see
   rithavo-web-platform/app/career_intelligence.py). The CLASSIFICATION
   label (Stay / New Role / New Industry / Major Transition) is this
-  service's own inference from which target fields are populated —
-  there is no stored field for it anywhere — flagged in the phase
-  report for confirmation. "Create My Resume for..." is shown as the
-  correct label but is not yet wired to a working action: generating a
-  NEW resume for a Career Intelligence target requires the sibling
-  app's own resume-building capability, which this service doesn't
-  have access to. Clicking it says so honestly rather than pretending.
+  service's own construction, not a fact read from a table — there is
+  no stored field for it anywhere, and the source-of-truth engine has
+  no combined role+industry scoring concept either (see
+  career_intelligence.py's module docstring) — flagged in the phase
+  report as provisional until confirmed against real production CI
+  data. "Improve My Resume"/"Create My Resume for..." calls
+  POST /api/career-intelligence/resume, which builds a resume via this
+  service's own existing resume_export.py pipeline (the same one
+  Application Diagnosis resumes use), tailored using the persisted
+  ReadinessAssessment's strengths/transfers — real CI output, not
+  invented. Touches no entitlement or purchase.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -134,10 +138,19 @@ function targetLabel(t) {
     <div id="resume-note" style="margin-top:12px;"></div>
   `;
 
-  document.getElementById("resume-cta").addEventListener("click", () => {
-    document.getElementById("resume-note").innerHTML = `<div class="app-banner app-banner-info">
-      Generating a new resume for a Career Intelligence target isn't available on rithavo.com yet.
-    </div>`;
+  document.getElementById("resume-cta").addEventListener("click", async () => {
+    const btn = document.getElementById("resume-cta");
+    const note = document.getElementById("resume-note");
+    btn.disabled = true;
+    btn.textContent = "Creating…";
+    try {
+      await RithavoApp.apiJson("/career-intelligence/resume", { method: "POST" });
+      note.innerHTML = `<div class="app-banner app-banner-success">Resume created — view it under <a href="/resumes/">Resumes</a>.</div>`;
+    } catch (err) {
+      note.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = data.resume_cta_label;
   });
 })();
 </script>

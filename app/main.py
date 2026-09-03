@@ -23,7 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import config
 from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
-from app.career_intelligence import get_career_intelligence_view
+from app.career_intelligence import get_career_intelligence_view, resume_inputs_for_view
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
 from app.email_sender import get_email_sender
@@ -149,6 +149,51 @@ def get_career_intelligence(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
     return get_career_intelligence_view(db, session_user_id)
+
+
+@app.post("/career-intelligence/resume")
+def create_career_intelligence_resume(request: Request):
+    """Phase 2B-1.7A Task 2: "Improve My Resume" (Stay) / "Create My
+    Resume for [Target]" (New Role / New Industry / Major Transition).
+
+    Deliberately touches NOTHING in the commerce layer — no entitlement
+    check, no purchase, no consumption of anything — a Career
+    Intelligence resume is not gated by this service's own Application
+    Diagnosis credit system at all (points H/I of the phase brief).
+    Uses the exact same build_tailored_resume/render_tailored_resume_docx
+    pipeline as an Application Diagnosis resume (point D: reusing this
+    service's own already-approved resume architecture, not the sibling
+    app's), so /resume/{id}/download works for a CI resume for free —
+    same ownership check, same immutable/versioned INSERT-only pattern.
+    """
+    db = request.app.state.db
+    session_user_id = require_user(request)
+
+    view = get_career_intelligence_view(db, session_user_id)
+    resume_inputs = resume_inputs_for_view(view)
+    if resume_inputs is None:
+        raise HTTPException(
+            status_code=422,
+            detail="You need a Career Intelligence assessment before Rithavo can build you a resume for it.",
+        )
+
+    profile_json = _profile_json(db, session_user_id) or {}
+    capabilities = db.list_active_capabilities_for_user(session_user_id)
+    education = db.list_education_for_user(session_user_id)
+    experience = db.list_experience_for_user(session_user_id)
+
+    resume = build_tailored_resume(
+        profile_json, capabilities, education, experience,
+        jd_text=resume_inputs["target_label"], matched_keywords=resume_inputs["matched_keywords"],
+    )
+    existing_count = len(db.list_resumes_for_user_and_target(session_user_id, resume.target_context))
+    version = existing_count + 1
+    resume_id = db.create_resume_for_career_intelligence(
+        session_user_id, resume.to_dict(),
+        label=f"Resume for {resume.target_context or resume_inputs['target_label']} — v{version}",
+        resume_context=resume_inputs["resume_context"],
+    )
+    return {"resume_id": resume_id, "version": version, "resume_context": resume_inputs["resume_context"]}
 
 
 @app.get("/me")

@@ -431,6 +431,15 @@ _ADDITIVE_COLUMNS = [
     # than a confusing "no credit" error (the entitlement is correctly
     # already consumed by then) or, worse, a second diagnosis.
     ("diagnostics", "idempotency_key", "TEXT"),
+    # Phase 2B-1.7A: which of the three Rithavo resume contexts a given
+    # resume row is — SAME_CAREER / NEW_TARGET (both new this phase, for
+    # Career Intelligence resumes) or JOB_DIAGNOSIS (the pre-existing
+    # Application Diagnosis resume, now explicitly tagged as such at
+    # creation time instead of only being inferable from diagnostic_id
+    # being non-null). Nullable/additive — existing rows created before
+    # this column existed are simply NULL, exactly like every other
+    # additive column above.
+    ("resumes", "resume_context", "TEXT"),
 ]
 
 # Phase 2A: additive indexes, applied AFTER _ADDITIVE_COLUMNS (the column
@@ -1186,12 +1195,41 @@ class Database:
         with self.connect() as conn:
             cur = conn.execute(
                 "INSERT INTO resumes (profile_id, target_context, source_file_ref, label, "
-                "linked_diagnostic_ids, created_at, content_json, diagnostic_id) "
-                "VALUES (?, ?, '', ?, ?, ?, ?, ?)",
+                "linked_diagnostic_ids, created_at, content_json, diagnostic_id, resume_context) "
+                "VALUES (?, ?, '', ?, ?, ?, ?, ?, 'JOB_DIAGNOSIS')",
                 (user_id, content.get("target_context", ""), label, json.dumps([diagnostic_id]), _now(),
                  json.dumps(content), diagnostic_id),
             )
             return cur.lastrowid
+
+    def create_resume_for_career_intelligence(self, user_id: int, content: dict, label: str, resume_context: str) -> int:
+        """Phase 2B-1.7A. resume_context is always 'SAME_CAREER' or
+        'NEW_TARGET' here — 'JOB_DIAGNOSIS' only ever comes from
+        create_resume_for_diagnosis above. Deliberately no diagnostic_id
+        (this was never an Application Diagnosis) and no entitlement/
+        purchase touched anywhere in this call path — a Career
+        Intelligence resume is not gated by this service's own
+        commerce tables at all."""
+        import json
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO resumes (profile_id, target_context, source_file_ref, label, "
+                "linked_diagnostic_ids, created_at, content_json, resume_context) "
+                "VALUES (?, ?, '', ?, '[]', ?, ?, ?)",
+                (user_id, content.get("target_context", ""), label, _now(), json.dumps(content), resume_context),
+            )
+            return cur.lastrowid
+
+    def list_resumes_for_user_and_target(self, user_id: int, target_context: str) -> list:
+        """Scopes CI resume versioning by (user, target label) — the
+        closest available equivalent to list_resumes_for_diagnosis's
+        per-diagnosis scoping, since a Career Intelligence resume has no
+        diagnostic_id to key off."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM resumes WHERE profile_id = ? AND target_context = ? ORDER BY id",
+                (user_id, target_context),
+            ).fetchall()
 
     def get_resume(self, resume_id: int):
         with self.connect() as conn:
