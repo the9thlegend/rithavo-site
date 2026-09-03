@@ -106,7 +106,16 @@ def auth_verify(request: Request, token: str):
         return JSONResponse({"error": str(exc)}, status_code=400)
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
-    return RedirectResponse("/profile", status_code=302)
+    # Phase 2B-1.6 finding: a hardcoded "/profile" Location header is the
+    # same class of bug already fixed for the emailed link — it resolves
+    # to https://rithavo.com/profile, but only /api/* is routed to this
+    # service in production, so it 404's. request.url_for() (rather than
+    # a literal string) resolves through the route's registered name and
+    # picks up the ASGI root_path api/index.py sets in production, so it
+    # correctly becomes /api/profile there while staying /profile,
+    # unprefixed, for local dev and the test suite — no new config, no
+    # hardcoded deployment path in this module.
+    return RedirectResponse(str(request.url_for("profile")), status_code=302)
 
 
 @app.post("/auth/logout")
@@ -117,7 +126,7 @@ def auth_logout(request: Request):
 
 # ---- profile (read-only in Phase 0 — shared table, owned by the sibling app) ----
 
-@app.get("/profile")
+@app.get("/profile", name="profile")
 def get_profile(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
