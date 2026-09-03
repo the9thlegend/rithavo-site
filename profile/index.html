@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Profile — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main">
+  <p class="label">Profile</p>
+  <h1 class="h2" style="margin:8px 0 8px;">Your Rithavo Profile</h1>
+  <p style="margin-bottom:32px;">Education and experience you add here are used by Application Diagnosis. Your name, headline, and career background come from your existing Rithavo account and are shown read-only here.</p>
+
+  <div id="shared-profile"></div>
+
+  <h2 class="h3" style="margin-top:48px;">Education</h2>
+  <div id="education-list" class="app-list" style="margin:16px 0;"></div>
+  <details style="margin-bottom:48px;">
+    <summary class="btn btn-ghost" style="width:fit-content;">Add education</summary>
+    <form id="education-form" style="margin-top:16px; max-width:480px;">
+      <div class="app-field"><label>Degree</label><input name="degree" required></div>
+      <div class="app-field"><label>Institution</label><input name="institution" required></div>
+      <div class="app-field"><label>Field of study</label><input name="field"></div>
+      <div class="app-field"><label>Start date</label><input name="start_date" type="month"></div>
+      <div class="app-field"><label>End date</label><input name="end_date" type="month"></div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </details>
+
+  <h2 class="h3">Experience</h2>
+  <div id="experience-list" class="app-list" style="margin:16px 0;"></div>
+  <details>
+    <summary class="btn btn-ghost" style="width:fit-content;">Add experience</summary>
+    <form id="experience-form" style="margin-top:16px; max-width:480px;">
+      <div class="app-field"><label>Company</label><input name="company" required></div>
+      <div class="app-field"><label>Role</label><input name="role" required></div>
+      <div class="app-field"><label>Start date</label><input name="start_date" type="month"></div>
+      <div class="app-field"><label>End date</label><input name="end_date" type="month"></div>
+      <div class="app-field"><label>Industry</label><input name="industry"></div>
+      <div class="app-field"><label>Function</label><input name="function"></div>
+      <div class="app-field"><label>Responsibilities</label><textarea name="responsibilities" style="min-height:100px;"></textarea></div>
+      <div class="app-field"><label>Achievements</label><textarea name="achievements" style="min-height:100px;"></textarea></div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </details>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("profile", me.email);
+
+  async function loadSharedProfile() {
+    const mount = document.getElementById("shared-profile");
+    try {
+      const profile = await RithavoApp.apiJson("/profile");
+      if (!profile.career_profile) {
+        mount.innerHTML = `<div class="app-banner app-banner-info">No shared Rithavo Profile found yet.</div>`;
+        return;
+      }
+      const data = JSON.parse(profile.career_profile.profile_json || "{}");
+      const identity = data.identity || {};
+      const background = data.background || {};
+      mount.innerHTML = `
+        <div class="card card-body">
+          <div><span class="label">Name</span><p style="color:var(--ink); font-weight:600;">${(identity.name && identity.name.value) || "—"}</p></div>
+          <div><span class="label">Headline</span><p style="color:var(--ink);">${(identity.headline && identity.headline.value) || "—"}</p></div>
+          <div><span class="label">Current role</span><p style="color:var(--ink);">${(background.current_role && background.current_role.value) || "—"}</p></div>
+        </div>
+      `;
+    } catch (e) {
+      mount.innerHTML = `<div class="app-banner app-banner-error">Couldn't load your profile.</div>`;
+    }
+  }
+
+  async function loadEducation() {
+    const mount = document.getElementById("education-list");
+    const rows = await RithavoApp.apiJson("/education");
+    if (!rows.length) { mount.innerHTML = `<div class="app-empty">No education added yet.</div>`; return; }
+    mount.innerHTML = rows.map(r => `
+      <li class="card app-list-row">
+        <div>
+          <strong>${r.degree}</strong>${r.field ? ", " + r.field : ""} — ${r.institution}
+          <div class="meta">${r.start_date || "?"} – ${r.end_date || "present"}</div>
+        </div>
+        <button class="btn btn-ghost" data-delete-education="${r.id}" style="padding:8px 16px; font-size:0.8rem;">Remove</button>
+      </li>
+    `).join("");
+    mount.querySelectorAll("[data-delete-education]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await RithavoApp.apiFetch(`/education/${btn.dataset.deleteEducation}`, { method: "DELETE" });
+        loadEducation();
+      });
+    });
+  }
+
+  async function loadExperience() {
+    const mount = document.getElementById("experience-list");
+    const rows = await RithavoApp.apiJson("/experience");
+    if (!rows.length) { mount.innerHTML = `<div class="app-empty">No experience added yet.</div>`; return; }
+    mount.innerHTML = rows.map(r => `
+      <li class="card app-list-row">
+        <div>
+          <strong>${r.role}</strong> at ${r.company}
+          <div class="meta">${r.start_date || "?"} – ${r.end_date || "present"}</div>
+        </div>
+        <button class="btn btn-ghost" data-delete-experience="${r.id}" style="padding:8px 16px; font-size:0.8rem;">Remove</button>
+      </li>
+    `).join("");
+    mount.querySelectorAll("[data-delete-experience]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await RithavoApp.apiFetch(`/experience/${btn.dataset.deleteExperience}`, { method: "DELETE" });
+        loadExperience();
+      });
+    });
+  }
+
+  function formToBody(form) {
+    const fd = new FormData(form);
+    return new URLSearchParams(fd).toString();
+  }
+
+  document.getElementById("education-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await RithavoApp.apiFetch("/education", {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formToBody(e.target),
+    });
+    e.target.reset();
+    loadEducation();
+  });
+
+  document.getElementById("experience-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await RithavoApp.apiFetch("/experience", {
+      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formToBody(e.target),
+    });
+    e.target.reset();
+    loadExperience();
+  });
+
+  loadSharedProfile();
+  loadEducation();
+  loadExperience();
+})();
+</script>
+</body>
+</html>

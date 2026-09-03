@@ -106,16 +106,20 @@ def auth_verify(request: Request, token: str):
         return JSONResponse({"error": str(exc)}, status_code=400)
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
-    # Phase 2B-1.6 finding: a hardcoded "/profile" Location header is the
-    # same class of bug already fixed for the emailed link — it resolves
-    # to https://rithavo.com/profile, but only /api/* is routed to this
-    # service in production, so it 404's. request.url_for() (rather than
-    # a literal string) resolves through the route's registered name and
-    # picks up the ASGI root_path api/index.py sets in production, so it
-    # correctly becomes /api/profile there while staying /profile,
-    # unprefixed, for local dev and the test suite — no new config, no
-    # hardcoded deployment path in this module.
-    return RedirectResponse(str(request.url_for("profile")), status_code=302)
+    # Phase 2B-1.7A: the destination is now a static customer-facing page
+    # (rithavo-site/home/index.html), not this API's own /profile route —
+    # per the brief, /api/profile stays an API endpoint and is never
+    # rendered as HTML. Unlike the Phase 2B-1.6 fix (request.url_for,
+    # which correctly resolves an *API* route under root_path="/api" in
+    # production), a static route is never under /api at all, so the
+    # target must be built from the request's origin only — scheme +
+    # netloc, deliberately ignoring root_path — never a hardcoded
+    # "https://rithavo.com", so this keeps working unprefixed against
+    # local dev/tests (http://testserver/home/) and correctly prefix-free
+    # in production (https://rithavo.com/home/, even though this request
+    # itself arrived at /api/auth/verify).
+    destination = f"{request.url.scheme}://{request.url.netloc}/home/"
+    return RedirectResponse(destination, status_code=302)
 
 
 @app.post("/auth/logout")
@@ -132,6 +136,20 @@ def get_profile(request: Request):
     session_user_id = require_user(request)
     profile = owned_career_profile(db, session_user_id, session_user_id)
     return {"user_id": session_user_id, "career_profile": _row_to_dict(profile)}
+
+
+@app.get("/me")
+def get_me(request: Request):
+    """Phase 2B-1.7A: the minimum an authenticated shell needs to greet
+    the caller and confirm a live session — just enough to render a nav
+    bar, nothing profile-shaped. Deliberately separate from /profile
+    (which reaches into the shared career_profiles table) so a page that
+    only needs "am I signed in, and as whom" never has to reason about
+    that table's shape."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    user = db.get_user_by_id(session_user_id)
+    return {"user_id": session_user_id, "email": user["email"] if user else None}
 
 
 # ---- education (new, owned by this service) ----
@@ -539,6 +557,23 @@ def list_diagnosis_resumes(request: Request, diagnostic_id: int):
     session_user_id = require_user(request)
     owned_diagnosis(db, diagnostic_id, session_user_id)
     return [_row_to_dict(r) for r in db.list_resumes_for_diagnosis(diagnostic_id)]
+
+
+@app.get("/resumes")
+def list_resumes(request: Request):
+    """Phase 2B-1.7A: the full resume history tab needs every resume for
+    this user, not just the ones tied to one Application Diagnosis
+    (GET /diagnosis/{id}/resumes, unchanged, still exists for that
+    narrower case). A row this service didn't create — e.g. one the
+    sibling Career Intelligence product generated — may have no
+    content_json; `downloadable` tells the frontend not to offer a
+    download link it knows would fail, without guessing why."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    rows = [_row_to_dict(r) for r in db.list_resumes_for_user(session_user_id)]
+    for row in rows:
+        row["downloadable"] = bool(row.get("content_json"))
+    return rows
 
 
 @app.get("/resume/{resume_id}/download")

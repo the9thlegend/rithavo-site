@@ -1,0 +1,60 @@
+<!--
+  Phase 2B-1.7A — DRAFT, pending your decision (see the phase report's
+  "Decision Required" section). This is a real, visible nav entry point,
+  not a disabled/"coming soon" page — but its content is deliberately
+  limited to what's honestly true today: this new backend has no safe
+  way to read or display your existing Career Intelligence results
+  without either re-implementing the sibling app's synthesis logic
+  (a second CI engine) or creating a live runtime dependency between the
+  two services, both out of bounds per the brief. The copy below says
+  that honestly, without exposing implementation detail to a real
+  customer. Do not deploy this page as final customer-facing copy
+  without confirming the wording and the underlying integration
+  decision.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Career Intelligence — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main">
+  <p class="label">Career Intelligence</p>
+  <h1 class="h2" style="margin:8px 0 24px;">Where your career stands</h1>
+
+  <div class="card card-body">
+    <p style="color:var(--ink);">
+      Career Intelligence — understanding whether you're doing well in your current role,
+      whether you could do better elsewhere, and what other roles or industries could look
+      like — is an active Rithavo product.
+    </p>
+    <p>
+      Viewing your existing Career Intelligence results here, on rithavo.com, isn't available
+      yet — bringing them into this new experience safely (without recomputing or duplicating
+      the assessment itself) needs one more decision before it's built. In the meantime, if
+      you've already completed a Career Intelligence assessment, it remains exactly where it
+      was created.
+    </p>
+  </div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("career-intelligence", me.email);
+})();
+</script>
+</body>
+</html>

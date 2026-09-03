@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rithavo-site-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8532"],
+      "port": 8532
+    },
+    {
+      "name": "rithavo-site-full",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "dev_server:app", "--port", "8533"],
+      "port": 8533
+    }
+  ]
+}

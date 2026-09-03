@@ -1,0 +1,66 @@
+/* Phase 2B-1.7A — authenticated rithavo.com shell.
+   Purely additive to styles.css (never edited — a separate, unrelated
+   workstream touches that file). Reuses the exact same design tokens
+   (--g1/g2/g3, --ink*, --surface*, --line*, --r-*, --shadow-*,
+   --ease-standard, --font-*) defined there; this file only adds the
+   handful of component classes the authenticated pages need that the
+   public marketing site never did (a compact top bar instead of the
+   full public nav, form fields, status banners, simple tabs). */
+
+.app-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line);
+  background: var(--surface); flex-wrap: wrap;
+}
+.app-topbar .wordmark { margin-right: 8px; }
+.app-tabs { display: flex; gap: 4px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.app-tabs a {
+  display: inline-block; padding: 8px 14px; border-radius: var(--r-pill);
+  font-size: 0.88rem; font-weight: 500; color: var(--ink-soft); text-decoration: none;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.app-tabs a:hover { color: var(--ink); background: var(--surface-muted); }
+.app-tabs a[aria-current="page"] { color: var(--ink); background: var(--surface-muted); font-weight: 600; }
+.app-identity { display: flex; align-items: center; gap: 12px; font-size: 0.85rem; color: var(--ink-faint); }
+
+.app-main { max-width: 780px; margin: 0 auto; padding: 48px 24px 96px; }
+.app-main.app-main-wide { max-width: 980px; }
+
+.app-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.app-field label { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+.app-field input, .app-field textarea, .app-field select {
+  font-family: var(--font-body); font-size: 0.95rem; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  padding: 12px 14px; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.app-field input:focus, .app-field textarea:focus, .app-field select:focus {
+  border-color: var(--g2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--g2) 18%, transparent);
+}
+.app-field textarea { min-height: 220px; resize: vertical; line-height: 1.5; }
+.app-field .hint { font-size: 0.78rem; color: var(--ink-faint); }
+
+.app-banner { padding: 14px 18px; border-radius: var(--r-sm); font-size: 0.9rem; margin-bottom: 20px; border: 1px solid transparent; }
+.app-banner-info { background: var(--surface-muted); color: var(--ink-soft); border-color: var(--line); }
+.app-banner-success { background: color-mix(in srgb, #2e8b57 12%, var(--surface)); color: #1f5c3a; border-color: color-mix(in srgb, #2e8b57 35%, var(--line)); }
+.app-banner-error { background: color-mix(in srgb, #c0392b 10%, var(--surface)); color: #8a2a1f; border-color: color-mix(in srgb, #c0392b 35%, var(--line)); }
+@media (prefers-color-scheme: dark) {
+  .app-banner-success { color: #8fd6ac; }
+  .app-banner-error { color: #f0a99e; }
+}
+:root[data-theme="dark"] .app-banner-success { color: #8fd6ac; }
+:root[data-theme="dark"] .app-banner-error { color: #f0a99e; }
+
+.app-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-top: 24px; }
+.app-tile { padding: 24px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; }
+.app-tile h3 { margin: 0; font-family: var(--font-display); font-size: 1.1rem; color: var(--ink); }
+.app-tile p { font-size: 0.85rem; margin: 0; }
+.app-tile .tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; }
+
+.app-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.app-list-row { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.app-list-row .meta { font-size: 0.8rem; color: var(--ink-faint); }
+.app-empty { padding: 32px; text-align: center; color: var(--ink-soft); font-size: 0.9rem; }
+.app-skeleton { color: var(--ink-faint); font-size: 0.9rem; padding: 32px; text-align: center; }
+
+.app-finding { padding: 16px 20px; margin-bottom: 10px; }
+.app-finding .dim { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; margin-bottom: 4px; }

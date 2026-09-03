@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Application Diagnosis — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main app-main-wide">
+  <p class="label">Application Diagnosis</p>
+  <h1 class="h2" style="margin:8px 0 24px;">Diagnose a job application</h1>
+  <div id="content" class="app-skeleton">Loading…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("application-diagnosis", me.email);
+
+  const content = document.getElementById("content");
+
+  async function renderSubmitForm() {
+    content.innerHTML = `
+      <div id="banner"></div>
+      <form id="jd-form" class="card card-body">
+        <div class="app-field">
+          <label for="jd_text">Paste the full job description</label>
+          <textarea id="jd_text" name="jd_text" required placeholder="Paste the complete job description here…"></textarea>
+          <span class="hint">Rithavo compares this against your Rithavo Profile.</span>
+        </div>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Diagnose this application</button>
+      </form>
+    `;
+    document.getElementById("jd-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const banner = document.getElementById("banner");
+      const btn = document.getElementById("submit-btn");
+      banner.innerHTML = "";
+      btn.disabled = true;
+      btn.textContent = "Diagnosing…";
+      try {
+        const result = await RithavoApp.apiJson("/diagnosis", {
+          method: "POST",
+          body: JSON.stringify({ jd_text: document.getElementById("jd_text").value }),
+        });
+        if (result.insufficient_signal) {
+          RithavoApp.banner(banner, "info",
+            "Rithavo couldn't produce a confident diagnosis from this job description — your credit hasn't been used. Try a job description with more detail on responsibilities and requirements.");
+          btn.disabled = false;
+          btn.textContent = "Diagnose this application";
+          return;
+        }
+        renderReport(result);
+      } catch (err) {
+        if (err.status === 402) {
+          renderNoEntitlement();
+          return;
+        }
+        RithavoApp.banner(banner, "error", err.message);
+        btn.disabled = false;
+        btn.textContent = "Diagnose this application";
+      }
+    });
+  }
+
+  function renderReport(result) {
+    const findings = [
+      ...(result.direct_matches || []).map(f => ({ ...f, group: "Direct match" })),
+      ...(result.related_matches || []).map(f => ({ ...f, group: "Related" })),
+      ...(result.gaps || []).map(f => ({ ...f, group: "Gap" })),
+    ];
+    content.innerHTML = `
+      <div class="card card-body">
+        <span class="label">Verdict</span>
+        <h2 class="h3" style="margin:0;">${result.verdict || "—"}</h2>
+        <p>${result.narrative_summary || ""}</p>
+      </div>
+      <h3 class="h3" style="margin-top:32px;">Findings</h3>
+      <div style="margin-top:16px;">
+        ${findings.map(f => `
+          <div class="card app-finding">
+            <div class="dim">${f.group} — ${f.dimension || ""}</div>
+            <div>${f.finding_text || ""}</div>
+          </div>
+        `).join("") || `<div class="app-empty">No detailed findings returned.</div>`}
+      </div>
+      ${result.diagnostic_id ? `
+        <button class="btn btn-primary" style="margin-top:24px;" id="resume-btn">Create My Resume for This Job</button>
+        <div id="resume-status" style="margin-top:12px;"></div>
+      ` : ""}
+    `;
+    const resumeBtn = document.getElementById("resume-btn");
+    if (resumeBtn) {
+      resumeBtn.addEventListener("click", async () => {
+        resumeBtn.disabled = true;
+        resumeBtn.textContent = "Creating…";
+        try {
+          await RithavoApp.apiJson(`/diagnosis/${result.diagnostic_id}/resume`, { method: "POST" });
+          document.getElementById("resume-status").innerHTML =
+            `<div class="app-banner app-banner-success">Resume created — view it under <a href="/resumes/">Resumes</a>.</div>`;
+        } catch (err) {
+          document.getElementById("resume-status").innerHTML =
+            `<div class="app-banner app-banner-error">${err.message}</div>`;
+        }
+        resumeBtn.disabled = false;
+        resumeBtn.textContent = "Create My Resume for This Job";
+      });
+    }
+  }
+
+  function renderNoEntitlement() {
+    content.innerHTML = `<div class="app-banner app-banner-info">
+      You don't have an available Application Diagnosis credit. Purchasing one directly here
+      isn't available yet on rithavo.com — contact hello@rithavo.com in the meantime.
+    </div>`;
+  }
+
+  try {
+    const entitlement = await RithavoApp.apiJson("/diagnosis/entitlement/active");
+    if (entitlement.has_active_entitlement) {
+      renderSubmitForm();
+    } else {
+      renderNoEntitlement();
+    }
+  } catch (err) {
+    content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+  }
+})();
+</script>
+</body>
+</html>
