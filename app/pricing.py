@@ -19,3 +19,11 @@ def price_for_qualifying_count(qualifying_count: int) -> int:
         raise ValueError("qualifying_count cannot be negative")
     index = min(qualifying_count, len(PRICING_LADDER_INR) - 1)
     return PRICING_LADDER_INR[index]
+
+
+# Phase 2B-2: Career Intelligence — flat, one-time, no ladder. A pure
+# constant for the exact same reason PRICING_LADDER_INR is a pure table:
+# the ONE place this value lives, so Database.begin_ci_purchase and every
+# test asserting "CI costs ₹799" read the same source, never a re-typed
+# copy of it.
+CAREER_INTELLIGENCE_PRICE_INR = 799

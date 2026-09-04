@@ -88,5 +88,51 @@ const RithavoApp = (() => {
     container.innerHTML = `<div class="app-banner app-banner-${kind}">${text}</div>`;
   }
 
-  return { apiFetch, apiJson, requireSession, renderTopbar, signOut, banner, TABS };
+  /* Phase 2B-2. Starts a real Razorpay purchase: calls the server to
+     create the purchase + Razorpay Order (server computes the price —
+     nothing here ever sends an amount), opens Razorpay's own Checkout
+     widget, and on the widget's own success callback POSTs the three
+     Razorpay-supplied values to the server's confirm endpoint for
+     real signature verification. Resolves with the SERVER's confirm
+     response (never treats reaching the callback itself as proof of
+     payment) — the caller should re-fetch whatever entitlement/access
+     state it displays from the server after this resolves, not flip
+     its own UI to "purchased" based on this function returning.
+     purchasePath: e.g. "/diagnosis/purchase" or "/career-intelligence/purchase".
+     confirmPath(purchaseId): returns e.g. `/diagnosis/purchase/${id}/confirm`. */
+  function startRazorpayPurchase({ purchasePath, confirmPath, description }) {
+    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) }).then(order => {
+      return new Promise((resolve, reject) => {
+        if (typeof Razorpay === "undefined") {
+          reject(new Error("Payment could not be started — please reload the page and try again."));
+          return;
+        }
+        const rzp = new Razorpay({
+          key: order.razorpay_key_id,
+          amount: order.amount_inr * 100,
+          currency: "INR",
+          order_id: order.razorpay_order_id,
+          name: "Rithavo",
+          description: description,
+          handler: (response) => {
+            apiJson(confirmPath(order.purchase_id), {
+              method: "POST",
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            }).then(resolve).catch(reject);
+          },
+          modal: {
+            ondismiss: () => reject(new Error("Checkout was closed before completing payment.")),
+          },
+        });
+        rzp.on("payment.failed", () => reject(new Error("Payment failed — please try again.")));
+        rzp.open();
+      });
+    });
+  }
+
+  return { apiFetch, apiJson, requireSession, renderTopbar, signOut, banner, startRazorpayPurchase, TABS };
 })();

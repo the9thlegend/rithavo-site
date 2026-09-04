@@ -6,3 +6,4 @@ pytest
 httpx
 psycopg2-binary
 python-docx
+razorpay

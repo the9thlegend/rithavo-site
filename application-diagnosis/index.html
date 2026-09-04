@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/app-shell.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 <div class="app-topbar" id="app-topbar"></div>
@@ -118,11 +119,52 @@
     }
   }
 
-  function renderNoEntitlement() {
-    content.innerHTML = `<div class="app-banner app-banner-info">
-      You don't have an available Application Diagnosis credit. Purchasing one directly here
-      isn't available yet on rithavo.com — contact hello@rithavo.com in the meantime.
-    </div>`;
+  async function renderNoEntitlement() {
+    let price;
+    try {
+      price = await RithavoApp.apiJson("/diagnosis/price");
+    } catch (err) {
+      content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+      return;
+    }
+    content.innerHTML = `
+      <div class="card card-body">
+        <p>You don't have an available Application Diagnosis credit.</p>
+        <p><strong style="color:var(--ink); font-size:1.5rem;">₹${price.amount_inr}</strong></p>
+        <button class="btn btn-primary" id="buy-btn">Buy Application Diagnosis</button>
+        <div id="buy-status"></div>
+      </div>
+    `;
+    document.getElementById("buy-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("buy-btn");
+      const status = document.getElementById("buy-status");
+      btn.disabled = true;
+      btn.textContent = "Opening payment…";
+      status.innerHTML = "";
+      try {
+        await RithavoApp.startRazorpayPurchase({
+          purchasePath: "/diagnosis/purchase",
+          confirmPath: (id) => `/diagnosis/purchase/${id}/confirm`,
+          description: "Rithavo Application Diagnosis",
+        });
+        // Never trust the client callback alone — re-fetch entitlement
+        // state from the server before showing the JD form.
+        const entitlement = await RithavoApp.apiJson("/diagnosis/entitlement/active");
+        if (entitlement.has_active_entitlement) {
+          renderSubmitForm();
+        } else {
+          status.innerHTML = `<div class="app-banner app-banner-info">
+            Payment is still being confirmed — this can take a few seconds. Refresh this page shortly.
+          </div>`;
+          btn.disabled = false;
+          btn.textContent = "Buy Application Diagnosis";
+        }
+      } catch (err) {
+        status.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Buy Application Diagnosis";
+      }
+    });
   }
 
   try {
@@ -130,7 +172,7 @@
     if (entitlement.has_active_entitlement) {
       renderSubmitForm();
     } else {
-      renderNoEntitlement();
+      await renderNoEntitlement();
     }
   } catch (err) {
     content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;

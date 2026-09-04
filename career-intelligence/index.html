@@ -15,6 +15,18 @@
   Application Diagnosis resumes use), tailored using the persisted
   ReadinessAssessment's strengths/transfers — real CI output, not
   invented. Touches no entitlement or purchase.
+
+  Phase 2B-2 — when the caller has no assessment, this page now shows
+  a real "Buy Career Intelligence" button (Razorpay Standard Checkout,
+  server-verified — see app-shell.js's startRazorpayPurchase). Buying
+  creates a real `career_intelligence` entitlement (recognized by the
+  sibling app's own find_active_entitlement, since it's the same
+  literal product string in the one shared entitlements table) but
+  does NOT itself produce assessment results here — actually running
+  the assessment is still the sibling app's own onboarding flow, which
+  this phase does not touch. The post-purchase message says so
+  honestly rather than implying a next step this service can't
+  fulfill.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -28,6 +40,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/app-shell.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 <div class="app-topbar" id="app-topbar"></div>
@@ -67,12 +80,42 @@ function targetLabel(t) {
   }
 
   if (!data.has_assessment) {
-    content.innerHTML = `<div class="app-banner app-banner-info">
-      You don't have a completed Career Intelligence assessment yet. Career Intelligence
-      (₹799 one-time) helps you understand whether you're doing well in your current role,
-      whether you could do better elsewhere, and what other roles or industries could look
-      like — contact hello@rithavo.com to get started.
-    </div>`;
+    let price;
+    try { price = await RithavoApp.apiJson("/career-intelligence/price"); }
+    catch (err) { price = { amount_inr: 799 }; }
+    content.innerHTML = `
+      <div class="card card-body">
+        <p>You don't have a completed Career Intelligence assessment yet. Career Intelligence
+        helps you understand whether you're doing well in your current role, whether you
+        could do better elsewhere, and what other roles or industries could look like.</p>
+        <p><strong style="color:var(--ink); font-size:1.5rem;">₹${price.amount_inr}</strong> one-time</p>
+        <button class="btn btn-primary" id="buy-ci-btn">Buy Career Intelligence</button>
+        <div id="buy-ci-status"></div>
+      </div>
+    `;
+    document.getElementById("buy-ci-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("buy-ci-btn");
+      const status = document.getElementById("buy-ci-status");
+      btn.disabled = true;
+      btn.textContent = "Opening payment…";
+      status.innerHTML = "";
+      try {
+        await RithavoApp.startRazorpayPurchase({
+          purchasePath: "/career-intelligence/purchase",
+          confirmPath: (id) => `/career-intelligence/purchase/${id}/confirm`,
+          description: "Rithavo Career Intelligence",
+        });
+        status.innerHTML = `<div class="app-banner app-banner-success">
+          Payment received — your Career Intelligence entitlement is now active. We'll be in
+          touch about completing your assessment.
+        </div>`;
+        btn.remove();
+      } catch (err) {
+        status.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Buy Career Intelligence";
+      }
+    });
     return;
   }
 
