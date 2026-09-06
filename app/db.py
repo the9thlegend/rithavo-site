@@ -960,7 +960,26 @@ class Database:
         mark_purchase_pending). Checked for uniqueness the same way
         gateway_reference already is, so the same successful Razorpay
         payment can never confirm two different purchase rows even if
-        the client-side callback and the webhook both arrive."""
+        the client-side callback and the webhook both arrive.
+
+        FAILED (Phase 2B-2.1): a Razorpay Order can receive more than one
+        payment attempt — an initial `payment.failed` moves the purchase
+        to FAILED, but the SAME Order stays valid for the customer to
+        retry on, and a later attempt can genuinely succeed. FAILED is
+        therefore treated as confirmable, same as CREATED/PENDING, NOT as
+        a terminal state like REFUNDED/ADMIN_GRANT (neither of which is
+        in this tuple, and neither of which this change touches). This is
+        safe without any extra check here because both callers already
+        establish that the successful payment belongs to THIS purchase
+        before ever reaching this method: the browser route
+        (_verify_and_confirm_razorpay_payment) rejects a mismatched
+        razorpay_order_id with a 400 before calling confirm_fn, and the
+        webhook route resolves the purchase via get_purchase_by_gateway_reference
+        — i.e. only a payment for the exact same Order this purchase's
+        gateway_reference already names can ever arrive here at all. An
+        unrelated/different order can therefore never resurrect a FAILED
+        purchase; it simply never reaches this method for that purchase
+        row in the first place."""
         with self.connect() as conn:
             self._advisory_lock(conn, f"confirm_purchase:{purchase_id}")
             purchase = conn.execute("SELECT * FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
@@ -972,7 +991,7 @@ class Database:
                     "entitlement_id": purchase["entitlement_id"],
                     "already_confirmed": True,
                 }
-            if purchase["payment_status"] not in ("CREATED", "PENDING"):
+            if purchase["payment_status"] not in ("CREATED", "PENDING", "FAILED"):
                 raise ValueError(f"cannot confirm a purchase in status {purchase['payment_status']}")
             conflicting = conn.execute(
                 "SELECT id FROM purchases WHERE gateway_reference = ? AND id != ?",
