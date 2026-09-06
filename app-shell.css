@@ -64,3 +64,27 @@
 
 .app-finding { padding: 16px 20px; margin-bottom: 10px; }
 .app-finding .dim { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; margin-bottom: 4px; }
+
+/* P0 onboarding: upload-vs-manual choice + review/edit entry cards. */
+.app-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+@media (max-width: 640px) { .app-choice-grid { grid-template-columns: 1fr; } }
+.app-choice-card {
+  padding: 32px 24px; text-align: center; cursor: pointer; border: 1px solid var(--line);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease; background: var(--surface);
+}
+.app-choice-card:hover { border-color: var(--g2); box-shadow: var(--shadow-lg); }
+.app-choice-card .icon { font-size: 2rem; margin-bottom: 12px; }
+.app-choice-card h3 { margin: 0 0 8px; font-family: var(--font-display); color: var(--ink); }
+.app-choice-card p { margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
+.app-dropzone {
+  border: 2px dashed var(--line-strong); border-radius: var(--r-sm); padding: 40px 24px;
+  text-align: center; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease;
+}
+.app-dropzone:hover, .app-dropzone.is-dragover { border-color: var(--g2); background: var(--surface-muted); }
+.app-dropzone input[type="file"] { display: none; }
+.app-entry-card { padding: 20px; margin-bottom: 16px; position: relative; }
+.app-entry-card .app-entry-remove {
+  position: absolute; top: 12px; right: 12px; font-size: 0.78rem; padding: 4px 10px;
+}
+.app-entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+@media (max-width: 560px) { .app-entry-grid { grid-template-columns: 1fr; } }

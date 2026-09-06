@@ -1,0 +1,251 @@
+<!--
+  P0 UX redesign — profile onboarding. Reached only via
+  /api/auth/verify's own redirect (a brand-new user with no
+  career_profiles row yet); an existing user is never sent here.
+
+  Flow: choose Upload Resume or Build Manually -> (if upload) POST to
+  /api/onboarding/resume/extract for a PREVIEW draft only (nothing is
+  saved yet) -> the SAME review/edit form either way, pre-filled from
+  the draft or blank -> Confirm posts the form's current state to
+  /api/onboarding/confirm, the only step that writes anything -> redirect
+  to /home/. Manual entry and a corrected extraction converge on the
+  exact same confirm call; there is no separate "manual save" path.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Set up your profile — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-main" style="max-width:640px;">
+  <p class="label">Step 1 of 1 &middot; Welcome to Rithavo</p>
+  <h1 class="h2" style="margin:8px 0 8px;">Let's set up your profile</h1>
+  <p style="margin-bottom:32px;">This takes a couple of minutes and powers Application Diagnosis and Career Intelligence. You'll be able to review and correct everything before it's saved.</p>
+
+  <div id="banner"></div>
+
+  <!-- ---- Step: choose ---- -->
+  <section id="step-choice">
+    <div class="app-choice-grid">
+      <div class="card app-choice-card" id="choice-upload" role="button" tabindex="0" aria-label="Upload Resume">
+        <div class="icon">&#128196;</div>
+        <h3>Upload Resume</h3>
+        <p>PDF or DOCX. Rithavo will pull out your details — you review and fix anything before saving.</p>
+      </div>
+      <div class="card app-choice-card" id="choice-manual" role="button" tabindex="0" aria-label="Build Manually">
+        <div class="icon">&#9998;&#65039;</div>
+        <h3>Build Manually</h3>
+        <p>Prefer to type it in yourself? Start from a blank profile.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px; padding:24px; display:none;" id="upload-panel">
+      <label class="app-dropzone" id="dropzone" for="resume-file">
+        <p style="margin:0; font-weight:600; color:var(--ink);">Drop your resume here, or click to choose a file</p>
+        <p class="hint" style="margin-top:6px;">PDF or DOCX, up to 10 MB</p>
+        <input type="file" id="resume-file" accept=".pdf,.docx">
+      </label>
+      <div id="upload-status" style="margin-top:16px;"></div>
+    </div>
+  </section>
+
+  <!-- ---- Step: review/edit/confirm ---- -->
+  <section id="step-review" style="display:none;">
+    <h2 class="h3">Review your details</h2>
+    <p class="hint" style="margin-bottom:16px;">Nothing is saved until you confirm below — edit anything that isn't right.</p>
+
+    <div class="card card-body">
+      <div class="app-field"><label>Full name</label><input id="f-name" name="name"></div>
+      <div class="app-field"><label>Headline</label><input id="f-headline" name="headline" placeholder="e.g. Senior Product Manager"></div>
+      <div class="app-entry-grid">
+        <div class="app-field"><label>Location</label><input id="f-location" name="location"></div>
+        <div class="app-field"><label>Years of experience</label><input id="f-years" name="years_of_experience"></div>
+      </div>
+      <div class="app-field"><label>Current role</label><input id="f-current-role" name="current_role"></div>
+    </div>
+
+    <h3 class="h3" style="margin-top:32px;">Experience</h3>
+    <div id="experience-entries" style="margin-top:16px;"></div>
+    <button type="button" class="btn btn-ghost" id="add-experience" style="width:fit-content;">+ Add experience</button>
+
+    <h3 class="h3" style="margin-top:32px;">Education</h3>
+    <div id="education-entries" style="margin-top:16px;"></div>
+    <button type="button" class="btn btn-ghost" id="add-education" style="width:fit-content;">+ Add education</button>
+
+    <div style="margin-top:40px; display:flex; gap:12px; flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary" id="confirm-btn">Save and continue</button>
+      <button type="button" class="btn btn-ghost" id="back-btn">Start over</button>
+    </div>
+  </section>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+
+  const stepChoice = document.getElementById("step-choice");
+  const stepReview = document.getElementById("step-review");
+  const banner = document.getElementById("banner");
+  let experienceEntries = [];
+  let educationEntries = [];
+
+  function showChoice() {
+    stepReview.style.display = "none";
+    stepChoice.style.display = "";
+    document.getElementById("upload-panel").style.display = "none";
+  }
+
+  function showReview(draft) {
+    draft = draft || {};
+    const identity = draft.identity || {};
+    const background = draft.background || {};
+    document.getElementById("f-name").value = identity.name || "";
+    document.getElementById("f-headline").value = identity.headline || "";
+    document.getElementById("f-location").value = identity.location || "";
+    document.getElementById("f-years").value = identity.years_of_experience || "";
+    document.getElementById("f-current-role").value = background.current_role || "";
+    experienceEntries = (draft.experience || []).slice();
+    educationEntries = (draft.education || []).slice();
+    renderExperience();
+    renderEducation();
+    stepChoice.style.display = "none";
+    stepReview.style.display = "";
+    window.scrollTo(0, 0);
+  }
+
+  function emptyExperience() {
+    return { company: "", role: "", start_date: "", end_date: "", responsibilities: "", achievements: "", industry: "", function: "" };
+  }
+  function emptyEducation() {
+    return { degree: "", institution: "", field: "", start_date: "", end_date: "" };
+  }
+
+  function renderExperience() {
+    const mount = document.getElementById("experience-entries");
+    mount.innerHTML = experienceEntries.map((e, i) => `
+      <div class="card app-entry-card">
+        <button type="button" class="btn btn-ghost app-entry-remove" data-remove-exp="${i}">Remove</button>
+        <div class="app-entry-grid">
+          <div class="app-field"><label>Role</label><input data-exp="${i}" data-field="role" value="${e.role || ""}"></div>
+          <div class="app-field"><label>Company</label><input data-exp="${i}" data-field="company" value="${e.company || ""}"></div>
+          <div class="app-field"><label>Start date</label><input data-exp="${i}" data-field="start_date" value="${e.start_date || ""}" placeholder="e.g. 2020-01"></div>
+          <div class="app-field"><label>End date</label><input data-exp="${i}" data-field="end_date" value="${e.end_date || ""}" placeholder="present if current"></div>
+        </div>
+        <div class="app-field"><label>Responsibilities / achievements</label><textarea data-exp="${i}" data-field="responsibilities" style="min-height:100px;">${e.responsibilities || ""}</textarea></div>
+      </div>
+    `).join("") || `<div class="app-empty">No experience added yet.</div>`;
+    mount.querySelectorAll("[data-exp]").forEach(el => {
+      el.addEventListener("input", () => { experienceEntries[el.dataset.exp][el.dataset.field] = el.value; });
+    });
+    mount.querySelectorAll("[data-remove-exp]").forEach(btn => {
+      btn.addEventListener("click", () => { experienceEntries.splice(Number(btn.dataset.removeExp), 1); renderExperience(); });
+    });
+  }
+
+  function renderEducation() {
+    const mount = document.getElementById("education-entries");
+    mount.innerHTML = educationEntries.map((e, i) => `
+      <div class="card app-entry-card">
+        <button type="button" class="btn btn-ghost app-entry-remove" data-remove-edu="${i}">Remove</button>
+        <div class="app-entry-grid">
+          <div class="app-field"><label>Degree</label><input data-edu="${i}" data-field="degree" value="${e.degree || ""}"></div>
+          <div class="app-field"><label>Institution</label><input data-edu="${i}" data-field="institution" value="${e.institution || ""}"></div>
+          <div class="app-field"><label>Field of study</label><input data-edu="${i}" data-field="field" value="${e.field || ""}"></div>
+          <div></div>
+          <div class="app-field"><label>Start date</label><input data-edu="${i}" data-field="start_date" value="${e.start_date || ""}"></div>
+          <div class="app-field"><label>End date</label><input data-edu="${i}" data-field="end_date" value="${e.end_date || ""}"></div>
+        </div>
+      </div>
+    `).join("") || `<div class="app-empty">No education added yet.</div>`;
+    mount.querySelectorAll("[data-edu]").forEach(el => {
+      el.addEventListener("input", () => { educationEntries[el.dataset.edu][el.dataset.field] = el.value; });
+    });
+    mount.querySelectorAll("[data-remove-edu]").forEach(btn => {
+      btn.addEventListener("click", () => { educationEntries.splice(Number(btn.dataset.removeEdu), 1); renderEducation(); });
+    });
+  }
+
+  document.getElementById("add-experience").addEventListener("click", () => { experienceEntries.push(emptyExperience()); renderExperience(); });
+  document.getElementById("add-education").addEventListener("click", () => { educationEntries.push(emptyEducation()); renderEducation(); });
+  document.getElementById("back-btn").addEventListener("click", showChoice);
+
+  function onActivate(el, handler) {
+    el.addEventListener("click", handler);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handler(); }
+    });
+  }
+  onActivate(document.getElementById("choice-manual"), () => showReview({}));
+  onActivate(document.getElementById("choice-upload"), () => {
+    document.getElementById("upload-panel").style.display = "";
+  });
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("resume-file");
+  ["dragover"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("is-dragover"); }));
+  ["dragleave", "drop"].forEach(evt => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("is-dragover"); }));
+  dropzone.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; handleFile(e.dataTransfer.files[0]); }
+  });
+  fileInput.addEventListener("change", () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+  async function handleFile(file) {
+    const status = document.getElementById("upload-status");
+    status.innerHTML = `<div class="app-banner app-banner-info">Reading your resume…</div>`;
+    const formData = new FormData();
+    formData.append("resume", file);
+    try {
+      const resp = await RithavoApp.apiFetch("/onboarding/resume/extract", { method: "POST", body: formData, headers: {} });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        const message = (data && data.detail) ? data.detail : "Couldn't read that file.";
+        status.innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+        return;
+      }
+      status.innerHTML = "";
+      showReview(data);
+    } catch (err) {
+      status.innerHTML = `<div class="app-banner app-banner-error">Something went wrong reading that file. Please try again, or build your profile manually.</div>`;
+    }
+  }
+
+  document.getElementById("confirm-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("confirm-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    banner.innerHTML = "";
+    try {
+      await RithavoApp.apiJson("/onboarding/confirm", {
+        method: "POST",
+        body: JSON.stringify({
+          name: document.getElementById("f-name").value,
+          headline: document.getElementById("f-headline").value,
+          location: document.getElementById("f-location").value,
+          years_of_experience: document.getElementById("f-years").value,
+          current_role: document.getElementById("f-current-role").value,
+          previous_roles: [], companies: [], industries: [], functions: [],
+          experience: experienceEntries,
+          education: educationEntries,
+        }),
+      });
+      window.location.href = "/home/";
+    } catch (err) {
+      banner.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Save and continue";
+    }
+  });
+})();
+</script>
+</body>
+</html>

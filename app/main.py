@@ -17,7 +17,7 @@ import json
 import logging
 import uuid
 
-from fastapi import Body, FastAPI, Form, HTTPException, Request
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -32,6 +32,7 @@ from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
 from app.razorpay_gateway import RazorpayVerificationError
 from app.rate_limit import RateLimiter
 from app.resume_export import build_tailored_resume, render_tailored_resume_docx, TailoredResume
+from app.resume_extraction import UnsupportedResumeFormatError, extract_text, parse_resume_text
 from app.security import (
     owned_career_profile, owned_diagnosis, owned_education, owned_entitlement,
     owned_experience_entry, owned_purchase, owned_resume, require_user,
@@ -121,7 +122,15 @@ def auth_verify(request: Request, token: str):
     # local dev/tests (http://testserver/home/) and correctly prefix-free
     # in production (https://rithavo.com/home/, even though this request
     # itself arrived at /api/auth/verify).
-    destination = f"{request.url.scheme}://{request.url.netloc}/home/"
+    #
+    # P0 onboarding: a user with no career_profiles row yet (never
+    # touched app.rithavo.com, and hasn't completed rithavo.com's own
+    # onboarding either) goes to /onboarding/ instead of straight to
+    # /home/ — everyone else (existing profile, however it was created)
+    # is unaffected and still lands on /home/ exactly as before.
+    has_profile = db.get_career_profile(user_id) is not None
+    path = "home" if has_profile else "onboarding"
+    destination = f"{request.url.scheme}://{request.url.netloc}/{path}/"
     return RedirectResponse(destination, status_code=302)
 
 
@@ -129,6 +138,90 @@ def auth_verify(request: Request, token: str):
 def auth_logout(request: Request):
     request.session.clear()
     return {"status": "logged_out"}
+
+
+# ---- P0 onboarding: resume upload -> extract (preview only) -> confirm
+#      (the only step that writes anything). See app/resume_extraction.py
+#      for why this is a heuristic, not ML, parser — the review/edit step
+#      between these two endpoints is the product's own designed safety
+#      net for that, not a gap this code needs to close. ----
+
+_MAX_RESUME_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB — generous for a text resume, small enough to reject a mistaken/abusive upload before touching it
+
+
+@app.post("/onboarding/resume/extract")
+async def extract_resume(request: Request, resume: UploadFile = File(...)):
+    """Preview only — reads the uploaded file, returns a best-effort
+    structured draft. Never touches the database. The client is expected
+    to show this to the user for editing and only send the (possibly
+    corrected) result to /onboarding/confirm afterward."""
+    require_user(request)
+    data = await resume.read()
+    if len(data) > _MAX_RESUME_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="That resume file is too large (max 10 MB).")
+    try:
+        text = extract_text(resume.filename or "", data)
+    except UnsupportedResumeFormatError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
+        logger.warning("onboarding_resume_extract_failed")
+        raise HTTPException(
+            status_code=422,
+            detail="Rithavo couldn't read that file. Please try a different PDF/DOCX, or enter your details manually.",
+        )
+    if not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Rithavo couldn't find any text in that file (it may be a scanned image). "
+                    "Please try a different file, or enter your details manually.",
+        )
+    return parse_resume_text(text)
+
+
+@app.post("/onboarding/confirm")
+def confirm_onboarding(request: Request,
+                        name: str = Body("", embed=True), headline: str = Body("", embed=True),
+                        location: str = Body("", embed=True), years_of_experience: str = Body("", embed=True),
+                        current_role: str = Body("", embed=True), previous_roles: list = Body(None, embed=True),
+                        companies: list = Body(None, embed=True), industries: list = Body(None, embed=True),
+                        functions: list = Body(None, embed=True),
+                        education: list = Body(None, embed=True), experience: list = Body(None, embed=True)):
+    """The ONLY step in the whole onboarding flow that writes canonical
+    profile data — reached after the user has reviewed/edited whatever
+    came out of resume extraction, or after filling the same fields in
+    from scratch (manual entry). Both paths converge here; there is no
+    separate manual-entry save path, so there is exactly one place that
+    ever creates a career_profiles row from this service."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+
+    profile_json = {
+        "identity": {
+            "name": {"value": name}, "headline": {"value": headline},
+            "location": {"value": location}, "years_of_experience": {"value": years_of_experience},
+        },
+        "background": {
+            "current_role": {"value": current_role},
+            "previous_roles": previous_roles or [], "companies": companies or [],
+            "industries": industries or [], "functions": functions or [],
+        },
+    }
+    db.upsert_career_profile(session_user_id, profile_json)
+
+    for entry in (education or []):
+        db.add_education(
+            session_user_id, degree=entry.get("degree", ""), institution=entry.get("institution", ""),
+            field=entry.get("field", ""), start_date=entry.get("start_date") or None,
+            end_date=entry.get("end_date") or None,
+        )
+    for entry in (experience or []):
+        db.add_experience_entry(
+            session_user_id, company=entry.get("company", ""), role=entry.get("role", ""),
+            start_date=entry.get("start_date") or None, end_date=entry.get("end_date") or None,
+            responsibilities=entry.get("responsibilities", ""), achievements=entry.get("achievements", ""),
+            industry=entry.get("industry", ""), function=entry.get("function", ""),
+        )
+    return {"status": "confirmed"}
 
 
 # ---- profile (read-only in Phase 0 — shared table, owned by the sibling app) ----

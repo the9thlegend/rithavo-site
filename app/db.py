@@ -595,13 +595,52 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
-    # ---- shared profile (READ ONLY from this service in Phase 0) ----
+    # ---- shared profile (read-only from this service through Phase
+    #      2B-1.7A — the P0 onboarding work below is the first time this
+    #      service creates/updates a career_profiles row itself, for a
+    #      user who signs up via rithavo.com without ever touching
+    #      app.rithavo.com) ----
 
     def get_career_profile(self, user_id: int):
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM career_profiles WHERE user_id = ?", (user_id,)
             ).fetchone()
+
+    def upsert_career_profile(self, user_id: int, profile_json: dict) -> None:
+        """P0 onboarding: the ONLY place this service writes to the
+        shared career_profiles table. Upsert, not insert-only —
+        career_profiles.user_id is the primary key, so a user revisiting
+        onboarding (or a future profile-edit surface) updates the SAME
+        row rather than conflicting. trust_level stays 'UNVERIFIED' —
+        matches the value the sibling app's own onboarding uses for a
+        freshly-created profile (see seed_minimal_profile in tests/
+        conftest.py, mirroring the sibling's real shape); this service
+        never claims a higher trust tier than that. completeness_pct is
+        purely informational (read nowhere in this codebase, confirmed
+        by inspection) — a simple filled-field percentage, not a scored
+        judgment."""
+        import json as _json
+        payload = _json.dumps(profile_json)
+        identity = profile_json.get("identity", {}) or {}
+        background = profile_json.get("background", {}) or {}
+        fields = [
+            identity.get("name", {}).get("value"),
+            identity.get("headline", {}).get("value"),
+            identity.get("location", {}).get("value"),
+            identity.get("years_of_experience", {}).get("value"),
+            background.get("current_role", {}).get("value"),
+        ]
+        filled = sum(1 for f in fields if f)
+        completeness_pct = round(100 * filled / len(fields))
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO career_profiles (user_id, profile_json, trust_level, completeness_pct, updated_at) "
+                "VALUES (?, ?, 'UNVERIFIED', ?, ?) "
+                "ON CONFLICT (user_id) DO UPDATE SET profile_json = excluded.profile_json, "
+                "completeness_pct = excluded.completeness_pct, updated_at = excluded.updated_at",
+                (user_id, payload, completeness_pct, _now()),
+            )
 
     # ---- Career Intelligence (READ ONLY presentation adapter — Phase
     #      2B-1.7A; see the schema comment above SCHEMA_SHARED_REPLICA's
