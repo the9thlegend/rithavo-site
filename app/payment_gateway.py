@@ -1,20 +1,14 @@
 """
 Payment gateway abstraction.
 
-No real payment provider is integrated in this phase — there is no live
-gateway account or API key anywhere in this project today (the existing
-Career Intelligence product's purchases are entirely manual/Tally-form,
-payment_source="tally_manual"). Rather than fabricate a live integration
-or silently skip building the commercial flow, this module defines the
-narrow interface a real gateway adapter would implement, backed by a
-TestPaymentGateway that simulates success/failure/webhook-style
-confirmation deterministically — no real money, no external network call,
-fully exercised by the automated test suite.
-
-Swapping in a real provider later (Razorpay is the natural default for
-INR) means writing one new class satisfying this same interface and
-selecting it in config — nothing in main.py, db.py, or pricing.py needs to
-change.
+Phase 2B-2: a real provider (Razorpay, app/razorpay_gateway.py) now
+exists satisfying this exact interface, selected below only when its
+three required environment variables are all configured — exactly as
+this module's own original docstring anticipated ("nothing in main.py,
+db.py, or pricing.py needs to change"). TestPaymentGateway remains the
+zero-config default for local dev and every automated test — no
+network call, no real money, nothing that could ever be mistaken for a
+live integration.
 """
 
 from abc import ABC, abstractmethod
@@ -78,4 +72,8 @@ class TestPaymentGateway(PaymentGateway):
 
 
 def get_gateway() -> PaymentGateway:
+    from app.razorpay_gateway import get_razorpay_gateway_if_configured
+    razorpay_gateway = get_razorpay_gateway_if_configured()
+    if razorpay_gateway is not None:
+        return razorpay_gateway
     return TestPaymentGateway()

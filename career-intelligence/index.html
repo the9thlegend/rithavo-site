@@ -1,0 +1,201 @@
+<!--
+  Phase 2B-1.7A — reads the caller's existing Career Intelligence
+  results via GET /api/career-intelligence (a read-only presentation
+  adapter over already-persisted sibling-app data; see
+  rithavo-web-platform/app/career_intelligence.py). The CLASSIFICATION
+  label (Stay / New Role / New Industry / Major Transition) is this
+  service's own construction, not a fact read from a table — there is
+  no stored field for it anywhere, and the source-of-truth engine has
+  no combined role+industry scoring concept either (see
+  career_intelligence.py's module docstring) — flagged in the phase
+  report as provisional until confirmed against real production CI
+  data. "Improve My Resume"/"Create My Resume for..." calls
+  POST /api/career-intelligence/resume, which builds a resume via this
+  service's own existing resume_export.py pipeline (the same one
+  Application Diagnosis resumes use), tailored using the persisted
+  ReadinessAssessment's strengths/transfers — real CI output, not
+  invented. Touches no entitlement or purchase.
+
+  Phase 2B-2 — when the caller has no assessment, this page now shows
+  a real "Buy Career Intelligence" button (Razorpay Standard Checkout,
+  server-verified — see app-shell.js's startRazorpayPurchase). Buying
+  creates a real `career_intelligence` entitlement (recognized by the
+  sibling app's own find_active_entitlement, since it's the same
+  literal product string in the one shared entitlements table) but
+  does NOT itself produce assessment results here — actually running
+  the assessment is still the sibling app's own onboarding flow, which
+  this phase does not touch. The post-purchase message says so
+  honestly rather than implying a next step this service can't
+  fulfill.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Career Intelligence — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main app-main-wide">
+  <p class="label">Career Intelligence</p>
+  <h1 class="h2" style="margin:8px 0 24px;">Where your career stands</h1>
+  <div id="content" class="app-skeleton">Loading…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+const CLASSIFICATION_LABEL = {
+  STAY: "Stay / Current Career",
+  NEW_ROLE: "New Role",
+  NEW_INDUSTRY: "New Industry",
+  MAJOR_TRANSITION: "Major Transition",
+};
+
+function targetLabel(t) {
+  if (!t) return "your current career";
+  return t.name || (t.type === "ROLE" ? "a new role" : "a new industry");
+}
+
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("career-intelligence", me.email);
+
+  const content = document.getElementById("content");
+  let data;
+  try {
+    data = await RithavoApp.apiJson("/career-intelligence");
+  } catch (err) {
+    content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+    return;
+  }
+
+  if (!data.has_assessment) {
+    let price;
+    try { price = await RithavoApp.apiJson("/career-intelligence/price"); }
+    catch (err) { price = { amount_inr: 799 }; }
+    content.innerHTML = `
+      <div class="card card-body">
+        <p>You don't have a completed Career Intelligence assessment yet. Career Intelligence
+        helps you understand whether you're doing well in your current role, whether you
+        could do better elsewhere, and what other roles or industries could look like.</p>
+        <p><strong style="color:var(--ink); font-size:1.5rem;">₹${price.amount_inr}</strong> one-time</p>
+        <button class="btn btn-primary" id="buy-ci-btn">Buy Career Intelligence</button>
+        <div id="buy-ci-status"></div>
+      </div>
+    `;
+    document.getElementById("buy-ci-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("buy-ci-btn");
+      const status = document.getElementById("buy-ci-status");
+      btn.disabled = true;
+      btn.textContent = "Opening payment…";
+      status.innerHTML = "";
+      try {
+        await RithavoApp.startRazorpayPurchase({
+          purchasePath: "/career-intelligence/purchase",
+          confirmPath: (id) => `/career-intelligence/purchase/${id}/confirm`,
+          description: "Rithavo Career Intelligence",
+        });
+        status.innerHTML = `<div class="app-banner app-banner-success">
+          Payment received — your Career Intelligence entitlement is now active. We'll be in
+          touch about completing your assessment.
+        </div>`;
+        btn.remove();
+      } catch (err) {
+        status.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = "Buy Career Intelligence";
+      }
+    });
+    return;
+  }
+
+  const standing = data.current_standing;
+  content.innerHTML = `
+    <div class="card card-body">
+      <span class="label">Your direction</span>
+      <h2 class="h3" style="margin:0;">${CLASSIFICATION_LABEL[data.classification] || data.classification}</h2>
+      <p>${data.stated_direction_fit_summary || ""}</p>
+      ${data.primary_target ? `<p style="color:var(--ink);">Target: <strong>${targetLabel(data.primary_target)}</strong></p>` : ""}
+    </div>
+
+    ${standing ? `
+      <h3 class="h3" style="margin-top:32px;">Current standing</h3>
+      <div class="card card-body" style="margin-top:16px;">
+        <p><strong style="color:var(--ink);">Current fit:</strong> ${standing.current_fit_band}</p>
+        <p><strong style="color:var(--ink);">Transferable fit:</strong> ${standing.transferable_fit_band}</p>
+        <p><strong style="color:var(--ink);">Transition effort:</strong> ${standing.transition_effort_band}</p>
+        <p>${standing.reasoning || ""}</p>
+      </div>
+    ` : ""}
+
+    ${data.alternative_targets && data.alternative_targets.length ? `
+      <h3 class="h3" style="margin-top:32px;">Alternatives considered</h3>
+      <ul class="app-list" style="margin-top:16px;">
+        ${data.alternative_targets.map(t => `<li class="card app-list-row"><div>${targetLabel(t)}</div></li>`).join("")}
+      </ul>
+    ` : ""}
+
+    ${data.gaps && data.gaps.length ? `
+      <h3 class="h3" style="margin-top:32px;">What's missing</h3>
+      <div style="margin-top:16px;">
+        ${data.gaps.map(g => `
+          <div class="card app-finding">
+            <div class="dim">${g.gap_type} — ${g.severity}</div>
+            <div>${g.description}</div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
+
+    ${data.next_actions && data.next_actions.length ? `
+      <h3 class="h3" style="margin-top:32px;">Next actions</h3>
+      <div style="margin-top:16px;">
+        ${data.next_actions.map(a => `
+          <div class="card app-finding">
+            <div class="dim">${a.recommendation_type} — ${a.status}</div>
+            <div>${a.rationale}</div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
+
+    ${data.readiness ? `
+      <h3 class="h3" style="margin-top:32px;">Readiness</h3>
+      <div class="card card-body" style="margin-top:16px;">
+        <p><strong style="color:var(--ink);">${data.readiness.overall_band}</strong></p>
+        <p>${data.readiness.reasoning || ""}</p>
+      </div>
+    ` : ""}
+
+    <button class="btn btn-primary" style="margin-top:32px;" id="resume-cta">${data.resume_cta_label}</button>
+    <div id="resume-note" style="margin-top:12px;"></div>
+  `;
+
+  document.getElementById("resume-cta").addEventListener("click", async () => {
+    const btn = document.getElementById("resume-cta");
+    const note = document.getElementById("resume-note");
+    btn.disabled = true;
+    btn.textContent = "Creating…";
+    try {
+      await RithavoApp.apiJson("/career-intelligence/resume", { method: "POST" });
+      note.innerHTML = `<div class="app-banner app-banner-success">Resume created — view it under <a href="/resumes/">Resumes</a>.</div>`;
+    } catch (err) {
+      note.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = data.resume_cta_label;
+  });
+})();
+</script>
+</body>
+</html>

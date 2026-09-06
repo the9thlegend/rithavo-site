@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resumes — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main">
+  <p class="label">Resumes</p>
+  <h1 class="h2" style="margin:8px 0 24px;">Your resumes</h1>
+  <div id="content" class="app-skeleton">Loading…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("resumes", me.email);
+
+  const content = document.getElementById("content");
+  try {
+    const rows = await RithavoApp.apiJson("/resumes");
+    if (!rows.length) {
+      content.innerHTML = `<div class="app-empty">No resumes yet. Resumes are created from an Application Diagnosis.</div>`;
+      return;
+    }
+    content.innerHTML = `<ul class="app-list">${rows.map(r => `
+      <li class="card app-list-row">
+        <div>
+          <strong>${r.label || "Resume"}</strong>
+          <div class="meta">${r.target_context || ""} · created ${r.created_at ? r.created_at.slice(0, 10) : ""}</div>
+        </div>
+        ${r.downloadable
+          ? `<a class="btn btn-ghost" style="padding:8px 16px; font-size:0.8rem;" href="/api/resume/${r.id}/download">Download</a>`
+          : `<span class="meta">Not downloadable here</span>`}
+      </li>
+    `).join("")}</ul>`;
+  } catch (err) {
+    content.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

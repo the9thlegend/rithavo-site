@@ -23,10 +23,13 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import config
 from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
+from app.career_intelligence import get_career_intelligence_view, resume_inputs_for_view
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
-from app.email_sender import ConsoleEmailSender
+from app.email_sender import get_email_sender
 from app.payment_gateway import get_gateway
+from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
+from app.razorpay_gateway import RazorpayVerificationError
 from app.rate_limit import RateLimiter
 from app.resume_export import build_tailored_resume, render_tailored_resume_docx, TailoredResume
 from app.security import (
@@ -41,7 +44,7 @@ app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, https_on
 
 app.state.db = Database(config.DATABASE_URL or config.DB_PATH)
 app.state.db.init_schema()
-app.state.email_sender = ConsoleEmailSender()
+app.state.email_sender = get_email_sender()
 app.state.payment_gateway = get_gateway()
 app.state.auth_rate_limiter = RateLimiter()
 
@@ -68,11 +71,32 @@ def auth_start(request: Request, email: str = Form(...)):
     db = request.app.state.db
     token = issue_magic_link_token(db, config.SESSION_SECRET, email)
     link = f"{request.base_url}auth/verify?token={token}"
-    request.app.state.email_sender.send(
-        to=normalized_email,
-        subject="Your Rithavo sign-in link",
-        body=f"Click to sign in: {link}\n\nExpires in 15 minutes, works once.",
+    body = (
+        "Hi,\n\n"
+        "Use the link below to sign in to your Rithavo account:\n\n"
+        f"{link}\n\n"
+        "This link expires in 15 minutes and can only be used once. If you "
+        "didn't request this, you can safely ignore this email — no one can "
+        "access your account without clicking it.\n\n"
+        "Need help? Reply to this email or reach us at hello@rithavo.com.\n\n"
+        "— Rithavo"
     )
+    try:
+        request.app.state.email_sender.send(
+            to=normalized_email,
+            subject="Your Rithavo sign-in link",
+            body=body,
+        )
+    except Exception:
+        # Never leak provider internals (host, credentials, SMTP response
+        # text) to the client, and never log the token or the link itself
+        # — only that a send attempt failed, which is enough to diagnose
+        # from server-side provider logs.
+        logger.warning("auth_start email_send_failed to_domain=%s", normalized_email.split("@")[-1])
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't send your sign-in email right now. Please try again in a moment.",
+        )
     return {"status": "sent"}
 
 
@@ -85,7 +109,20 @@ def auth_verify(request: Request, token: str):
         return JSONResponse({"error": str(exc)}, status_code=400)
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
-    return RedirectResponse("/profile", status_code=302)
+    # Phase 2B-1.7A: the destination is now a static customer-facing page
+    # (rithavo-site/home/index.html), not this API's own /profile route —
+    # per the brief, /api/profile stays an API endpoint and is never
+    # rendered as HTML. Unlike the Phase 2B-1.6 fix (request.url_for,
+    # which correctly resolves an *API* route under root_path="/api" in
+    # production), a static route is never under /api at all, so the
+    # target must be built from the request's origin only — scheme +
+    # netloc, deliberately ignoring root_path — never a hardcoded
+    # "https://rithavo.com", so this keeps working unprefixed against
+    # local dev/tests (http://testserver/home/) and correctly prefix-free
+    # in production (https://rithavo.com/home/, even though this request
+    # itself arrived at /api/auth/verify).
+    destination = f"{request.url.scheme}://{request.url.netloc}/home/"
+    return RedirectResponse(destination, status_code=302)
 
 
 @app.post("/auth/logout")
@@ -96,12 +133,128 @@ def auth_logout(request: Request):
 
 # ---- profile (read-only in Phase 0 — shared table, owned by the sibling app) ----
 
-@app.get("/profile")
+@app.get("/profile", name="profile")
 def get_profile(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
     profile = owned_career_profile(db, session_user_id, session_user_id)
     return {"user_id": session_user_id, "career_profile": _row_to_dict(profile)}
+
+
+@app.get("/career-intelligence")
+def get_career_intelligence(request: Request):
+    """Phase 2B-1.7A: read-only presentation of the caller's existing
+    Career Intelligence results — see app/career_intelligence.py's
+    module docstring for exactly what is a verbatim read versus the two
+    small pieces of assembly this does itself. Never runs, reruns, or
+    modifies anything in the sibling app's CI engine."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    return get_career_intelligence_view(db, session_user_id)
+
+
+@app.post("/career-intelligence/resume")
+def create_career_intelligence_resume(request: Request):
+    """Phase 2B-1.7A Task 2: "Improve My Resume" (Stay) / "Create My
+    Resume for [Target]" (New Role / New Industry / Major Transition).
+
+    Deliberately touches NOTHING in the commerce layer — no entitlement
+    check, no purchase, no consumption of anything — a Career
+    Intelligence resume is not gated by this service's own Application
+    Diagnosis credit system at all (points H/I of the phase brief).
+    Uses the exact same build_tailored_resume/render_tailored_resume_docx
+    pipeline as an Application Diagnosis resume (point D: reusing this
+    service's own already-approved resume architecture, not the sibling
+    app's), so /resume/{id}/download works for a CI resume for free —
+    same ownership check, same immutable/versioned INSERT-only pattern.
+    """
+    db = request.app.state.db
+    session_user_id = require_user(request)
+
+    view = get_career_intelligence_view(db, session_user_id)
+    resume_inputs = resume_inputs_for_view(view)
+    if resume_inputs is None:
+        raise HTTPException(
+            status_code=422,
+            detail="You need a Career Intelligence assessment before Rithavo can build you a resume for it.",
+        )
+
+    profile_json = _profile_json(db, session_user_id) or {}
+    capabilities = db.list_active_capabilities_for_user(session_user_id)
+    education = db.list_education_for_user(session_user_id)
+    experience = db.list_experience_for_user(session_user_id)
+
+    resume = build_tailored_resume(
+        profile_json, capabilities, education, experience,
+        jd_text=resume_inputs["target_label"], matched_keywords=resume_inputs["matched_keywords"],
+    )
+    existing_count = len(db.list_resumes_for_user_and_target(session_user_id, resume.target_context))
+    version = existing_count + 1
+    resume_id = db.create_resume_for_career_intelligence(
+        session_user_id, resume.to_dict(),
+        label=f"Resume for {resume.target_context or resume_inputs['target_label']} — v{version}",
+        resume_context=resume_inputs["resume_context"],
+    )
+    return {"resume_id": resume_id, "version": version, "resume_context": resume_inputs["resume_context"]}
+
+
+# ---- Career Intelligence: purchase (Phase 2B-2) ----
+
+@app.get("/career-intelligence/price")
+def preview_ci_price(request: Request):
+    """Read-only, side-effect-free — mirrors GET /diagnosis/price's own
+    purpose exactly. CI has no ladder (flat ₹799), but this still goes
+    through require_user (not a public price list) and never creates a
+    purchase row, for the same reason preview_ad_price doesn't."""
+    require_user(request)
+    return {"amount_inr": CAREER_INTELLIGENCE_PRICE_INR}
+
+
+@app.post("/career-intelligence/purchase")
+def create_ci_purchase(request: Request, idempotency_key: str = Body(None, embed=True)):
+    """Career Intelligence's equivalent of POST /diagnosis/purchase —
+    same idempotency-key semantics, same gateway-agnostic
+    create_payment_intent call. The price is always
+    CAREER_INTELLIGENCE_PRICE_INR, computed server-side inside
+    Database.begin_ci_purchase; nothing here accepts a client-supplied
+    amount."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    gateway = request.app.state.payment_gateway
+    result = db.begin_ci_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
+    if result.get("replayed") and result["payment_status"] != "CREATED":
+        return result
+    user = db.get_user_by_id(session_user_id)
+    intent = gateway.create_payment_intent(result["purchase_id"], result["amount_inr"], user["email"])
+    db.mark_purchase_pending(result["purchase_id"], intent.get("gateway_reference"))
+    return {**result, **intent, "payment_status": "PENDING"}
+
+
+@app.post("/career-intelligence/purchase/{purchase_id}/confirm")
+def confirm_ci_purchase_route(request: Request, purchase_id: int,
+                               razorpay_order_id: str = Body(..., embed=True),
+                               razorpay_payment_id: str = Body(..., embed=True),
+                               razorpay_signature: str = Body(..., embed=True)):
+    db = request.app.state.db
+    result = _verify_and_confirm_razorpay_payment(
+        request, purchase_id, "CAREER_INTELLIGENCE", razorpay_order_id, razorpay_payment_id, razorpay_signature,
+        confirm_fn=lambda pid, oid, payid: db.confirm_ci_purchase(pid, oid, payid),
+    )
+    return {"status": "confirmed", **result}
+
+
+@app.get("/me")
+def get_me(request: Request):
+    """Phase 2B-1.7A: the minimum an authenticated shell needs to greet
+    the caller and confirm a live session — just enough to render a nav
+    bar, nothing profile-shaped. Deliberately separate from /profile
+    (which reaches into the shared career_profiles table) so a page that
+    only needs "am I signed in, and as whom" never has to reason about
+    that table's shape."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    user = db.get_user_by_id(session_user_id)
+    return {"user_id": session_user_id, "email": user["email"] if user else None}
 
 
 # ---- education (new, owned by this service) ----
@@ -235,6 +388,76 @@ def create_ad_purchase(request: Request, idempotency_key: str = Body(None, embed
     return {**result, **intent, "payment_status": "PENDING"}
 
 
+def _verify_and_confirm_razorpay_payment(request: Request, purchase_id: int, expected_product: str,
+                                          razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str,
+                                          confirm_fn) -> dict:
+    """Phase 2B-2 Task 5 — the client-side ("Checkout succeeded, here's
+    my payment id") verification path, shared by the Application
+    Diagnosis and Career Intelligence confirm endpoints below. This is
+    NEVER the only path a purchase can be confirmed through — the
+    webhook (below) independently confirms the same purchase, and
+    confirm_fn's own idempotency (already_confirmed) makes whichever
+    arrives second a safe no-op, not a duplicate entitlement.
+
+    Ownership: owned_purchase() raises 404 for a purchase belonging to
+    another user before any of this runs — a client can name any
+    purchase_id, but can only ever act on their own. expected_product
+    guards the (admittedly narrower) case of a caller confirming their
+    OWN purchase_id but for the wrong product (e.g. an AD confirm call
+    against what's actually their CI purchase).
+
+    Never trusts razorpay_order_id/razorpay_payment_id/razorpay_signature
+    as bare claims: the order id must match what THIS server itself
+    already stored as gateway_reference at PENDING time (a client can't
+    substitute a different, unrelated Razorpay order it doesn't own),
+    the signature is verified against the Key Secret, and the payment's
+    own status is re-fetched from Razorpay directly — reaching this
+    endpoint's success response is not itself sufficient without both."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    gateway = request.app.state.payment_gateway
+    if getattr(gateway, "name", None) != "razorpay":
+        raise HTTPException(status_code=400, detail="Real payment verification is not configured.")
+
+    purchase = owned_purchase(db, purchase_id, session_user_id)
+    if purchase["product"] != expected_product:
+        raise HTTPException(status_code=404, detail="Not found.")
+    if purchase["gateway_reference"] != razorpay_order_id:
+        # Never log the mismatched values themselves — just that a
+        # mismatch occurred, enough to investigate server-side.
+        logger.warning("razorpay_confirm order_mismatch purchase_id=%s", purchase_id)
+        raise HTTPException(status_code=400, detail="This payment does not match the expected order.")
+
+    try:
+        gateway.verify_payment_signature(razorpay_order_id, razorpay_payment_id, razorpay_signature)
+        status = gateway.fetch_payment_status(razorpay_payment_id)
+    except RazorpayVerificationError:
+        logger.warning("razorpay_confirm verification_failed purchase_id=%s", purchase_id)
+        raise HTTPException(
+            status_code=402,
+            detail="We couldn't verify this payment. If money was deducted, it will be confirmed automatically "
+                   "shortly — otherwise, please try again.",
+        )
+    if status != "captured":
+        logger.info("razorpay_confirm not_captured purchase_id=%s status=%s", purchase_id, status)
+        raise HTTPException(status_code=402, detail="This payment has not completed yet.")
+
+    return confirm_fn(purchase_id, razorpay_order_id, razorpay_payment_id)
+
+
+@app.post("/diagnosis/purchase/{purchase_id}/confirm")
+def confirm_ad_purchase_route(request: Request, purchase_id: int,
+                               razorpay_order_id: str = Body(..., embed=True),
+                               razorpay_payment_id: str = Body(..., embed=True),
+                               razorpay_signature: str = Body(..., embed=True)):
+    db = request.app.state.db
+    result = _verify_and_confirm_razorpay_payment(
+        request, purchase_id, "APPLICATION_DIAGNOSIS", razorpay_order_id, razorpay_payment_id, razorpay_signature,
+        confirm_fn=lambda pid, oid, payid: db.confirm_ad_purchase(pid, oid, payid),
+    )
+    return {"status": "confirmed", **result}
+
+
 @app.post("/payments/webhook")
 async def payments_webhook(request: Request):
     """Server-to-server only — this is where a real gateway would deliver
@@ -263,6 +486,83 @@ async def payments_webhook(request: Request):
         return {"status": "confirmed", **result}
     db.fail_ad_purchase(purchase["id"])
     return {"status": "failed", "purchase_id": purchase["id"]}
+
+
+# Recognized Razorpay webhook events this endpoint acts on. Every other
+# event (order.paid, refund.processed, etc.) is acknowledged with 200
+# but otherwise ignored — an unrecognized event must never become a 4xx/5xx
+# that makes Razorpay retry it forever, but also must never be silently
+# treated as a success/failure it isn't.
+_RAZORPAY_SUCCESS_EVENTS = {"payment.captured"}
+_RAZORPAY_FAILURE_EVENTS = {"payment.failed"}
+
+
+@app.post("/payments/razorpay/webhook")
+async def razorpay_webhook(request: Request):
+    """Phase 2B-2 Task 6. Eventual production path: /api/payments/razorpay/webhook
+    (this route's own path, unprefixed here — see api/index.py's /api
+    stripping, same convention as every other route in this file). The
+    production Razorpay webhook is NOT configured this phase (Task 11/
+    the phase brief's stop condition) — this endpoint exists and is
+    tested, but nothing points a real Razorpay account at it yet.
+
+    Verifies the signature against the RAW request body (captured via
+    request.body() before any JSON parsing — see razorpay_gateway.py's
+    verify_webhook_signature docstring for why a pre-parsed dict isn't
+    sufficient). Resolves the purchase purely via gateway_reference
+    (the Order id this server itself created) — never via anything
+    identity-shaped in the payload. Idempotent by construction: routes
+    into the same confirm_ad_purchase/confirm_ci_purchase this service's
+    client-side confirm endpoints use, which already returns
+    already_confirmed=True on a second delivery rather than creating a
+    second entitlement."""
+    db = request.app.state.db
+    gateway = request.app.state.payment_gateway
+    if getattr(gateway, "name", None) != "razorpay":
+        raise HTTPException(status_code=404, detail="Not found.")
+
+    raw_body = await request.body()
+    signature = request.headers.get("x-razorpay-signature", "")
+    try:
+        gateway.verify_webhook_signature(raw_body, signature)
+    except RazorpayVerificationError:
+        logger.warning("razorpay_webhook invalid_signature")
+        raise HTTPException(status_code=400, detail="Invalid signature.")
+
+    payload = json.loads(raw_body)
+    event = payload.get("event", "")
+    payment_entity = (payload.get("payload") or {}).get("payment", {}).get("entity", {}) or {}
+    order_id = payment_entity.get("order_id")
+    payment_id = payment_entity.get("id")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Missing order reference.")
+
+    purchase = db.get_purchase_by_gateway_reference(order_id)
+    if purchase is None:
+        # Not necessarily an error — could be a webhook for an order this
+        # service never created (shouldn't happen for a correctly scoped
+        # Razorpay account, but never assume). Acknowledge, don't retry.
+        logger.info("razorpay_webhook unknown_order event=%s", event)
+        return {"status": "ignored", "reason": "unknown_order"}
+
+    if event in _RAZORPAY_SUCCESS_EVENTS:
+        confirm_fn = db.confirm_ci_purchase if purchase["product"] == "CAREER_INTELLIGENCE" else db.confirm_ad_purchase
+        try:
+            result = confirm_fn(purchase["id"], order_id, payment_id)
+        except ValueError as exc:
+            # e.g. "cannot confirm a purchase in status REFUNDED" — an
+            # out-of-order/late webhook arriving after the purchase moved
+            # on for an unrelated reason. Acknowledge (don't make
+            # Razorpay retry forever); log for investigation.
+            logger.warning("razorpay_webhook confirm_rejected purchase_id=%s reason=%s", purchase["id"], exc)
+            return {"status": "ignored", "reason": "state_conflict"}
+        return {"status": "confirmed", **result}
+
+    if event in _RAZORPAY_FAILURE_EVENTS:
+        db.fail_ad_purchase(purchase["id"])  # product-agnostic despite the name — see its own docstring
+        return {"status": "failed", "purchase_id": purchase["id"]}
+
+    return {"status": "ignored", "event": event}
 
 
 @app.get("/purchases")
@@ -509,6 +809,23 @@ def list_diagnosis_resumes(request: Request, diagnostic_id: int):
     session_user_id = require_user(request)
     owned_diagnosis(db, diagnostic_id, session_user_id)
     return [_row_to_dict(r) for r in db.list_resumes_for_diagnosis(diagnostic_id)]
+
+
+@app.get("/resumes")
+def list_resumes(request: Request):
+    """Phase 2B-1.7A: the full resume history tab needs every resume for
+    this user, not just the ones tied to one Application Diagnosis
+    (GET /diagnosis/{id}/resumes, unchanged, still exists for that
+    narrower case). A row this service didn't create — e.g. one the
+    sibling Career Intelligence product generated — may have no
+    content_json; `downloadable` tells the frontend not to offer a
+    download link it knows would fail, without guessing why."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    rows = [_row_to_dict(r) for r in db.list_resumes_for_user(session_user_id)]
+    for row in rows:
+        row["downloadable"] = bool(row.get("content_json"))
+    return rows
 
 
 @app.get("/resume/{resume_id}/download")

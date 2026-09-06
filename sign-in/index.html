@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sign in — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-main" style="max-width:420px; padding-top:96px;">
+  <a class="wordmark" href="/" style="justify-content:center; display:flex; margin-bottom:32px;">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
+      <path d="M4 5 L12.5 12 L4 19" fill="none" stroke="var(--g1)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+      <path d="M11 4 L21 12 L11 20" fill="none" stroke="var(--g3)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span style="margin-left:8px;">Rithavo</span>
+  </a>
+
+  <div class="card card-body">
+    <h1 class="h2" style="font-size:1.4rem; margin:0;">Sign in</h1>
+    <p style="font-size:0.9rem;">Enter your email and we'll send you a link to sign in — no password needed.</p>
+
+    <div id="banner"></div>
+
+    <form id="sign-in-form">
+      <div class="app-field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="submit-btn">
+        Send sign-in link
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById("sign-in-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const banner = document.getElementById("banner");
+  const btn = document.getElementById("submit-btn");
+  const email = document.getElementById("email").value.trim();
+  banner.innerHTML = "";
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+  try {
+    const resp = await fetch("/api/auth/start", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "email=" + encodeURIComponent(email),
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const message = (data && data.detail) ? data.detail : "Something went wrong. Please try again.";
+      banner.innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Send sign-in link";
+      return;
+    }
+    banner.innerHTML = `<div class="app-banner app-banner-success">Check your email — we've sent a sign-in link to ${email}. It expires in 15 minutes and works once.</div>`;
+    document.getElementById("sign-in-form").style.display = "none";
+  } catch (err) {
+    banner.innerHTML = `<div class="app-banner app-banner-error">Something went wrong. Please try again.</div>`;
+    btn.disabled = false;
+    btn.textContent = "Send sign-in link";
+  }
+});
+</script>
+</body>
+</html>

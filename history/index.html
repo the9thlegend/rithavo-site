@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>History — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main">
+  <p class="label">History</p>
+  <h1 class="h2" style="margin:8px 0 24px;">Purchases &amp; past diagnoses</h1>
+
+  <h2 class="h3">Purchases</h2>
+  <div id="purchases" class="app-skeleton" style="margin:16px 0 40px;">Loading…</div>
+
+  <h2 class="h3">Application Diagnoses</h2>
+  <div id="diagnoses" class="app-skeleton" style="margin:16px 0;">Loading…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("history", me.email);
+
+  try {
+    const purchases = await RithavoApp.apiJson("/purchases");
+    const mount = document.getElementById("purchases");
+    mount.innerHTML = purchases.length
+      ? `<ul class="app-list">${purchases.map(p => `
+          <li class="card app-list-row">
+            <div><strong>${p.product}</strong><div class="meta">₹${p.amount_inr} · ${p.payment_status}</div></div>
+            <span class="meta">${p.created_at ? p.created_at.slice(0, 10) : ""}</span>
+          </li>
+        `).join("")}</ul>`
+      : `<div class="app-empty">No purchases yet.</div>`;
+  } catch (err) {
+    document.getElementById("purchases").innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+  }
+
+  try {
+    const diagnoses = await RithavoApp.apiJson("/diagnosis");
+    const mount = document.getElementById("diagnoses");
+    mount.innerHTML = diagnoses.length
+      ? `<ul class="app-list">${diagnoses.map(d => `
+          <li class="card app-list-row">
+            <div><strong>Score: ${d.overall_score ?? "—"}</strong><div class="meta">${d.created_at ? d.created_at.slice(0, 10) : ""}</div></div>
+          </li>
+        `).join("")}</ul>`
+      : `<div class="app-empty">No diagnoses yet.</div>`;
+  } catch (err) {
+    document.getElementById("diagnoses").innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

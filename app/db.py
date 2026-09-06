@@ -186,6 +186,163 @@ CREATE TABLE IF NOT EXISTS diagnostic_findings (
     promoted_to_capability_id INTEGER,
     promoted_to_evidence_id INTEGER
 );
+
+-- Phase 2B-1.7A: read-only presentation adapter for the sibling app's
+-- Career Intelligence data model. Every field this service reads back
+-- out of these tables is a VERBATIM, already-computed value — fit
+-- bands, gap descriptions, recommendation text, readiness bands are
+-- all written by the sibling's own Fit/Gap/Recommendation/Readiness
+-- engines and never recomputed, rescored, or reinterpreted here. The
+-- only "logic" this service adds (see app/career_intelligence.py) is
+-- mechanical: which already-persisted row is "the active one" (a plain
+-- status='ACTIVE' filter, the exact same convention every table below
+-- already uses) and which of Stay/New Role/New Industry/Major
+-- Transition a target's populated foreign keys correspond to (i.e.
+-- reading which of target_role_id/target_industry_id is set — not a
+-- scoring decision). No CI scoring, matching, synthesis, or
+-- recommendation logic is reimplemented anywhere in this service.
+-- Verbatim copies of the sibling's real schema; no-ops in production.
+CREATE TABLE IF NOT EXISTS roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS industries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS career_paths (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    source_context TEXT NOT NULL DEFAULT '',
+    target_role_id INTEGER REFERENCES roles(id),
+    target_industry_id INTEGER REFERENCES industries(id),
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS career_direction_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    stated_direction_career_path_id INTEGER REFERENCES career_paths(id),
+    stated_direction_fit_summary TEXT NOT NULL DEFAULT '',
+    stated_direction_confidence TEXT,
+    alternative_career_path_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS role_fits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    role_id INTEGER NOT NULL REFERENCES roles(id),
+    current_fit_band TEXT NOT NULL,
+    transferable_fit_band TEXT NOT NULL,
+    transition_effort_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    supporting_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS industry_fits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    industry_id INTEGER NOT NULL REFERENCES industries(id),
+    current_fit_band TEXT NOT NULL,
+    transferable_fit_band TEXT NOT NULL,
+    transition_effort_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    supporting_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS career_transitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    career_path_id INTEGER NOT NULL REFERENCES career_paths(id),
+    role_fit_id INTEGER REFERENCES role_fits(id),
+    industry_fit_id INTEGER REFERENCES industry_fits(id),
+    transferable_capability_ids TEXT NOT NULL DEFAULT '[]',
+    gap_ids TEXT NOT NULL DEFAULT '[]',
+    difficulty_band TEXT NOT NULL,
+    suggested_next_steps TEXT NOT NULL DEFAULT '[]',
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS gaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id INTEGER NOT NULL REFERENCES users(id),
+    career_transition_id INTEGER REFERENCES career_transitions(id),
+    gap_type TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    severity TEXT NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'HELPFUL',
+    depends_on_gap_ids TEXT NOT NULL DEFAULT '[]',
+    applicable_stages TEXT NOT NULL DEFAULT '[]',
+    evidence_ids TEXT NOT NULL DEFAULT '[]',
+    recommended_action_type TEXT NOT NULL,
+    reasoning TEXT NOT NULL DEFAULT '',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    created_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS learning_recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gap_id INTEGER NOT NULL REFERENCES gaps(id),
+    recommendation_type TEXT NOT NULL,
+    rationale TEXT NOT NULL DEFAULT '',
+    importance_band TEXT NOT NULL,
+    would_meaningfully_help INTEGER,
+    would_meaningfully_help_explanation TEXT NOT NULL DEFAULT '',
+    expected_outcome TEXT NOT NULL DEFAULT '',
+    evidence_of_completion TEXT NOT NULL DEFAULT '',
+    applicable_stages TEXT NOT NULL DEFAULT '[]',
+    confidence TEXT,
+    alternative_paths_considered TEXT NOT NULL DEFAULT '[]',
+    decision TEXT NOT NULL DEFAULT 'PENDING',
+    decided_at TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS readiness_assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    career_transition_id INTEGER NOT NULL REFERENCES career_transitions(id),
+    current_readiness_json TEXT NOT NULL,
+    transition_readiness_json TEXT NOT NULL,
+    target_readiness_json TEXT NOT NULL,
+    overall_band TEXT NOT NULL,
+    confidence TEXT,
+    reasoning TEXT NOT NULL DEFAULT '',
+    strengths TEXT NOT NULL DEFAULT '[]',
+    transfers TEXT NOT NULL DEFAULT '[]',
+    barrier_gap_ids TEXT NOT NULL DEFAULT '[]',
+    next_step_recommendation_ids TEXT NOT NULL DEFAULT '[]',
+    success_looks_like TEXT NOT NULL DEFAULT '[]',
+    missing_information TEXT NOT NULL DEFAULT '[]',
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    computed_at TEXT NOT NULL,
+    supersedes_id INTEGER
+);
 """
 
 # ---- NEW tables: owned by this service, additive ----
@@ -274,6 +431,22 @@ _ADDITIVE_COLUMNS = [
     # than a confusing "no credit" error (the entitlement is correctly
     # already consumed by then) or, worse, a second diagnosis.
     ("diagnostics", "idempotency_key", "TEXT"),
+    # Phase 2B-1.7A: which of the three Rithavo resume contexts a given
+    # resume row is — SAME_CAREER / NEW_TARGET (both new this phase, for
+    # Career Intelligence resumes) or JOB_DIAGNOSIS (the pre-existing
+    # Application Diagnosis resume, now explicitly tagged as such at
+    # creation time instead of only being inferable from diagnostic_id
+    # being non-null). Nullable/additive — existing rows created before
+    # this column existed are simply NULL, exactly like every other
+    # additive column above.
+    ("resumes", "resume_context", "TEXT"),
+    # Phase 2B-2: Razorpay's payment id, distinct from gateway_reference
+    # (which now holds the Razorpay Order id, created before payment —
+    # see begin_ad_purchase/begin_ci_purchase). Nullable until a payment
+    # actually succeeds; UNIQUE (enforced via the additive index below)
+    # so the same successful Razorpay payment can never confirm two
+    # different purchase rows, even under a client-callback/webhook race.
+    ("purchases", "gateway_payment_id", "TEXT"),
 ]
 
 # Phase 2A: additive indexes, applied AFTER _ADDITIVE_COLUMNS (the column
@@ -295,6 +468,23 @@ _ADDITIVE_INDEXES = [
     ("idx_diagnostics_idempotency_key",
      "CREATE UNIQUE INDEX idx_diagnostics_idempotency_key ON diagnostics(profile_id, idempotency_key) "
      "WHERE idempotency_key IS NOT NULL"),
+    # Phase 2B-2: idx_purchases_idempotency_key above was scoped only by
+    # (user_id, idempotency_key) — harmless while exactly one product
+    # (APPLICATION_DIAGNOSIS) ever wrote to this table, but Career
+    # Intelligence purchases now share it too. Replaced with a
+    # product-scoped equivalent so the same idempotency_key string used
+    # for two different products by the same user (unlikely, but no
+    # longer impossible) can never collide. Safe to apply to the real
+    # production table: every existing row has product='APPLICATION_DIAGNOSIS',
+    # so no existing data could possibly violate the new, stricter constraint.
+    ("drop_old_purchases_idempotency_key_index", "DROP INDEX IF EXISTS idx_purchases_idempotency_key"),
+    ("idx_purchases_idempotency_key_v2",
+     "CREATE UNIQUE INDEX idx_purchases_idempotency_key_v2 ON purchases(user_id, product, idempotency_key) "
+     "WHERE idempotency_key IS NOT NULL"),
+    # Phase 2B-2: see gateway_payment_id's own comment above.
+    ("idx_purchases_gateway_payment_id",
+     "CREATE UNIQUE INDEX idx_purchases_gateway_payment_id ON purchases(gateway_payment_id) "
+     "WHERE gateway_payment_id IS NOT NULL"),
 ]
 
 
@@ -411,6 +601,84 @@ class Database:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM career_profiles WHERE user_id = ?", (user_id,)
+            ).fetchone()
+
+    # ---- Career Intelligence (READ ONLY presentation adapter — Phase
+    #      2B-1.7A; see the schema comment above SCHEMA_SHARED_REPLICA's
+    #      CI tables). Every query below is a plain status='ACTIVE' or
+    #      foreign-key lookup, the exact same convention the sibling
+    #      app's own db.py uses for these same tables — no scoring, no
+    #      synthesis, nothing recomputed. ----
+
+    def get_role(self, role_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
+
+    def get_industry(self, industry_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM industries WHERE id = ?", (industry_id,)).fetchone()
+
+    def get_career_path(self, path_id: int):
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM career_paths WHERE id = ?", (path_id,)).fetchone()
+
+    def list_career_paths_for_user(self, user_id: int) -> list:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_paths WHERE profile_id = ? ORDER BY id", (user_id,)
+            ).fetchall()
+
+    def find_active_career_direction_assessment(self, user_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_direction_assessments WHERE profile_id = ? AND status = 'ACTIVE'",
+                (user_id,),
+            ).fetchone()
+
+    def find_active_role_fit(self, user_id: int, role_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM role_fits WHERE profile_id = ? AND role_id = ? AND status = 'ACTIVE'",
+                (user_id, role_id),
+            ).fetchone()
+
+    def find_active_industry_fit(self, user_id: int, industry_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM industry_fits WHERE profile_id = ? AND industry_id = ? AND status = 'ACTIVE'",
+                (user_id, industry_id),
+            ).fetchone()
+
+    def find_active_career_transition_for_path(self, career_path_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM career_transitions WHERE career_path_id = ? AND status = 'ACTIVE'",
+                (career_path_id,),
+            ).fetchone()
+
+    def list_active_gaps_for_transition(self, career_transition_id: int) -> list:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM gaps WHERE career_transition_id = ? AND status = 'ACTIVE' ORDER BY id",
+                (career_transition_id,),
+            ).fetchall()
+
+    def list_recommendations_for_gap(self, gap_id: int) -> list:
+        # "REJECTED never appears here" — the exact same customer-facing
+        # exclusion rule the sibling app's own NextAction presentation
+        # uses (app/intelligence/synthesis_engine.py), reproduced as a
+        # literal filter, not a decision this service is making itself.
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM learning_recommendations WHERE gap_id = ? AND decision != 'REJECTED' ORDER BY id",
+                (gap_id,),
+            ).fetchall()
+
+    def find_active_readiness_for_transition(self, career_transition_id: int):
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM readiness_assessments WHERE career_transition_id = ? AND status = 'ACTIVE'",
+                (career_transition_id,),
             ).fetchone()
 
     # ---- magic link (owned by this service) ----
@@ -578,7 +846,8 @@ class Database:
             self._advisory_lock(conn, f"ad_purchase:{user_id}")
             if idempotency_key:
                 existing = conn.execute(
-                    "SELECT * FROM purchases WHERE user_id = ? AND idempotency_key = ?",
+                    "SELECT * FROM purchases WHERE user_id = ? AND product = 'APPLICATION_DIAGNOSIS' "
+                    "AND idempotency_key = ?",
                     (user_id, idempotency_key),
                 ).fetchone()
                 if existing is not None:
@@ -603,6 +872,39 @@ class Database:
                 "payment_status": "CREATED", "replayed": False,
             }
 
+    def begin_ci_purchase(self, user_id: int, gateway: str = "test", idempotency_key: str = None) -> dict:
+        """Career Intelligence's equivalent of begin_ad_purchase — same
+        idempotency-key-dedup-under-advisory-lock guarantee, but with a
+        flat price (no qualifying-count ladder; CI is ₹799 one-time,
+        always). qualifying_count_at_purchase is stored as 0 — meaningless
+        for CI, kept only because the column is NOT NULL on a shared
+        table shape; count_qualifying_ad_purchases/price_for_qualifying_count
+        are never called for this product."""
+        from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
+        with self.connect() as conn:
+            self._advisory_lock(conn, f"ci_purchase:{user_id}")
+            if idempotency_key:
+                existing = conn.execute(
+                    "SELECT * FROM purchases WHERE user_id = ? AND product = 'CAREER_INTELLIGENCE' "
+                    "AND idempotency_key = ?",
+                    (user_id, idempotency_key),
+                ).fetchone()
+                if existing is not None:
+                    return {
+                        "purchase_id": existing["id"], "amount_inr": existing["amount_inr"],
+                        "payment_status": existing["payment_status"], "replayed": True,
+                    }
+            cur = conn.execute(
+                "INSERT INTO purchases (user_id, product, amount_inr, currency, qualifying_count_at_purchase, "
+                "payment_status, gateway, idempotency_key, created_at, updated_at) "
+                "VALUES (?, 'CAREER_INTELLIGENCE', ?, 'INR', 0, 'CREATED', ?, ?, ?, ?)",
+                (user_id, CAREER_INTELLIGENCE_PRICE_INR, gateway, idempotency_key, _now(), _now()),
+            )
+            return {
+                "purchase_id": cur.lastrowid, "amount_inr": CAREER_INTELLIGENCE_PRICE_INR,
+                "payment_status": "CREATED", "replayed": False,
+            }
+
     def mark_purchase_pending(self, purchase_id: int, gateway_reference: str = None) -> None:
         """CREATED -> PENDING: a gateway payment intent/session now exists
         and the customer is expected to complete payment. Guarded so this
@@ -621,19 +923,63 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
 
+    def get_purchase_by_gateway_reference(self, gateway_reference: str):
+        """Phase 2B-2: how the Razorpay webhook resolves a purchase —
+        purely from the Order id THIS server itself created and stored
+        (gateway_reference), at PENDING time. Never resolves via anything
+        the webhook payload's own identity-shaped fields (customer id,
+        email, etc.) claim, exactly per 'never trust client-supplied
+        identity' (this is a server-to-server call, not a browser
+        session, but the same rule still applies — Razorpay's own
+        webhook payload is still untrusted input until its signature is
+        verified, and even then names only the payment, not our user)."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM purchases WHERE gateway_reference = ?", (gateway_reference,)
+            ).fetchone()
+
     def list_purchases_for_user(self, user_id: int) -> list:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM purchases WHERE user_id = ? ORDER BY id", (user_id,)
             ).fetchall()
 
-    def confirm_ad_purchase(self, purchase_id: int, gateway_reference: str) -> dict:
-        """Idempotent payment confirmation. A duplicate webhook delivery
-        (same gateway_reference, called again for a purchase already
-        SUCCEEDED) returns the SAME entitlement rather than creating a
-        second one. Locked on purchase_id so two truly concurrent
-        deliveries of the same webhook can't both pass the status check
-        before either has committed."""
+    def _confirm_purchase(self, purchase_id: int, gateway_reference: str, entitlement_product: str,
+                           gateway_payment_id: str = None) -> dict:
+        """Phase 2B-2: the shared core confirm_ad_purchase always had —
+        extracted so Career Intelligence purchases (confirm_ci_purchase,
+        below) get the EXACT same guarantees (idempotent, advisory-locked,
+        gateway_reference-collision-checked) without a second, subtly-
+        different implementation. confirm_ad_purchase's own public
+        behavior/signature is unchanged; only entitlement_product (which
+        it always hardcoded) is now a parameter.
+
+        gateway_payment_id (Phase 2B-2, optional): Razorpay's payment id,
+        distinct from gateway_reference (the Order id, set earlier at
+        PENDING time — see begin_ad_purchase/begin_ci_purchase +
+        mark_purchase_pending). Checked for uniqueness the same way
+        gateway_reference already is, so the same successful Razorpay
+        payment can never confirm two different purchase rows even if
+        the client-side callback and the webhook both arrive.
+
+        FAILED (Phase 2B-2.1): a Razorpay Order can receive more than one
+        payment attempt — an initial `payment.failed` moves the purchase
+        to FAILED, but the SAME Order stays valid for the customer to
+        retry on, and a later attempt can genuinely succeed. FAILED is
+        therefore treated as confirmable, same as CREATED/PENDING, NOT as
+        a terminal state like REFUNDED/ADMIN_GRANT (neither of which is
+        in this tuple, and neither of which this change touches). This is
+        safe without any extra check here because both callers already
+        establish that the successful payment belongs to THIS purchase
+        before ever reaching this method: the browser route
+        (_verify_and_confirm_razorpay_payment) rejects a mismatched
+        razorpay_order_id with a 400 before calling confirm_fn, and the
+        webhook route resolves the purchase via get_purchase_by_gateway_reference
+        — i.e. only a payment for the exact same Order this purchase's
+        gateway_reference already names can ever arrive here at all. An
+        unrelated/different order can therefore never resurrect a FAILED
+        purchase; it simply never reaches this method for that purchase
+        row in the first place."""
         with self.connect() as conn:
             self._advisory_lock(conn, f"confirm_purchase:{purchase_id}")
             purchase = conn.execute("SELECT * FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
@@ -645,7 +991,7 @@ class Database:
                     "entitlement_id": purchase["entitlement_id"],
                     "already_confirmed": True,
                 }
-            if purchase["payment_status"] not in ("CREATED", "PENDING"):
+            if purchase["payment_status"] not in ("CREATED", "PENDING", "FAILED"):
                 raise ValueError(f"cannot confirm a purchase in status {purchase['payment_status']}")
             conflicting = conn.execute(
                 "SELECT id FROM purchases WHERE gateway_reference = ? AND id != ?",
@@ -653,21 +999,46 @@ class Database:
             ).fetchone()
             if conflicting is not None:
                 raise ValueError("gateway_reference already used by a different purchase")
+            if gateway_payment_id:
+                payment_conflicting = conn.execute(
+                    "SELECT id FROM purchases WHERE gateway_payment_id = ? AND id != ?",
+                    (gateway_payment_id, purchase_id),
+                ).fetchone()
+                if payment_conflicting is not None:
+                    raise ValueError("gateway_payment_id already used by a different purchase")
 
             ent_cur = conn.execute(
                 "INSERT INTO entitlements (user_id, product, status, amount, currency, payment_source, "
                 "external_payment_reference, purchased_at, activated_at, purchase_id) "
-                "VALUES (?, 'APPLICATION_DIAGNOSTIC', 'ACTIVE', ?, ?, 'rithavo_web_gateway', ?, ?, ?, ?)",
-                (purchase["user_id"], purchase["amount_inr"], purchase["currency"], gateway_reference,
-                 _now(), _now(), purchase_id),
+                "VALUES (?, ?, 'ACTIVE', ?, ?, 'rithavo_web_gateway', ?, ?, ?, ?)",
+                (purchase["user_id"], entitlement_product, purchase["amount_inr"], purchase["currency"],
+                 gateway_payment_id or gateway_reference, _now(), _now(), purchase_id),
             )
             entitlement_id = ent_cur.lastrowid
             conn.execute(
-                "UPDATE purchases SET payment_status = 'SUCCEEDED', gateway_reference = ?, entitlement_id = ?, "
+                "UPDATE purchases SET payment_status = 'SUCCEEDED', gateway_reference = ?, "
+                "gateway_payment_id = COALESCE(?, gateway_payment_id), entitlement_id = ?, "
                 "updated_at = ? WHERE id = ?",
-                (gateway_reference, entitlement_id, _now(), purchase_id),
+                (gateway_reference, gateway_payment_id, entitlement_id, _now(), purchase_id),
             )
             return {"purchase_id": purchase_id, "entitlement_id": entitlement_id, "already_confirmed": False}
+
+    def confirm_ad_purchase(self, purchase_id: int, gateway_reference: str, gateway_payment_id: str = None) -> dict:
+        """Public entry point for Application Diagnosis — unchanged
+        behavior/signature (gateway_payment_id is a new, optional,
+        backward-compatible parameter). See _confirm_purchase above."""
+        return self._confirm_purchase(purchase_id, gateway_reference, "APPLICATION_DIAGNOSTIC", gateway_payment_id)
+
+    def confirm_ci_purchase(self, purchase_id: int, gateway_reference: str, gateway_payment_id: str = None) -> dict:
+        """Public entry point for Career Intelligence. entitlement_product
+        is 'career_intelligence' (lowercase, matching the sibling app's
+        own PRODUCT_CAREER_INTELLIGENCE constant exactly — app/entitlements.py
+        in rithavo-career-profile) rather than this service's own
+        uppercase purchases.product convention, so an entitlement created
+        here is recognized by the sibling's find_active_entitlement()
+        too, via the one shared `entitlements` table — zero sibling code
+        touched, just using its existing literal correctly."""
+        return self._confirm_purchase(purchase_id, gateway_reference, "career_intelligence", gateway_payment_id)
 
     def admin_grant_ad_entitlement(self, user_id: int, reason: str = "ADMIN_GRANT", note: str = "") -> dict:
         """A founder/support-issued free entitlement — auditable as its own
@@ -951,12 +1322,41 @@ class Database:
         with self.connect() as conn:
             cur = conn.execute(
                 "INSERT INTO resumes (profile_id, target_context, source_file_ref, label, "
-                "linked_diagnostic_ids, created_at, content_json, diagnostic_id) "
-                "VALUES (?, ?, '', ?, ?, ?, ?, ?)",
+                "linked_diagnostic_ids, created_at, content_json, diagnostic_id, resume_context) "
+                "VALUES (?, ?, '', ?, ?, ?, ?, ?, 'JOB_DIAGNOSIS')",
                 (user_id, content.get("target_context", ""), label, json.dumps([diagnostic_id]), _now(),
                  json.dumps(content), diagnostic_id),
             )
             return cur.lastrowid
+
+    def create_resume_for_career_intelligence(self, user_id: int, content: dict, label: str, resume_context: str) -> int:
+        """Phase 2B-1.7A. resume_context is always 'SAME_CAREER' or
+        'NEW_TARGET' here — 'JOB_DIAGNOSIS' only ever comes from
+        create_resume_for_diagnosis above. Deliberately no diagnostic_id
+        (this was never an Application Diagnosis) and no entitlement/
+        purchase touched anywhere in this call path — a Career
+        Intelligence resume is not gated by this service's own
+        commerce tables at all."""
+        import json
+        with self.connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO resumes (profile_id, target_context, source_file_ref, label, "
+                "linked_diagnostic_ids, created_at, content_json, resume_context) "
+                "VALUES (?, ?, '', ?, '[]', ?, ?, ?)",
+                (user_id, content.get("target_context", ""), label, _now(), json.dumps(content), resume_context),
+            )
+            return cur.lastrowid
+
+    def list_resumes_for_user_and_target(self, user_id: int, target_context: str) -> list:
+        """Scopes CI resume versioning by (user, target label) — the
+        closest available equivalent to list_resumes_for_diagnosis's
+        per-diagnosis scoping, since a Career Intelligence resume has no
+        diagnostic_id to key off."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM resumes WHERE profile_id = ? AND target_context = ? ORDER BY id",
+                (user_id, target_context),
+            ).fetchall()
 
     def get_resume(self, resume_id: int):
         with self.connect() as conn:
@@ -966,4 +1366,19 @@ class Database:
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM resumes WHERE diagnostic_id = ? ORDER BY id", (diagnostic_id,)
+            ).fetchall()
+
+    def list_resumes_for_user(self, user_id: int) -> list:
+        """Phase 2B-1.7A: every resume row for this profile, not just the
+        ones tied to an Application Diagnosis — the "Resumes" history tab
+        needs the full picture. No new table, no schema change: `resumes`
+        is already declared above. A row this service didn't create (e.g.
+        one generated by the sibling app's Career Intelligence product)
+        may have diagnostic_id/content_json NULL — callers must not
+        assume every row is downloadable through this service's own
+        /resume/{id}/download (that renders content_json, a column only
+        this service's own writer populates)."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM resumes WHERE profile_id = ? ORDER BY id DESC", (user_id,)
             ).fetchall()

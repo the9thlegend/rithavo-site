@@ -14,6 +14,15 @@ since it's also used for local dev/testing with no "/api" concept at
 all. This thin wrapper strips the leading "/api" from the incoming
 ASGI scope before handing off to the real app, so the two stay in sync
 without embedding deployment-specific routing into the backend itself.
+
+Phase 2B-1.6 finding: stripping scope["path"] alone left
+Request.base_url (used by /auth/start to build the magic-link URL it
+emails to customers) resolving to "https://rithavo.com/" — missing the
+"/api" prefix the deployed routing actually requires, which would have
+made every emailed sign-in link 404. Also setting scope["root_path"]
+here (the standard ASGI mechanism for "this app is mounted under a
+sub-path") fixes Request.base_url/url_for everywhere in the app for
+free, with no change to app/main.py's own route logic.
 """
 
 import os
@@ -28,4 +37,5 @@ async def app(scope, receive, send):
     if scope["type"] == "http" and scope["path"].startswith("/api"):
         scope = dict(scope)
         scope["path"] = scope["path"][len("/api"):] or "/"
+        scope["root_path"] = "/api"
     await _app(scope, receive, send)
