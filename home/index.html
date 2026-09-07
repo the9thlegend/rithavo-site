@@ -35,6 +35,21 @@
   }
 
   const hasProfile = profile && profile.career_profile;
+
+  // Phase P0.2: read-only, and only ever asked for once a Profile
+  // exists — never used to decide whether to create anything, only
+  // which CTA wording to show. Non-fatal: if this fails, the CTA
+  // simply defaults to "Generate," the same as a brand-new Card.
+  let hasCard = false;
+  if (hasProfile) {
+    try {
+      const status = await RithavoApp.apiJson("/card/status");
+      hasCard = !!status.has_card;
+    } catch (e) {
+      // Non-fatal — see above.
+    }
+  }
+
   content.className = "";
   content.innerHTML = `
     <p class="label">Welcome back</p>
@@ -46,6 +61,28 @@
         Career Intelligence both use your Profile — add your education and experience to get started.
       </div>
     `}
+
+    ${hasProfile ? `
+      <div class="card card-hover" style="margin-bottom:28px;">
+        <div class="card-body" style="flex-direction:row; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;">
+          <div>
+            <span class="tag">Your Rithavo Card</span>
+            <h3 style="margin:6px 0 6px;">${hasCard ? "Your profile, ready to share" : "Your profile is ready"}</h3>
+            <p style="margin:0; max-width:52ch;" id="card-cta-copy">
+              Your Rithavo Profile is the foundation — your Rithavo Card is the polished, shareable
+              version of it.
+            </p>
+          </div>
+          <button type="button" class="btn btn-primary" id="card-continue-btn" style="white-space:nowrap;">
+            ${hasCard ? "Continue to Your Rithavo Card" : "Generate Your Rithavo Card"}
+          </button>
+        </div>
+        <div id="card-cta-error"></div>
+      </div>
+      <form id="card-handoff-form" method="POST" style="display:none;">
+        <input type="hidden" name="token">
+      </form>
+    ` : ""}
 
     <div class="app-tile-grid">
       <a class="card card-hover app-tile" href="/profile/">
@@ -80,6 +117,40 @@
       </a>
     </div>
   `;
+
+  // Phase P0.2: Profile -> Rithavo Card handoff. This never touches
+  // Card data itself — it mints a short-lived, single-use token
+  // server-side (POST /api/card/continue) and hands the browser off to
+  // the sibling app in one real cross-origin navigation, so the same
+  // already-authenticated rithavo.com visitor lands on their existing
+  // Rithavo Card without a second manual sign-in. A plain <a href>
+  // can't do this: the token must travel in a POST body (never a URL,
+  // where it could leak via logs/referrer), which needs a real
+  // auto-submitted form, not a link.
+  const cardBtn = document.getElementById("card-continue-btn");
+  if (cardBtn) {
+    cardBtn.addEventListener("click", async () => {
+      const errorBox = document.getElementById("card-cta-error");
+      errorBox.innerHTML = "";
+      cardBtn.disabled = true;
+      const originalLabel = cardBtn.textContent;
+      cardBtn.textContent = "One moment…";
+      try {
+        const { handoff_url, token } = await RithavoApp.apiJson("/card/continue", {
+          method: "POST", body: JSON.stringify({}),
+        });
+        const form = document.getElementById("card-handoff-form");
+        form.action = handoff_url;
+        form.querySelector('input[name="token"]').value = token;
+        form.submit();
+        // Deliberately no re-enable here — the page is navigating away.
+      } catch (e) {
+        cardBtn.disabled = false;
+        cardBtn.textContent = originalLabel;
+        RithavoApp.banner(errorBox, "error", "Couldn't start that just now — please try again.");
+      }
+    });
+  }
 })();
 </script>
 </body>

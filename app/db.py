@@ -343,6 +343,21 @@ CREATE TABLE IF NOT EXISTS readiness_assessments (
     computed_at TEXT NOT NULL,
     supersedes_id INTEGER
 );
+
+-- Phase P0.2 — the SMALLEST possible read-only mirror of the sibling's
+-- card_settings table (owned by rithavo-career-profile, see its own
+-- db.py for the full, real schema), just enough to answer "does this
+-- person already have a Rithavo Card" for the Home page CTA. This
+-- service never INSERTs, UPDATEs, or DELETEs a row here — the sibling's
+-- existing get_or_create_card_settings_for_person remains the sole
+-- Card writer. Deliberately omits every other real column (public_slug,
+-- theme, discoverability, etc.) since none of them are needed for an
+-- existence check; in production, against the real shared database,
+-- this is a no-op (the table already exists with the full real shape).
+CREATE TABLE IF NOT EXISTS card_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_user_id INTEGER REFERENCES users(id)
+);
 """
 
 # ---- NEW tables: owned by this service, additive ----
@@ -595,13 +610,65 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
-    # ---- shared profile (READ ONLY from this service in Phase 0) ----
+    # ---- shared profile (read-only from this service through Phase
+    #      2B-1.7A — the P0 onboarding work below is the first time this
+    #      service creates/updates a career_profiles row itself, for a
+    #      user who signs up via rithavo.com without ever touching
+    #      app.rithavo.com) ----
 
     def get_career_profile(self, user_id: int):
         with self.connect() as conn:
             return conn.execute(
                 "SELECT * FROM career_profiles WHERE user_id = ?", (user_id,)
             ).fetchone()
+
+    def upsert_career_profile(self, user_id: int, profile_json: dict) -> None:
+        """P0 onboarding: the ONLY place this service writes to the
+        shared career_profiles table. Upsert, not insert-only —
+        career_profiles.user_id is the primary key, so a user revisiting
+        onboarding (or a future profile-edit surface) updates the SAME
+        row rather than conflicting. trust_level stays 'UNVERIFIED' —
+        matches the value the sibling app's own onboarding uses for a
+        freshly-created profile (see seed_minimal_profile in tests/
+        conftest.py, mirroring the sibling's real shape); this service
+        never claims a higher trust tier than that. completeness_pct is
+        purely informational (read nowhere in this codebase, confirmed
+        by inspection) — a simple filled-field percentage, not a scored
+        judgment."""
+        import json as _json
+        payload = _json.dumps(profile_json)
+        identity = profile_json.get("identity", {}) or {}
+        background = profile_json.get("background", {}) or {}
+        fields = [
+            identity.get("name", {}).get("value"),
+            identity.get("headline", {}).get("value"),
+            identity.get("location", {}).get("value"),
+            identity.get("years_of_experience", {}).get("value"),
+            background.get("current_role", {}).get("value"),
+        ]
+        filled = sum(1 for f in fields if f)
+        completeness_pct = round(100 * filled / len(fields))
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO career_profiles (user_id, profile_json, trust_level, completeness_pct, updated_at) "
+                "VALUES (?, ?, 'UNVERIFIED', ?, ?) "
+                "ON CONFLICT (user_id) DO UPDATE SET profile_json = excluded.profile_json, "
+                "completeness_pct = excluded.completeness_pct, updated_at = excluded.updated_at",
+                (user_id, payload, completeness_pct, _now()),
+            )
+
+    def has_card_for_person(self, user_id: int) -> bool:
+        """Phase P0.2 — the ONLY thing this service ever reads from
+        card_settings: whether a row exists for this person, so the Home
+        page can show 'Generate' vs 'Continue to' without ever creating,
+        modifying, or duplicating a Card. See has_card_for_person's
+        table comment above SCHEMA_SHARED_REPLICA for why only two
+        columns are mirrored."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM card_settings WHERE person_user_id = ? LIMIT 1", (user_id,)
+            ).fetchone()
+            return row is not None
 
     # ---- Career Intelligence (READ ONLY presentation adapter — Phase
     #      2B-1.7A; see the schema comment above SCHEMA_SHARED_REPLICA's

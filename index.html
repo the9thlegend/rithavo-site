@@ -38,11 +38,10 @@
       <li><a href="/#contact">Contact</a></li>
     </ul>
     <a class="btn btn-ghost header-signin-cta" href="/sign-in/" style="padding:10px 18px; font-size:0.85rem;">Sign In</a>
-    <a class="btn btn-ghost header-card-cta" href="https://app.rithavo.com/onboarding/start" style="padding:10px 18px; font-size:0.85rem;">Create your Rithavo Card</a>
     <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mobileNav" aria-label="Open menu">
       <span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span>
     </button>
-    <a class="btn btn-primary" href="/career/" style="padding:10px 20px; font-size:0.85rem;">Start with Career</a>
+    <a class="btn btn-primary" href="/sign-up/" style="padding:10px 20px; font-size:0.85rem;">Start Building</a>
   </div>
   <div class="mobile-nav" id="mobileNav" data-open="false">
     <ul class="mobile-nav-links">
@@ -54,7 +53,7 @@
       <li><a href="/#about">About</a></li>
       <li><a href="/#contact">Contact</a></li>
           <li><a href="/sign-in/" class="mobile-card-cta">Sign In</a></li>
-          <li><a href="https://app.rithavo.com/onboarding/start" class="mobile-card-cta">Create your Rithavo Card</a></li>
+          <li><a href="/sign-up/" class="mobile-card-cta">Start Building</a></li>
 </ul>
   </div>
 </nav>
@@ -70,15 +69,39 @@
     <div class="grid-2" style="align-items:center;">
       <div class="hero-copy">
         <span class="label reveal">Rithavo</span>
-        <h1 class="display mt-16 reveal reveal-delay-1">Move <span class="grad-text">forward.</span></h1>
-        <p class="lede mt-24 reveal reveal-delay-2">Digital products and services designed to help people and businesses take their next step — starting with a sharper look at where you stand today.</p>
+        <h1 class="display mt-16 reveal reveal-delay-1">Know where you stand. <span class="grad-text">Move forward.</span></h1>
+        <p class="lede mt-24 reveal reveal-delay-2">Rithavo helps you understand your career and your applications — clearly, honestly, with a specific next step. Two products, both active today: Career Intelligence and Application Diagnosis.</p>
         <div class="row gap-16 mt-40 reveal reveal-delay-3">
-          <a class="btn btn-primary" href="/career/">Start with Career<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
-          <a class="btn btn-ghost btn-ghost-accent" href="#ecosystem">See the ecosystem</a>
+          <a class="btn btn-primary" href="/sign-up/">Start Building<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+          <a class="btn btn-ghost btn-ghost-accent" href="/sign-in/">Sign In</a>
         </div>
       </div>
       <div class="hero-visual reveal reveal-delay-2" aria-hidden="true">
         <img class="hp-artwork" src="/assets/hero/hero-final.png" alt="" width="1536" height="1024" loading="eager">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1B. PRODUCTS (P0: what Rithavo does, right below the hero) ============ -->
+<section class="products-intro">
+  <div class="wrap">
+    <span class="label reveal">Two products, both active today</span>
+    <div class="grid-2 mt-40 reveal reveal-delay-1" style="gap:32px;">
+      <div class="card card-body">
+        <span class="label" style="color:var(--ink);">Career Intelligence</span>
+        <p class="h3" style="margin:4px 0 0;">₹799 <span style="font-size:0.9rem; font-weight:400; color:var(--ink-soft);">one-time</span></p>
+        <p>Understand whether you're doing well in your current career, whether you could do better in another company or role, and what opportunities exist across different roles and industries.</p>
+        <ul class="app-list" style="flex-direction:row; flex-wrap:wrap; gap:8px; margin-top:8px;">
+          <li class="pill">Stay</li><li class="pill">New Role</li><li class="pill">New Industry</li><li class="pill">Major Transition</li>
+        </ul>
+        <a class="btn btn-ghost mt-16" href="/career/career-intelligence/" style="width:fit-content;">Learn more</a>
+      </div>
+      <div class="card card-body">
+        <span class="label" style="color:var(--ink);">Application Diagnosis</span>
+        <p class="h3" style="margin:4px 0 0;">₹399 <span style="font-size:0.9rem; font-weight:400; color:var(--ink-soft);">first purchase</span></p>
+        <p>A one-time diagnosis for a single job opportunity — not a subscription. Rithavo evaluates the complete job description against your Rithavo Profile and leads to a tailored resume for that role. Returning customers get lower pricing on every purchase after the first.</p>
+        <a class="btn btn-ghost mt-16" href="/career/application-diagnostic/" style="width:fit-content;">Learn more</a>
       </div>
     </div>
   </div>

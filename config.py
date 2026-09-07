@@ -45,6 +45,31 @@ DATABASE_POOL_MAX = 5
 # share is the row in the `users` table a given email resolves to.
 SESSION_SECRET = os.environ.get("RITHAVO_WEB_SESSION_SECRET", secrets.token_hex(32))
 
+# Phase P0.2A correction — this used to fall back to a fixed insecure
+# string when unset, which is exactly the "silently insecure" outcome
+# a handoff secret must never have. No fallback of any kind now: unset
+# means None, and every place that uses this (app/card_handoff.py's
+# issue_card_handoff_token, POST /card/continue) must treat None as
+# "the handoff is not configured" and refuse to operate — a 503, never
+# a token signed with a value anyone could guess. Local dev servers set
+# this themselves via os.environ.setdefault in their own launcher
+# scripts (never here); tests set it explicitly via
+# monkeypatch/env, also never by relying on a default in this file.
+#
+# The ONE secret deliberately shared with the sibling app, and only for
+# this one narrow purpose: signing the short-lived, single-use
+# "Profile -> Rithavo Card" handoff token so an already-authenticated
+# rithavo.com user can reach their existing Rithavo Card without a
+# second manual sign-in. Never SESSION_SECRET or RITHAVO_WEB_SESSION_SECRET,
+# and never used for anything else. Must be set to the exact same value
+# as the sibling app's own RITHAVO_CARD_HANDOFF_SECRET in production.
+CARD_HANDOFF_SECRET = os.environ.get("RITHAVO_CARD_HANDOFF_SECRET")
+
+# Where the sibling app actually lives, so the handoff's auto-submitted
+# form has somewhere to POST to. Overridable for local dev against a
+# locally-running sibling instance.
+CARD_APP_BASE_URL = os.environ.get("RITHAVO_CARD_APP_URL", "https://app.rithavo.com")
+
 # Phase 2B-1.5 finding (production smoke test): the session cookie was
 # missing the Secure flag — harmless for local HTTP dev, a real gap once
 # this serves real HTTPS traffic. Tied to DATABASE_URL (the same signal

@@ -8,12 +8,21 @@ const RithavoApp = (() => {
   const API_BASE = "/api";
 
   async function apiFetch(path, options = {}) {
+    // A FormData body (P0: resume file upload) must NEVER get a manual
+    // Content-Type — fetch/the browser sets multipart/form-data with the
+    // correct boundary itself only when no Content-Type header is
+    // present at all; setting one (even to the "right-sounding" value)
+    // breaks the boundary and the upload silently fails server-side.
+    const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+    const headers = isFormData
+      ? (options.headers || {})
+      : options.body && !(options.headers && options.headers["Content-Type"] === "form")
+        ? { "Content-Type": "application/json", ...(options.headers || {}) }
+        : (options.headers || {});
     const resp = await fetch(API_BASE + path, {
       credentials: "same-origin",
-      headers: options.body && !(options.headers && options.headers["Content-Type"] === "form")
-        ? { "Content-Type": "application/json", ...(options.headers || {}) }
-        : (options.headers || {}),
       ...options,
+      headers,
     });
     return resp;
   }
