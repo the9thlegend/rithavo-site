@@ -14,6 +14,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 os.environ.setdefault("RITHAVO_WEB_DB_PATH", "./storage/dev_verify.db")
+# Phase P0.2 local verification only: point the Card handoff at whatever
+# local instance of the sibling app is running (see
+# rithavo-career-profile/run_server.py, default port 8010) instead of
+# the real https://app.rithavo.com — never used in production, where
+# RITHAVO_CARD_APP_URL is left unset so config.py's real default applies.
+os.environ.setdefault("RITHAVO_CARD_APP_URL", "http://127.0.0.1:8010")
 
 from starlette.applications import Starlette
 from starlette.staticfiles import StaticFiles

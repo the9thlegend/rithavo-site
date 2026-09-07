@@ -23,6 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import config
 from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
+from app.card_handoff import issue_card_handoff_token
 from app.career_intelligence import get_career_intelligence_view, resume_inputs_for_view
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
@@ -222,6 +223,40 @@ def confirm_onboarding(request: Request,
             industry=entry.get("industry", ""), function=entry.get("function", ""),
         )
     return {"status": "confirmed"}
+
+
+# ---- Phase P0.2: Profile -> Rithavo Card handoff. This service never
+#      creates, reads (beyond the one existence check), or renders Card
+#      data itself — see app/card_handoff.py's module docstring. The
+#      sibling app (app.rithavo.com) remains the sole Card engine. ----
+
+@app.get("/card/status")
+def get_card_status(request: Request):
+    """Read-only: does this person already have a Rithavo Card. Used by
+    the Home page to choose 'Generate Your Rithavo Card' vs a
+    continue-to-existing-Card wording — never to decide whether to
+    create one; creation only ever happens on the sibling."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    return {"has_card": db.has_card_for_person(session_user_id)}
+
+
+@app.post("/card/continue")
+def card_continue(request: Request):
+    """Mints the short-lived handoff token (app/card_handoff.py) that
+    lets the browser carry proof of this session's identity to the
+    sibling app in a single POST, without a second manual sign-in and
+    without this service ever touching Card data. Requires a confirmed
+    profile — there is nothing to hand off otherwise."""
+    db = request.app.state.db
+    session_user_id = require_user(request)
+    if db.get_career_profile(session_user_id) is None:
+        raise HTTPException(status_code=400, detail="No Rithavo Profile yet.")
+    token = issue_card_handoff_token(config.CARD_HANDOFF_SECRET, session_user_id)
+    return {
+        "handoff_url": f"{config.CARD_APP_BASE_URL}/handoff/card",
+        "token": token,
+    }
 
 
 # ---- profile (read-only in Phase 0 — shared table, owned by the sibling app) ----

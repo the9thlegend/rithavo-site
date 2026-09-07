@@ -81,3 +81,32 @@ def login_via_magic_link(client, app, email: str) -> int:
     resp = client.get(f"/auth/verify?token={match.group(1)}", follow_redirects=False)
     assert resp.status_code == 302, f"expected verify to redirect, got {resp.status_code}: {resp.text[:200]}"
     return app.state.db.get_or_create_user(email)
+
+
+def seed_minimal_profile(db, user_id: int, headline="", current_role="", previous_roles=None,
+                          companies=None, industries=None, functions=None, name="Test User"):
+    """Writes a plausible-shaped career_profiles.profile_json row directly
+    (this service never creates these itself — they're owned by the
+    sibling app — so tests simulate 'a profile already exists' the same
+    way the real cross-service case works). Ported verbatim from
+    rithavo-web-platform's conftest.py (Phase P0.2) — needed by
+    tests/test_card_handoff.py."""
+    import json as _json
+    profile = {
+        "identity": {
+            "name": {"value": name}, "headline": {"value": headline},
+            "location": {"value": ""}, "years_of_experience": {"value": ""},
+        },
+        "background": {
+            "current_role": {"value": current_role},
+            "previous_roles": previous_roles or [], "companies": companies or [],
+            "industries": industries or [], "functions": functions or [],
+        },
+    }
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO career_profiles (user_id, profile_json, trust_level, completeness_pct, updated_at) "
+            "VALUES (?, ?, 'UNVERIFIED', 50, ?)",
+            (user_id, _json.dumps(profile), "2026-01-01T00:00:00+00:00"),
+        )
+    return profile

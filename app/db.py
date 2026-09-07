@@ -343,6 +343,21 @@ CREATE TABLE IF NOT EXISTS readiness_assessments (
     computed_at TEXT NOT NULL,
     supersedes_id INTEGER
 );
+
+-- Phase P0.2 — the SMALLEST possible read-only mirror of the sibling's
+-- card_settings table (owned by rithavo-career-profile, see its own
+-- db.py for the full, real schema), just enough to answer "does this
+-- person already have a Rithavo Card" for the Home page CTA. This
+-- service never INSERTs, UPDATEs, or DELETEs a row here — the sibling's
+-- existing get_or_create_card_settings_for_person remains the sole
+-- Card writer. Deliberately omits every other real column (public_slug,
+-- theme, discoverability, etc.) since none of them are needed for an
+-- existence check; in production, against the real shared database,
+-- this is a no-op (the table already exists with the full real shape).
+CREATE TABLE IF NOT EXISTS card_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_user_id INTEGER REFERENCES users(id)
+);
 """
 
 # ---- NEW tables: owned by this service, additive ----
@@ -641,6 +656,19 @@ class Database:
                 "completeness_pct = excluded.completeness_pct, updated_at = excluded.updated_at",
                 (user_id, payload, completeness_pct, _now()),
             )
+
+    def has_card_for_person(self, user_id: int) -> bool:
+        """Phase P0.2 — the ONLY thing this service ever reads from
+        card_settings: whether a row exists for this person, so the Home
+        page can show 'Generate' vs 'Continue to' without ever creating,
+        modifying, or duplicating a Card. See has_card_for_person's
+        table comment above SCHEMA_SHARED_REPLICA for why only two
+        columns are mirrored."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM card_settings WHERE person_user_id = ? LIMIT 1", (user_id,)
+            ).fetchone()
+            return row is not None
 
     # ---- Career Intelligence (READ ONLY presentation adapter — Phase
     #      2B-1.7A; see the schema comment above SCHEMA_SHARED_REPLICA's
