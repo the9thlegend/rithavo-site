@@ -250,6 +250,9 @@ def card_continue(request: Request):
     profile — there is nothing to hand off otherwise."""
     db = request.app.state.db
     session_user_id = require_user(request)
+    if not config.CARD_HANDOFF_SECRET:
+        # Phase P0.2A: fail closed, never silently sign with a fallback.
+        raise HTTPException(status_code=503, detail="Card handoff is not available right now.")
     if db.get_career_profile(session_user_id) is None:
         raise HTTPException(status_code=400, detail="No Rithavo Profile yet.")
     token = issue_card_handoff_token(config.CARD_HANDOFF_SECRET, session_user_id)

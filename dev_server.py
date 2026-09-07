@@ -20,6 +20,13 @@ os.environ.setdefault("RITHAVO_WEB_DB_PATH", "./storage/dev_verify.db")
 # the real https://app.rithavo.com — never used in production, where
 # RITHAVO_CARD_APP_URL is left unset so config.py's real default applies.
 os.environ.setdefault("RITHAVO_CARD_APP_URL", "http://127.0.0.1:8010")
+# Phase P0.2A: config.py no longer falls back to an insecure default for
+# this — a local run needs it set explicitly to exercise the handoff at
+# all. This value must match rithavo-career-profile/run_server.py's own
+# setdefault exactly, or every handoff token will fail signature
+# verification. Local/dev only — never set in production, where the real
+# RITHAVO_CARD_HANDOFF_SECRET env var is required instead.
+os.environ.setdefault("RITHAVO_CARD_HANDOFF_SECRET", "local-dev-card-handoff-secret-not-for-production")
 
 from starlette.applications import Starlette
 from starlette.staticfiles import StaticFiles

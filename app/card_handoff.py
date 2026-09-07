@@ -44,7 +44,14 @@ def issue_card_handoff_token(secret_key: str, user_id: int) -> str:
     """The token's entire payload: which shared users.id this is for,
     a fixed purpose tag (defense in depth against cross-purpose token
     reuse even under a shared secret), and a random nonce so two tokens
-    minted in the same second are never byte-identical."""
+    minted in the same second are never byte-identical.
+
+    Raises ValueError if secret_key is falsy — a defense-in-depth check
+    behind POST /card/continue's own fail-closed check (Phase P0.2A),
+    so this can never sign a token with no real secret even if some
+    future caller forgets that check."""
+    if not secret_key:
+        raise ValueError("CARD_HANDOFF_SECRET is not configured — refusing to mint a handoff token.")
     return _serializer(secret_key).dumps({
         "user_id": user_id,
         "purpose": "card_handoff",

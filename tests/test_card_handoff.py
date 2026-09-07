@@ -10,12 +10,25 @@ single-use consumption, and session establishment on that side.
 """
 
 import config
+import pytest
 from itsdangerous import URLSafeTimedSerializer
 
 from .conftest import login_via_magic_link, seed_minimal_profile
 
+TEST_SECRET = "test-card-handoff-secret"
 
-def _decode_token(token: str, secret: str = config.CARD_HANDOFF_SECRET) -> dict:
+
+@pytest.fixture(autouse=True)
+def _card_handoff_secret(monkeypatch):
+    """Phase P0.2A: config.CARD_HANDOFF_SECRET has no fallback of its
+    own anymore (unset means None, which must fail closed) — every test
+    in this file gets a deterministic value explicitly, the way a real
+    deployment would via its own RITHAVO_CARD_HANDOFF_SECRET env var.
+    The one test that needs it actually unset overrides this itself."""
+    monkeypatch.setattr(config, "CARD_HANDOFF_SECRET", TEST_SECRET)
+
+
+def _decode_token(token: str, secret: str = TEST_SECRET) -> dict:
     return URLSafeTimedSerializer(secret, salt="rithavo-card-handoff").loads(token, max_age=90)
 
 
@@ -35,6 +48,18 @@ def test_authenticated_user_without_a_profile_gets_a_clear_error(app_and_client)
     login_via_magic_link(client, app, "no-profile-yet@example.com")
     resp = client.post("/card/continue")
     assert resp.status_code == 400
+
+
+def test_missing_secret_fails_closed_not_silently_insecure(app_and_client, db, monkeypatch):
+    """Phase P0.2A test #1: an unconfigured production deployment must
+    refuse to hand off at all, never sign a token with a fallback."""
+    monkeypatch.setattr(config, "CARD_HANDOFF_SECRET", None)
+    app, client = app_and_client
+    user_id = login_via_magic_link(client, app, "no-secret-configured@example.com")
+    seed_minimal_profile(db, user_id, headline="Engineer")
+
+    resp = client.post("/card/continue")
+    assert resp.status_code == 503
 
 
 def test_authenticated_user_with_a_profile_can_initiate_handoff(app_and_client, db):
