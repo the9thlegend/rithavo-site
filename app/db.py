@@ -634,9 +634,25 @@ class Database:
         never claims a higher trust tier than that. completeness_pct is
         purely informational (read nowhere in this codebase, confirmed
         by inspection) — a simple filled-field percentage, not a scored
-        judgment."""
+        judgment.
+
+        Phase P0.2H: the sibling's CareerProfile.from_dict() (its own
+        models.py) requires a top-level "user_id" key in profile_json —
+        the one field in that whole contract it accesses as d["user_id"]
+        rather than d.get(...). Every other field this service ever
+        writes (identity/background sub-objects) already round-trips
+        safely through that contract's own dict.get() fallbacks (verified
+        by reading CareerProfile.from_dict/ProvenancedField.from_dict
+        directly) — omitting user_id was the only actual incompatibility,
+        and it's the one that crashed GET /card (app.rithavo.com) the
+        first time this service's own onboarding output was ever read
+        through that code path. Always taken from this method's own
+        trusted parameter — never from caller-supplied profile_json,
+        which must never be trusted for identity — so the JSON's user_id
+        can never drift from this exact row's own user_id column."""
         import json as _json
-        payload = _json.dumps(profile_json)
+        payload_dict = {**profile_json, "user_id": user_id}
+        payload = _json.dumps(payload_dict)
         identity = profile_json.get("identity", {}) or {}
         background = profile_json.get("background", {}) or {}
         fields = [
