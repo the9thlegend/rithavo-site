@@ -47,6 +47,24 @@
       </div>
     `}
 
+    ${hasProfile ? `
+      <div class="card card-hover" style="margin-bottom:28px;">
+        <div class="card-body" style="flex-direction:row; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;">
+          <div>
+            <span class="tag">Your Rithavo Card</span>
+            <h3 style="margin:6px 0 6px;">Your profile, ready to share</h3>
+            <p style="margin:0; max-width:52ch;">
+              Your Rithavo Profile is the foundation — your Rithavo Card is the polished, shareable
+              version of it. Continue to your Rithavo account to view or set it up.
+            </p>
+          </div>
+          <a class="btn btn-primary" href="https://app.rithavo.com/card" style="white-space:nowrap;">
+            Continue to Your Rithavo Card
+          </a>
+        </div>
+      </div>
+    ` : ""}
+
     <div class="app-tile-grid">
       <a class="card card-hover app-tile" href="/profile/">
         <span class="tag">Profile</span>
