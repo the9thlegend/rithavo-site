@@ -101,6 +101,13 @@ def test_extract_from_docx_returns_a_draft_without_writing_anything(app_and_clie
     assert len(draft["experience"]) == 2
     assert draft["experience"][0]["company"] == "Acme Corp"
     assert len(draft["education"]) == 2
+    # Phase P0.4A: extraction has always derived these (see
+    # app/resume_extraction.py) - the P0.4 finding was that the review/
+    # confirm flow silently discarded them, not that extraction lacked
+    # them. This assertion documents that the source data was never the
+    # problem.
+    assert draft["background"]["companies"] == ["Acme Corp", "Beta Inc"]
+    assert draft["background"]["previous_roles"] == ["Product Manager"]
 
     # Preview only — nothing persisted.
     assert db.get_career_profile(user_id) is None
@@ -177,6 +184,8 @@ def test_confirm_creates_the_profile_and_education_and_experience_rows(app_and_c
     data = json.loads(profile["profile_json"])
     assert data["identity"]["name"]["value"] == "Priya Sharma"
     assert data["background"]["companies"] == ["Acme Corp", "Beta Inc"]
+    assert data["background"]["previous_roles"] == ["Product Manager"]
+    assert data["background"]["industries"] == ["SaaS"]
 
     education = db.list_education_for_user(user_id)
     assert len(education) == 1
@@ -199,6 +208,49 @@ def test_confirm_works_for_pure_manual_entry_with_no_education_or_experience(app
     assert profile is not None
     assert db.list_education_for_user(user_id) == []
     assert db.list_experience_for_user(user_id) == []
+
+    # Phase P0.4A test 5: previous_roles/companies/industries left
+    # entirely unset (the "Build Manually" case never sends them at all)
+    # must still save cleanly as empty lists, never an error.
+    import json
+    data = json.loads(profile["profile_json"])
+    assert data["background"]["previous_roles"] == []
+    assert data["background"]["companies"] == []
+    assert data["background"]["industries"] == []
+
+
+def test_confirm_persists_user_edited_values_not_the_raw_extraction(app_and_client, db):
+    """Phase P0.4A tests 3 and 6: extraction is only ever a preview - the
+    user editing (here, correcting/trimming) the previous_roles/companies/
+    industries the extraction draft suggested must result in exactly the
+    edited values being saved, never the original draft re-asserting
+    itself. This is what "nothing becomes canonical until confirm" means
+    in practice for these three fields specifically."""
+    app, client = app_and_client
+    user_id = login_via_magic_link(client, app, "confirm-edited-lists@example.com")
+    extract_resp = client.post("/onboarding/resume/extract", files={
+        "resume": ("resume.docx", _resume_docx_bytes(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    })
+    draft = extract_resp.json()
+    assert draft["background"]["companies"] == ["Acme Corp", "Beta Inc"]
+
+    # The user reviews and edits: drops "Beta Inc", adds an industry the
+    # extraction never inferred (industries are always [] from
+    # extraction - see resume_extraction.py).
+    resp = client.post("/onboarding/confirm", json={
+        "name": draft["identity"]["name"], "headline": draft["identity"].get("headline", ""),
+        "current_role": draft["background"].get("current_role", ""),
+        "previous_roles": draft["background"]["previous_roles"],
+        "companies": ["Acme Corp"],  # edited: Beta Inc removed by the user
+        "industries": ["SaaS"],      # added by the user - never came from extraction
+    })
+    assert resp.status_code == 200, resp.text
+
+    import json as _json
+    data = _json.loads(db.get_career_profile(user_id)["profile_json"])
+    assert data["background"]["companies"] == ["Acme Corp"]
+    assert data["background"]["industries"] == ["SaaS"]
 
 
 def test_confirming_twice_updates_the_same_profile_row_not_a_duplicate(app_and_client, db):

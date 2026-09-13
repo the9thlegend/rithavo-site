@@ -70,6 +70,16 @@
         <div class="app-field"><label>Years of experience</label><input id="f-years" name="years_of_experience"></div>
       </div>
       <div class="app-field"><label>Current role</label><input id="f-current-role" name="current_role"></div>
+      <!-- Phase P0.4A: previous roles/companies are already derived by
+           resume extraction (see app/resume_extraction.py) but were being
+           silently discarded here — every value below is optional,
+           reviewable, and only ever written to profile_json on Confirm,
+           same as every other field on this form. -->
+      <div class="app-entry-grid">
+        <div class="app-field"><label>Previous roles <span class="hint">(comma-separated, optional)</span></label><input id="f-previous-roles" name="previous_roles"></div>
+        <div class="app-field"><label>Companies <span class="hint">(comma-separated, optional)</span></label><input id="f-companies" name="companies"></div>
+      </div>
+      <div class="app-field"><label>Industries <span class="hint">(comma-separated, optional)</span></label><input id="f-industries" name="industries" placeholder="e.g. SaaS, Fintech"></div>
     </div>
 
     <h3 class="h3" style="margin-top:32px;">Experience</h3>
@@ -105,6 +115,19 @@
     document.getElementById("upload-panel").style.display = "none";
   }
 
+  // Phase P0.4A: previous_roles/companies/industries are all simple flat
+  // string lists in profile_json.background — shown/edited here as a
+  // single comma-separated field rather than a repeatable list widget,
+  // since that's all the data actually is (distinct from the structured
+  // experience[]/education[] entries above, which already carry their
+  // own role+company+dates).
+  function listToText(list) {
+    return (list || []).filter(Boolean).join(", ");
+  }
+  function textToList(text) {
+    return (text || "").split(",").map(s => s.trim()).filter(Boolean);
+  }
+
   function showReview(draft) {
     draft = draft || {};
     const identity = draft.identity || {};
@@ -114,6 +137,9 @@
     document.getElementById("f-location").value = identity.location || "";
     document.getElementById("f-years").value = identity.years_of_experience || "";
     document.getElementById("f-current-role").value = background.current_role || "";
+    document.getElementById("f-previous-roles").value = listToText(background.previous_roles);
+    document.getElementById("f-companies").value = listToText(background.companies);
+    document.getElementById("f-industries").value = listToText(background.industries);
     experienceEntries = (draft.experience || []).slice();
     educationEntries = (draft.education || []).slice();
     renderExperience();
@@ -233,7 +259,14 @@
           location: document.getElementById("f-location").value,
           years_of_experience: document.getElementById("f-years").value,
           current_role: document.getElementById("f-current-role").value,
-          previous_roles: [], companies: [], industries: [], functions: [],
+          previous_roles: textToList(document.getElementById("f-previous-roles").value),
+          companies: textToList(document.getElementById("f-companies").value),
+          industries: textToList(document.getElementById("f-industries").value),
+          // Functions: Phase P0.4A deliberately leaves this as [] — no
+          // existing rithavo.com field/component maps to a profile-level
+          // functions list without inventing new product scope (see the
+          // P0.4A report).
+          functions: [],
           experience: experienceEntries,
           education: educationEntries,
         }),
