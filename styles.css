@@ -170,23 +170,63 @@ nav.site {
   backdrop-filter: blur(10px) saturate(1.1);
   border-bottom: 1px solid var(--line);
 }
-nav.site .inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+/* P0.5A fix: this rule used to zero out .wrap's horizontal padding
+   (padding: 18px 0), so header content sat flush against the viewport
+   edge on any screen narrower than .wrap's 1120px max-width — every
+   mobile/tablet viewport, and any non-maximized desktop window. Setting
+   only top/bottom here lets .wrap's own left/right padding (28px, 20px
+   under 720px) apply as it does for every other section on the site. */
+nav.site .inner { display: flex; align-items: center; justify-content: space-between; padding-top: 18px; padding-bottom: 18px; }
 .wordmark { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 500; font-size: 1.2rem; letter-spacing: -0.01em; text-decoration: none; }
 .wordmark .mark { width: 21px; height: 21px; flex-shrink: 0; transition: transform 0.3s var(--ease-standard); }
 .wordmark:hover .mark { transform: translateX(2px); }
-.navlinks { display: flex; gap: 30px; list-style: none; margin: 0; padding: 0; }
-@media (max-width: 720px) { .navlinks { display: none; } }
+.navlinks { display: flex; align-items: center; gap: 30px; list-style: none; margin: 0; padding: 0; }
+/* Every nav entry — plain <a> links and the "Learn Products" <details>/
+   <summary> alike — is centered within its own <li> regardless of the
+   underlying element's box model, so a block-level <summary> can never
+   sit a few pixels off the baseline of its sibling <a> links. */
+.navlinks > li { display: flex; align-items: center; }
+/* P0.5A-2: raised from 720px to 960px — measured, not assumed. The full
+   7-item nav plus header buttons only ever fits cleanly at >=1000px
+   content width; between 721-999px it wrapped onto 2-3 lines (see
+   P0.5A-1 investigation). 960px is the highest of the required test
+   widths (721/768/800/900/960/1000/1024/1120/1400) confirmed to still
+   wrap under the old desktop layout, so the mobile/hamburger header —
+   already correct at 375px — now covers that whole gap instead of the
+   desktop nav being squeezed into widths it doesn't fit. */
+@media (max-width: 960px) { .navlinks { display: none; } }
 
-/* Secondary header CTA — "Create your Rithavo Card." Desktop only; the
-   mobile-nav-links panel carries its own equivalent entry (.mobile-card-cta)
-   so registration never depends on the Discover link specifically. */
-.btn.header-card-cta { border-color: var(--line-strong); }
-@media (max-width: 900px) { .btn.header-card-cta { display: none; } }
+/* Secondary header CTA — "Create your Rithavo Card." Measured (P0.5A-2):
+   wordmark + full 7-item nav + Sign In + this button + the trailing
+   primary CTA need ~1149-1167px of content width on the 8 pages that
+   carry it (clone-measured, nowrap) — .wrap's own max-width:1120px
+   (minus its 2x28px padding) caps content at 1064px on EVERY viewport,
+   including arbitrarily wide desktop monitors, so this button cannot
+   ever share the desktop header row with the full nav without wrapping
+   — not at 900px, not at 1120px, not at 1400px+. Unconditionally
+   hidden from the top bar for that reason (not width-gated at all);
+   the mobile-nav-links panel carries the identical entry (.mobile-card-cta)
+   as its only surviving affordance, plus the always-present "Discover"
+   nav link, exactly as this button's own original comment intended. */
+.btn.header-card-cta { display: none; }
 .mobile-card-cta { color: var(--g2) !important; font-weight: 600; }
 
 .nav-toggle { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; padding: 0; background: none; border: none; cursor: pointer; }
 .nav-toggle-bar { display: block; width: 20px; height: 2px; background: var(--ink); border-radius: 2px; transition: transform 0.25s var(--ease-standard), opacity 0.25s var(--ease-standard); }
-@media (max-width: 720px) { .nav-toggle { display: flex; } }
+@media (max-width: 960px) {
+  .nav-toggle { display: flex; }
+  /* P0.5A mobile header fix: "Sign In" already has an equivalent entry
+     in the mobile-nav panel (.mobile-card-cta) — showing it a second
+     time in the collapsed top bar left only enough room for four
+     elements (wordmark, Sign In, hamburger, Start Building) to fit by
+     wrapping their own text mid-button, which is what made the header
+     read as "merely functional." Dropping the duplicate, and grouping
+     the remaining hamburger + primary CTA at the right edge instead of
+     space-between's arbitrary middle gap, is the deliberate layout. */
+  a.btn.header-signin-cta { display: none; }
+  nav.site .inner { justify-content: flex-start; gap: 16px; }
+  nav.site .inner .wordmark { margin-right: auto; }
+}
 .nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(2) { opacity: 0; }
 .nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
@@ -194,7 +234,7 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 .mobile-nav { display: none; border-top: 1px solid var(--line); background: var(--bg); }
 .mobile-nav[data-open="true"] { display: block; }
 .mobile-nav-links { list-style: none; margin: 0; padding: 16px 20px 24px; display: flex; flex-direction: column; gap: 4px; }
-@media (min-width: 721px) { .mobile-nav { display: none !important; } }
+@media (min-width: 961px) { .mobile-nav { display: none !important; } }
 
 /* "Learn Products" — groups Career Intelligence + Application Diagnostic
    under one nav entry instead of two more top-level links. Native
@@ -304,46 +344,45 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-30px, -20px) scale(1.05); } }
 @keyframes drift3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-25px, 25px); } }
 
-/* ---- Hero visual: the approved hero artwork (assets/hero/hero-final.png), used as-is.
-   Anchored to the left edge of its column (not centered) so growing it wider only extends
-   rightward into the page's outer margin, never left into the copy column. The source PNG
-   already carries a soft alpha vignette, but it isn't fully transparent along the top/right
-   edges (content sits close to those edges) — an additional CSS mask forces a clean fade on
-   all four sides at display time so no rectangle is ever visible, without touching the file. */
+/* ---- Hero visual: P0.5A replaced the photographic hero with a
+   product/brand-led mockup — a soft gradient orb echoing the wordmark's
+   own chevrons, surrounded by three illustrative product-status cards.
+   No photography, no stock imagery; every label names an actual Rithavo
+   product, not a fabricated person's data. */
 .hero-copy { position: relative; z-index: 2; }
-.hero-visual { position: relative; z-index: 1; display: flex; align-items: center; justify-content: flex-start; min-height: 480px; min-width: 0; pointer-events: none; }
-.hp-artwork {
-  width: min(52vw, 1000px); max-width: none; height: auto; display: block; margin-left: -100px;
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
-    linear-gradient(to right, transparent 0%, #000 5%, #000 95%, transparent 100%);
-  mask-composite: intersect;
+.hero-visual { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; min-height: 480px; min-width: 0; pointer-events: none; }
+.hero-mock { position: relative; width: min(420px, 90%); aspect-ratio: 1 / 1; }
+.hero-mock-rings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hero-mock-rings .ring { fill: none; stroke-width: 0.6; }
+.hero-mock-rings .ring-1 { stroke: url(#markGradSoft); opacity: 0.4; }
+.hero-mock-rings .ring-2 { stroke: url(#markGrad); opacity: 0.32; stroke-dasharray: 1.4 3.2; }
+.hero-mock-rings .ring-3 { stroke: url(#markGradSoft); opacity: 0.5; }
+.hero-mock-core {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 32%; height: 32%; border-radius: 50%;
+  background: var(--gradient-soft-strong);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-lg);
 }
+.hero-mock-mark { width: 40%; height: 40%; }
+.hero-mock-card {
+  position: absolute; display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; width: 208px; box-shadow: var(--shadow-md); pointer-events: none;
+}
+.hero-mock-card strong { display: block; font-size: 0.9rem; color: var(--ink); margin-top: 2px; font-weight: 600; }
+.hero-mock-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.hero-mock-card-1 { top: 2%; left: -8%; }
+.hero-mock-card-2 { top: 42%; right: -14%; }
+.hero-mock-card-3 { bottom: 0%; left: 4%; }
 
 @media (max-width: 860px) {
-  .hero-visual { min-height: 0; margin-top: 8px; justify-content: center; }
-  .hp-artwork { width: min(440px, 88vw); margin-left: 0; }
-
-  /* Mobile only: the artwork's own alpha vignette has almost no headroom left at the bottom
-     edge before it starts eating into real content (her sweater/hand and the lowest card),
-     so a harder mask isn't safe here. Instead, bridge the edge with a soft blurred glow behind
-     the image — reusing the same gradient tokens as the artwork's own warm/violet atmosphere —
-     so the transition into the page background reads as continuous haze rather than a cutoff. */
-  .hero-visual::before {
-    content: "";
-    position: absolute;
-    z-index: 0;
-    left: -14%; right: -14%; top: -10%; bottom: -26%;
-    background:
-      radial-gradient(ellipse 65% 55% at 66% 82%, color-mix(in srgb, var(--g3) 24%, transparent) 0%, transparent 68%),
-      radial-gradient(ellipse 55% 45% at 30% 20%, color-mix(in srgb, var(--g1) 16%, transparent) 0%, transparent 70%);
-    filter: blur(26px);
-    pointer-events: none;
-  }
+  .hero-visual { min-height: 0; margin-top: 16px; }
+  .hero-mock { width: min(320px, 82vw); }
+  .hero-mock-card { width: 168px; padding: 10px 12px; }
+  .hero-mock-card strong { font-size: 0.8rem; }
+  .hero-mock-card-1 { left: -4%; }
+  .hero-mock-card-2 { right: -8%; }
+  .hero-mock-card-3 { left: 0%; }
 }
 
 /* ---- Footer ---- */

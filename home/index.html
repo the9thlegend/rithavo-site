@@ -50,10 +50,46 @@
     }
   }
 
+  // P0.5A: identity panel — name/headline/current role read from the
+  // same shared profile_json every other rithavo.com page already
+  // parses this way (see profile/index.html's loadSharedProfile). No
+  // photo is shown: the sibling's card_settings mirror in this
+  // service's own db.py is deliberately limited to id/person_user_id
+  // (no public_slug, no photo reference), so there is no rithavo.com-
+  // side way to know a photo exists or fetch it without broadening
+  // that mirror — a narrowly-scoped, separately-authorized change, not
+  // something to add silently here. The initial-letter avatar below is
+  // the permanent "no photo" state, not a temporary stand-in.
+  let displayName = me.email;
+  let identityMeta = "";
+  if (hasProfile) {
+    try {
+      const parsed = JSON.parse(profile.career_profile.profile_json || "{}");
+      const idFields = parsed.identity || {};
+      const bg = parsed.background || {};
+      const name = idFields.name && idFields.name.value;
+      if (name) displayName = name;
+      const metaParts = [];
+      if (idFields.headline && idFields.headline.value) metaParts.push(idFields.headline.value);
+      else if (bg.current_role && bg.current_role.value) metaParts.push(bg.current_role.value);
+      if (idFields.location && idFields.location.value) metaParts.push(idFields.location.value);
+      identityMeta = metaParts.join(" · ");
+    } catch (e) {
+      // Malformed/partial profile_json — fall back to email, no subtitle.
+    }
+  }
+  const avatarInitial = (displayName.trim().charAt(0) || "R").toUpperCase();
+
   content.className = "";
   content.innerHTML = `
-    <p class="label">Welcome back</p>
-    <h1 class="h2" style="margin:8px 0 32px;">${me.email}</h1>
+    <div class="app-identity-panel">
+      <div class="app-avatar" aria-hidden="true">${avatarInitial}</div>
+      <div>
+        <p class="label" style="margin:0;">Welcome back</p>
+        <h1 class="h2" style="margin:4px 0 0;">${displayName}</h1>
+        ${identityMeta ? `<p class="app-identity-meta">${identityMeta}</p>` : ""}
+      </div>
+    </div>
 
     ${hasProfile ? "" : `
       <div class="app-banner app-banner-info">
@@ -73,9 +109,14 @@
               version of it.
             </p>
           </div>
-          <button type="button" class="btn btn-primary" id="card-continue-btn" style="white-space:nowrap;">
-            ${hasCard ? "Continue to Your Rithavo Card" : "Generate Your Rithavo Card"}
-          </button>
+          <div class="row gap-12" style="flex-wrap:wrap;">
+            ${hasCard ? `
+              <button type="button" class="btn btn-primary card-handoff-btn" id="card-view-btn" style="white-space:nowrap;">View Your Rithavo Card</button>
+              <button type="button" class="btn btn-ghost card-handoff-btn" id="card-share-btn" style="white-space:nowrap;">Manage Card Sharing</button>
+            ` : `
+              <button type="button" class="btn btn-primary card-handoff-btn" id="card-continue-btn" style="white-space:nowrap;">Generate Your Rithavo Card</button>
+            `}
+          </div>
         </div>
         <div id="card-cta-error"></div>
       </div>
@@ -127,8 +168,20 @@
   // can't do this: the token must travel in a POST body (never a URL,
   // where it could leak via logs/referrer), which needs a real
   // auto-submitted form, not a link.
-  const cardBtn = document.getElementById("card-continue-btn");
-  if (cardBtn) {
+  // P0.5A-2: "View Your Rithavo Card" and "Manage Card Sharing" both
+  // start the exact same, already-authorized handoff (POST
+  // /api/card/continue -> auto-submitted form -> the sibling's own
+  // unmodified GET /card) — there is only one Card destination to hand
+  // off to, and the sibling's own Card page is the authoritative place
+  // for Card management and sharing (public link, mutual-follow-gated
+  // Card Share). "Manage Card Sharing" replaces the earlier "Share Your
+  // Rithavo Card" label (P0.5A-1 finding): that wording implied a
+  // generic public share action rithavo.com doesn't actually perform —
+  // Card Share is a private, mutual-follow-gated contact exchange, not
+  // a broadcastable link. This is deliberately the same mechanism
+  // twice, not two different flows, so it can never duplicate or
+  // diverge from Card creation/provisioning.
+  document.querySelectorAll(".card-handoff-btn").forEach((cardBtn) => {
     cardBtn.addEventListener("click", async () => {
       const errorBox = document.getElementById("card-cta-error");
       errorBox.innerHTML = "";
@@ -150,7 +203,7 @@
         RithavoApp.banner(errorBox, "error", "Couldn't start that just now — please try again.");
       }
     });
-  }
+  });
 })();
 </script>
 </body>
