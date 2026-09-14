@@ -7,10 +7,15 @@ experience_entries). No payment, no Application Diagnosis, no resume
 generation yet — those are later phases, gated on this foundation being
 proven safe first.
 
-This service never imports from, calls into, or otherwise depends on the
-sibling `rithavo-career-profile` codebase (app.rithavo.com) at runtime.
-The only thing connecting them, in production, is a shared row in the
-`users` table when the same email is used on both.
+This service never imports the sibling `rithavo-career-profile`
+codebase (app.rithavo.com) and never depends on it at import time — the
+`users` table row a shared email resolves to is the only thing tying
+the two together at rest. P0.5A-3 added exactly one narrow runtime
+exception: GET /profile/photo makes a short-lived, signed,
+server-to-server HTTP call to the sibling to proxy back this session's
+own current Card photo (see app/photo_access.py) — every other route in
+this file is still browser-mediated only (a redirect or a URL handed to
+the client), never a direct backend-to-backend call.
 """
 
 import json
@@ -29,6 +34,7 @@ from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
 from app.email_sender import get_email_sender
 from app.payment_gateway import get_gateway
+from app.photo_access import fetch_selected_photo, issue_photo_access_token
 from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
 from app.razorpay_gateway import RazorpayVerificationError
 from app.rate_limit import RateLimiter
@@ -260,6 +266,29 @@ def card_continue(request: Request):
         "handoff_url": f"{config.CARD_APP_BASE_URL}/handoff/card",
         "token": token,
     }
+
+
+# ---- P0.5A-3: proxy this session's own current Card photo from the
+#      sibling, server-to-server. This service never stores, caches, or
+#      duplicates photo bytes anywhere — every request re-fetches fresh
+#      from the sibling, which remains the sole source of truth. ----
+
+@app.get("/profile/photo")
+def get_profile_photo(request: Request):
+    """Every failure mode (no secret configured, no Card, no selected
+    photo, sibling unreachable/slow, a non-image response) collapses to
+    the same plain 404 — the frontend's only job on anything but 200 is
+    to keep its existing initial-letter avatar, never show a broken
+    image or a technical error."""
+    session_user_id = require_user(request)
+    if not config.PHOTO_ACCESS_SECRET:
+        raise HTTPException(status_code=404)
+    token = issue_photo_access_token(config.PHOTO_ACCESS_SECRET, session_user_id)
+    result = fetch_selected_photo(config.CARD_APP_BASE_URL, token)
+    if result is None:
+        raise HTTPException(status_code=404)
+    content, content_type = result
+    return Response(content=content, media_type=content_type)
 
 
 # ---- profile (read-only in Phase 0 — shared table, owned by the sibling app) ----

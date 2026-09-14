@@ -65,6 +65,17 @@ SESSION_SECRET = os.environ.get("RITHAVO_WEB_SESSION_SECRET", secrets.token_hex(
 # as the sibling app's own RITHAVO_CARD_HANDOFF_SECRET in production.
 CARD_HANDOFF_SECRET = os.environ.get("RITHAVO_CARD_HANDOFF_SECRET")
 
+# P0.5A-3 — a second, dedicated secret shared with the sibling app, for
+# ONE narrow purpose: minting a short-lived, server-to-server-only token
+# proving "this already-authenticated rithavo.com session belongs to
+# users.id = N" so the sibling can hand back that person's own current
+# Card photo (never anyone else's). Same no-fallback rule as
+# CARD_HANDOFF_SECRET, and a DIFFERENT value from it in production.
+# Never reaches the browser: minted and consumed entirely inside one
+# server-to-server call from this service's own backend
+# (app/photo_access.py).
+PHOTO_ACCESS_SECRET = os.environ.get("RITHAVO_PHOTO_ACCESS_SECRET")
+
 # Where the sibling app actually lives, so the handoff's auto-submitted
 # form has somewhere to POST to. Overridable for local dev against a
 # locally-running sibling instance.

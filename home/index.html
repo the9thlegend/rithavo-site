@@ -52,14 +52,12 @@
 
   // P0.5A: identity panel — name/headline/current role read from the
   // same shared profile_json every other rithavo.com page already
-  // parses this way (see profile/index.html's loadSharedProfile). No
-  // photo is shown: the sibling's card_settings mirror in this
-  // service's own db.py is deliberately limited to id/person_user_id
-  // (no public_slug, no photo reference), so there is no rithavo.com-
-  // side way to know a photo exists or fetch it without broadening
-  // that mirror — a narrowly-scoped, separately-authorized change, not
-  // something to add silently here. The initial-letter avatar below is
-  // the permanent "no photo" state, not a temporary stand-in.
+  // parses this way (see profile/index.html's loadSharedProfile).
+  // P0.5A-3: the initial-letter avatar rendered below is still the
+  // default/fallback state, but is replaced with the user's actual
+  // Card photo (if one exists) by the fetch("/api/profile/photo") call
+  // further down — see that call's own comment for why this never
+  // shows a broken image or a technical error on any failure.
   let displayName = me.email;
   let identityMeta = "";
   if (hasProfile) {
@@ -83,7 +81,7 @@
   content.className = "";
   content.innerHTML = `
     <div class="app-identity-panel">
-      <div class="app-avatar" aria-hidden="true">${avatarInitial}</div>
+      <div class="app-avatar" id="app-avatar" aria-hidden="true">${avatarInitial}</div>
       <div>
         <p class="label" style="margin:0;">Welcome back</p>
         <h1 class="h2" style="margin:4px 0 0;">${displayName}</h1>
@@ -158,6 +156,31 @@
       </a>
     </div>
   `;
+
+  // P0.5A-3: best-effort swap of the initial-letter avatar for the
+  // user's actual current Card photo. GET /api/profile/photo is a
+  // same-origin, session-authenticated proxy — the browser never talks
+  // to app.rithavo.com directly and never sees the server-to-server
+  // token that fetches it (see app/photo_access.py). The <img> is only
+  // ever created on a genuine 200 response, so a user with no Card, no
+  // selected photo, or an unreachable sibling simply keeps the avatar
+  // exactly as it already renders above — no broken-image icon, no
+  // error shown.
+  (async () => {
+    try {
+      const resp = await RithavoApp.apiFetch("/profile/photo");
+      if (!resp.ok) return;
+      const blob = await resp.blob();
+      const avatarEl = document.getElementById("app-avatar");
+      if (!avatarEl) return;
+      avatarEl.style.backgroundImage = `url(${URL.createObjectURL(blob)})`;
+      avatarEl.style.backgroundSize = "cover";
+      avatarEl.style.backgroundPosition = "center";
+      avatarEl.textContent = "";
+    } catch (e) {
+      // Non-fatal — keep the initial-letter avatar.
+    }
+  })();
 
   // Phase P0.2: Profile -> Rithavo Card handoff. This never touches
   // Card data itself — it mints a short-lived, single-use token
