@@ -40,6 +40,23 @@
 </div>
 
 <script>
+// P0.5 auth hardening: a magic-link click that failed (expired, already
+// used, or invalid) redirects here with ?auth_error=<code> instead of
+// showing raw JSON in the browser — see /api/auth/verify. Never reveals
+// the token, the underlying exception text, or whether the address has
+// an account; the next action is simply the same email form below.
+(() => {
+  const code = new URLSearchParams(window.location.search).get("auth_error");
+  if (!code) return;
+  const messages = {
+    expired: "That sign-in link has expired. Enter your email below to get a new one.",
+    used: "That sign-in link has already been used. Enter your email below to get a new one.",
+    invalid: "That sign-in link isn't valid. Enter your email below to get a new one.",
+  };
+  const message = messages[code] || "That sign-in link didn't work. Enter your email below to get a new one.";
+  document.getElementById("banner").innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+})();
+
 document.getElementById("sign-in-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const banner = document.getElementById("banner");

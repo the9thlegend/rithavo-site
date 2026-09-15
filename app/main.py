@@ -23,7 +23,7 @@ import logging
 import uuid
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
 import config
@@ -108,13 +108,39 @@ def auth_start(request: Request, email: str = Form(...)):
     return {"status": "sent"}
 
 
+def _auth_error_code(exc: MagicLinkError) -> str:
+    """P0.5 auth hardening: maps auth.py's existing, unchanged
+    MagicLinkError messages to a small, generic, closed set of display
+    codes for the frontend — never the raw exception text itself (which
+    is an internal implementation detail, not something to expose
+    verbatim), and never anything that reveals whether the token named
+    a real account. auth.py itself is not modified by this mapping."""
+    message = str(exc)
+    if "expired" in message:
+        return "expired"
+    if "already been used" in message:
+        return "used"
+    return "invalid"
+
+
 @app.get("/auth/verify")
 def auth_verify(request: Request, token: str):
     db = request.app.state.db
     try:
         email = verify_and_consume_magic_link_token(db, config.SESSION_SECRET, token)
     except MagicLinkError as exc:
-        return JSONResponse({"error": str(exc)}, status_code=400)
+        # P0.5 auth hardening: this route is what the emailed link
+        # itself points at, so a failure here was previously rendered
+        # as raw JSON text in the browser. Redirects to the existing
+        # sign-in page instead, which shows a proper Rithavo-styled
+        # error banner and the exact same "enter your email" form as
+        # the next action — never the token, the exception's own
+        # wording, or anything about whether the address has an
+        # account. Built from the request's own origin, same rule as
+        # the success-path destination below, never a hardcoded domain.
+        error_code = _auth_error_code(exc)
+        destination = f"{request.url.scheme}://{request.url.netloc}/sign-in/?auth_error={error_code}"
+        return RedirectResponse(destination, status_code=302)
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
     # Phase 2B-1.7A: the destination is now a static customer-facing page
