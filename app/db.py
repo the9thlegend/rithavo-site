@@ -31,11 +31,15 @@ from typing import Optional
 
 class _PGCursorProxy:
     # Tables with no `id` column at all: career_profiles is keyed on
-    # user_id (shared table); web_magic_link_tokens is keyed on
-    # token_hash. Postgres has no equivalent to SQLite's harmless-if-unused
-    # `cur.lastrowid` — appending `RETURNING id` to an insert into either
-    # of these raises UndefinedColumn, so both must be excluded here.
-    _TABLES_WITHOUT_ID = ("career_profiles", "web_magic_link_tokens")
+    # user_id (shared table); web_magic_link_tokens and
+    # web_password_reset_tokens are keyed on token_hash. Postgres has no
+    # equivalent to SQLite's harmless-if-unused `cur.lastrowid` —
+    # appending `RETURNING id` to an insert into any of these raises
+    # UndefinedColumn, so all three must be excluded here. (Production
+    # incident: web_password_reset_tokens was omitted when that table was
+    # added, causing every INSERT into it to fail with UndefinedColumn —
+    # the confirmed cause of the P0 password-reset 500.)
+    _TABLES_WITHOUT_ID = ("career_profiles", "web_magic_link_tokens", "web_password_reset_tokens")
 
     def __init__(self, real_cursor):
         self._cur = real_cursor

@@ -189,42 +189,47 @@ def test_password_forgot_gives_the_same_generic_message_regardless_of_account_ex
 
 
 # =====================================================================
-# Temporary diagnostic logging (P0 password-reset 500 investigation) --
-# must re-raise unchanged (same status code as before) and must never
-# log the email, a token, or any credential.
+# Regression: the confirmed P0 production root cause. Postgres' cursor
+# proxy auto-appends "RETURNING id" to plain INSERTs to emulate SQLite's
+# lastrowid -- web_password_reset_tokens has no `id` column (token_hash
+# is its primary key, same shape as the already-excluded
+# web_magic_link_tokens), so it must be in _TABLES_WITHOUT_ID or every
+# insert into it fails with Postgres UndefinedColumn. Exercises the
+# proxy's query-rewriting logic directly; no real Postgres needed.
 # =====================================================================
 
-def test_account_lookup_failure_still_raises_and_logs_no_sensitive_data(app_and_client, db, monkeypatch, caplog):
-    """TestClient re-raises an unhandled server exception into the test by
-    default -- this is the same underlying failure a real client would see
-    as a 500. The diagnostic must not swallow or change that, only log a
-    safe, stage-tagged, non-sensitive line alongside it."""
-    app, client = app_and_client
+def test_insert_into_password_reset_tokens_does_not_get_returning_id():
+    from unittest.mock import MagicMock
 
-    def _boom(email):
-        raise RuntimeError("simulated account lookup failure")
-    monkeypatch.setattr(db, "get_user_by_email", _boom)
+    from app.db import _PGCursorProxy
 
-    with caplog.at_level("ERROR"), pytest.raises(RuntimeError, match="simulated account lookup failure"):
-        client.post("/auth/password/forgot", json={"email": "diagnostic-check@example.com"})
-    assert "diagnostic-check@example.com" not in caplog.text
-    assert "stage=account_lookup" in caplog.text
-    assert "RuntimeError" in caplog.text
+    mock_cursor = MagicMock()
+    proxy = _PGCursorProxy(mock_cursor)
+    proxy.execute(
+        "INSERT INTO web_password_reset_tokens (token_hash, email, created_at) VALUES (?, ?, ?)",
+        ("hash", "user@example.com", "2026-01-01T00:00:00+00:00"),
+    )
+    called_sql = mock_cursor.execute.call_args[0][0]
+    assert "RETURNING id" not in called_sql
+    mock_cursor.fetchone.assert_not_called()
 
 
-def test_token_issue_failure_still_raises_and_logs_no_sensitive_data(app_and_client, db, monkeypatch, caplog):
-    app, client = app_and_client
-    login_via_magic_link(client, app, "token-issue-diagnostic@example.com")
+def test_insert_into_an_ordinary_id_table_still_gets_returning_id():
+    """The allowlist must stay narrow -- confirms the fix didn't
+    accidentally suppress RETURNING id for tables that actually need it
+    (e.g. any normal serial-id table, verified here with a name outside
+    _TABLES_WITHOUT_ID)."""
+    from unittest.mock import MagicMock
 
-    def _boom(db_, secret, email):
-        raise RuntimeError("simulated token issue failure")
-    monkeypatch.setattr("app.main.issue_password_reset_token", _boom)
+    from app.db import _PGCursorProxy
 
-    with caplog.at_level("ERROR"), pytest.raises(RuntimeError, match="simulated token issue failure"):
-        client.post("/auth/password/forgot", json={"email": "token-issue-diagnostic@example.com"})
-    assert "token-issue-diagnostic@example.com" not in caplog.text
-    assert "stage=token_issue" in caplog.text
-    assert "RuntimeError" in caplog.text
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"id": 42}
+    proxy = _PGCursorProxy(mock_cursor)
+    proxy.execute("INSERT INTO purchases (user_id, product) VALUES (?, ?)", (1, "APPLICATION_DIAGNOSTIC"))
+    called_sql = mock_cursor.execute.call_args[0][0]
+    assert "RETURNING id" in called_sql
+    assert proxy.lastrowid == 42
 
 
 # =====================================================================
