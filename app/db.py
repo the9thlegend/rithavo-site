@@ -369,6 +369,18 @@ CREATE TABLE IF NOT EXISTS web_magic_link_tokens (
     used_at TEXT
 );
 
+-- P0 (conventional sign-in rework): same single-use-token shape as
+-- web_magic_link_tokens above, deliberately a separate table so a
+-- password-reset token and a magic-link token can never be confused with
+-- or consumed as each other even if (hypothetically) the same raw string
+-- ever collided.
+CREATE TABLE IF NOT EXISTS web_password_reset_tokens (
+    token_hash TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    used_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS education (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -424,6 +436,11 @@ CREATE INDEX IF NOT EXISTS idx_purchases_user ON purchases (user_id);
 # by a new NULL-default column it doesn't select by name.
 _ADDITIVE_COLUMNS = [
     # (table, column, ddl_type)
+    # P0 (conventional sign-in rework): nullable -- an existing magic-link-
+    # only member has password_hash IS NULL until they explicitly set one
+    # via the password-reset flow (also used for first-time setup).
+    ("users", "password_hash", "TEXT"),
+    ("users", "password_updated_at", "TEXT"),
     ("entitlements", "diagnostic_id", "INTEGER REFERENCES diagnostics(id)"),
     ("entitlements", "consumed_at", "TEXT"),
     ("entitlements", "purchase_id", "INTEGER REFERENCES purchases(id)"),
@@ -610,6 +627,21 @@ class Database:
         with self.connect() as conn:
             return conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
 
+    def get_user_by_email(self, email: str):
+        """Read-only lookup -- unlike get_or_create_user, never creates a
+        row. Used by password login/reset, where "no such account" must
+        be a normal, silent outcome, not a side effect."""
+        email = email.strip().lower()
+        with self.connect() as conn:
+            return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+    def set_user_password(self, user_id: int, password_hash: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, password_updated_at = ? WHERE id = ?",
+                (password_hash, _now(), user_id),
+            )
+
     # ---- shared profile (read-only from this service through Phase
     #      2B-1.7A — the P0 onboarding work below is the first time this
     #      service creates/updates a career_profiles row itself, for a
@@ -782,6 +814,25 @@ class Database:
                 return False
             conn.execute(
                 "UPDATE web_magic_link_tokens SET used_at = ? WHERE token_hash = ?", (_now(), token_hash)
+            )
+            return True
+
+    def record_password_reset_token(self, token_hash: str, email: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO web_password_reset_tokens (token_hash, email, created_at) VALUES (?, ?, ?)",
+                (token_hash, email, _now()),
+            )
+
+    def consume_password_reset_token(self, token_hash: str) -> bool:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT used_at FROM web_password_reset_tokens WHERE token_hash = ?", (token_hash,)
+            ).fetchone()
+            if row is None or row["used_at"] is not None:
+                return False
+            conn.execute(
+                "UPDATE web_password_reset_tokens SET used_at = ? WHERE token_hash = ?", (_now(), token_hash)
             )
             return True
 

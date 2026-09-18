@@ -27,7 +27,10 @@ from fastapi.responses import RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
 import config
-from app.auth import MagicLinkError, issue_magic_link_token, verify_and_consume_magic_link_token
+from app.auth import (
+    MagicLinkError, PasswordResetError, hash_password, issue_magic_link_token, issue_password_reset_token,
+    verify_and_consume_magic_link_token, verify_and_consume_password_reset_token, verify_password,
+)
 from app.card_handoff import issue_card_handoff_token
 from app.career_intelligence import get_career_intelligence_view, resume_inputs_for_view
 from app.db import Database
@@ -55,6 +58,11 @@ app.state.db.init_schema()
 app.state.email_sender = get_email_sender()
 app.state.payment_gateway = get_gateway()
 app.state.auth_rate_limiter = RateLimiter()
+# P0 (conventional sign-in rework): a separate instance/budget from
+# auth_rate_limiter above -- failed password attempts and magic-link
+# email requests must not share one counter, or five failed passwords
+# would also block a legitimate magic-link request for the same address.
+app.state.login_rate_limiter = RateLimiter()
 
 
 def _row_to_dict(row):
@@ -143,24 +151,28 @@ def auth_verify(request: Request, token: str):
         return RedirectResponse(destination, status_code=302)
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
-    # Phase 2B-1.7A: the destination is now a static customer-facing page
-    # (rithavo-site/home/index.html), not this API's own /profile route —
-    # per the brief, /api/profile stays an API endpoint and is never
-    # rendered as HTML. Unlike the Phase 2B-1.6 fix (request.url_for,
-    # which correctly resolves an *API* route under root_path="/api" in
-    # production), a static route is never under /api at all, so the
-    # target must be built from the request's origin only — scheme +
-    # netloc, deliberately ignoring root_path — never a hardcoded
-    # "https://rithavo.com", so this keeps working unprefixed against
-    # local dev/tests (http://testserver/home/) and correctly prefix-free
-    # in production (https://rithavo.com/home/, even though this request
-    # itself arrived at /api/auth/verify).
-    #
-    # P0 onboarding: a user with no career_profiles row yet (never
-    # touched app.rithavo.com, and hasn't completed rithavo.com's own
-    # onboarding either) goes to /onboarding/ instead of straight to
-    # /home/ — everyone else (existing profile, however it was created)
-    # is unaffected and still lands on /home/ exactly as before.
+    return _post_login_redirect(request, db, user_id)
+
+
+def _post_login_redirect(request: Request, db, user_id: int) -> RedirectResponse:
+    """Shared by every "just authenticated" route (magic-link verify,
+    password login, password-reset success). The destination is a static
+    customer-facing page (rithavo-site/home/index.html), not this API's
+    own /profile route — per the brief, /api/profile stays an API
+    endpoint and is never rendered as HTML. Unlike the Phase 2B-1.6 fix
+    (request.url_for, which correctly resolves an *API* route under
+    root_path="/api" in production), a static route is never under /api
+    at all, so the target must be built from the request's origin only —
+    scheme + netloc, deliberately ignoring root_path — never a hardcoded
+    "https://rithavo.com", so this keeps working unprefixed against
+    local dev/tests (http://testserver/home/) and correctly prefix-free
+    in production (https://rithavo.com/home/).
+
+    P0 onboarding: a user with no career_profiles row yet (never touched
+    app.rithavo.com, and hasn't completed rithavo.com's own onboarding
+    either) goes to /onboarding/ instead of straight to /home/ —
+    everyone else (existing profile, however it was created) is
+    unaffected and still lands on /home/ exactly as before."""
     has_profile = db.get_career_profile(user_id) is not None
     path = "home" if has_profile else "onboarding"
     destination = f"{request.url.scheme}://{request.url.netloc}/{path}/"
@@ -171,6 +183,100 @@ def auth_verify(request: Request, token: str):
 def auth_logout(request: Request):
     request.session.clear()
     return {"status": "logged_out"}
+
+
+# ---- P0 (conventional sign-in rework): email + password, alongside the
+#      existing magic-link flow above, which is unmodified and remains
+#      fully available as a secondary option. ----
+
+_GENERIC_LOGIN_ERROR = "Invalid email or password."
+_GENERIC_RESET_REQUESTED_MESSAGE = (
+    "If that email has a Rithavo account, we've sent a link to set or reset its password. "
+    "It expires in 30 minutes and can only be used once."
+)
+
+
+@app.post("/auth/login")
+def auth_login(request: Request, email: str = Body(..., embed=True), password: str = Body(..., embed=True)):
+    """Deliberately returns the exact same error, with the exact same
+    status code, whether the email doesn't exist, has no password set
+    yet, or the password is simply wrong — account-enumeration
+    protection, same principle already applied to /auth/password/forgot
+    below and to the existing magic-link flow's own error wording."""
+    normalized_email = email.strip().lower()
+    if not request.app.state.login_rate_limiter.allow(normalized_email):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many sign-in attempts for this email — please wait a few minutes and try again.",
+        )
+    db = request.app.state.db
+    user = db.get_user_by_email(normalized_email)
+    if user is None or not user["password_hash"] or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail=_GENERIC_LOGIN_ERROR)
+    request.session["user_id"] = user["id"]
+    redirect = _post_login_redirect(request, db, user["id"])
+    return {"status": "ok", "redirect": redirect.headers["location"]}
+
+
+@app.post("/auth/password/forgot")
+def auth_password_forgot(request: Request, email: str = Body(..., embed=True)):
+    """Always the same response regardless of whether the account exists
+    -- the only observable difference is whether an email actually goes
+    out, which the caller (a browser) cannot see. Reuses auth_rate_limiter
+    (the same "please send me an email" budget /auth/start already uses),
+    not login_rate_limiter, which is specifically for password attempts."""
+    normalized_email = email.strip().lower()
+    if not request.app.state.auth_rate_limiter.allow(normalized_email):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests for this email — please wait a few minutes and try again.",
+        )
+    db = request.app.state.db
+    user = db.get_user_by_email(normalized_email)
+    if user is not None:
+        token = issue_password_reset_token(db, config.SESSION_SECRET, normalized_email)
+        link = f"{request.url.scheme}://{request.url.netloc}/reset-password/?token={token}"
+        is_first_setup = not user["password_hash"]
+        body = (
+            "Hi,\n\n"
+            + ("Use the link below to set a password for your Rithavo account:\n\n" if is_first_setup
+               else "Use the link below to reset your Rithavo account password:\n\n")
+            + f"{link}\n\n"
+            "This link expires in 30 minutes and can only be used once. If you didn't request this, "
+            "you can safely ignore this email — no one can access your account without clicking it.\n\n"
+            "Need help? Reply to this email or reach us at hello@rithavo.com.\n\n"
+            "— Rithavo"
+        )
+        try:
+            request.app.state.email_sender.send(
+                to=normalized_email,
+                subject="Set your Rithavo password" if is_first_setup else "Reset your Rithavo password",
+                body=body,
+            )
+        except Exception:
+            logger.exception("password_reset_email_send_failed")
+    return {"status": "ok", "message": _GENERIC_RESET_REQUESTED_MESSAGE}
+
+
+@app.post("/auth/password/reset")
+def auth_password_reset(request: Request, token: str = Body(..., embed=True), password: str = Body(..., embed=True)):
+    if len(password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
+    db = request.app.state.db
+    try:
+        email = verify_and_consume_password_reset_token(db, config.SESSION_SECRET, token)
+    except PasswordResetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    # A reset token is only ever issued for an email that already had an
+    # account (see /auth/password/forgot) -- this is a reset, never an
+    # account-creation path, so look up rather than get-or-create.
+    user = db.get_user_by_email(email)
+    if user is None:
+        raise HTTPException(status_code=400, detail="This password reset link is invalid.")
+    db.set_user_password(user["id"], hash_password(password))
+    request.session["user_id"] = user["id"]
+    redirect = _post_login_redirect(request, db, user["id"])
+    return {"status": "ok", "redirect": redirect.headers["location"]}
 
 
 # ---- P0 onboarding: resume upload -> extract (preview only) -> confirm

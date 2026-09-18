@@ -23,19 +23,53 @@
 
   <div class="card card-body">
     <h1 class="h2" style="font-size:1.4rem; margin:0;">Sign in</h1>
-    <p style="font-size:0.9rem;">Enter your email and we'll send you a link to sign in — no password needed.</p>
+    <p style="font-size:0.9rem;">Enter your email and password to sign in.</p>
 
     <div id="banner"></div>
 
-    <form id="sign-in-form">
+    <form id="password-sign-in-form">
       <div class="app-field">
         <label for="email">Email address</label>
         <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com">
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="submit-btn">
-        Send sign-in link
+      <div class="app-field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="password-submit-btn">
+        Sign In
       </button>
     </form>
+    <p style="font-size:0.85rem; margin-top:8px;">
+      <a href="#" id="forgot-password-link">Forgot password?</a>
+    </p>
+
+    <form id="forgot-password-form" style="display:none;">
+      <div class="app-field">
+        <label for="forgot-email">Email address</label>
+        <input type="email" id="forgot-email" name="email" required autocomplete="email" placeholder="you@example.com">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="forgot-submit-btn">
+        Send password link
+      </button>
+      <p style="font-size:0.85rem; margin-top:8px;"><a href="#" id="back-to-sign-in-link">&larr; Back to sign in</a></p>
+    </form>
+
+    <details style="margin-top:24px;">
+      <summary style="cursor:pointer; font-size:0.9rem; color:var(--ink-soft, inherit);">Sign in with email link instead</summary>
+      <div style="margin-top:16px;">
+        <p style="font-size:0.85rem;">We'll send a link to your email — no password needed.</p>
+        <form id="sign-in-form">
+          <div class="app-field">
+            <label for="magic-link-email">Email address</label>
+            <input type="email" id="magic-link-email" name="email" required autocomplete="email" placeholder="you@example.com">
+          </div>
+          <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center;" id="submit-btn">
+            Send sign-in link
+          </button>
+        </form>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -57,11 +91,86 @@
   document.getElementById("banner").innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
 })();
 
+document.getElementById("password-sign-in-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const banner = document.getElementById("banner");
+  const btn = document.getElementById("password-submit-btn");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  banner.innerHTML = "";
+  btn.disabled = true;
+  btn.textContent = "Signing in…";
+  try {
+    const resp = await fetch("/api/auth/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const message = (data && data.detail) ? data.detail : "Something went wrong. Please try again.";
+      banner.innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Sign In";
+      return;
+    }
+    window.location = data.redirect;
+  } catch (err) {
+    banner.innerHTML = `<div class="app-banner app-banner-error">Something went wrong. Please try again.</div>`;
+    btn.disabled = false;
+    btn.textContent = "Sign In";
+  }
+});
+
+document.getElementById("forgot-password-link").addEventListener("click", (e) => {
+  e.preventDefault();
+  document.getElementById("password-sign-in-form").style.display = "none";
+  document.querySelector('label[for="password"]').parentElement.style.display = "none";
+  document.getElementById("forgot-password-link").parentElement.style.display = "none";
+  document.getElementById("forgot-password-form").style.display = "";
+  document.getElementById("banner").innerHTML = "";
+});
+
+document.getElementById("back-to-sign-in-link").addEventListener("click", (e) => {
+  e.preventDefault();
+  document.getElementById("forgot-password-form").style.display = "none";
+  document.getElementById("password-sign-in-form").style.display = "";
+  document.getElementById("forgot-password-link").parentElement.style.display = "";
+  document.getElementById("banner").innerHTML = "";
+});
+
+document.getElementById("forgot-password-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const banner = document.getElementById("banner");
+  const btn = document.getElementById("forgot-submit-btn");
+  const email = document.getElementById("forgot-email").value.trim();
+  banner.innerHTML = "";
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+  try {
+    const resp = await fetch("/api/auth/password/forgot", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await resp.json().catch(() => null);
+    const message = (data && data.message) ? data.message : "If that email has a Rithavo account, we've sent a password link.";
+    banner.innerHTML = `<div class="app-banner app-banner-success">${message}</div>`;
+    document.getElementById("forgot-password-form").style.display = "none";
+  } catch (err) {
+    banner.innerHTML = `<div class="app-banner app-banner-error">Something went wrong. Please try again.</div>`;
+    btn.disabled = false;
+    btn.textContent = "Send password link";
+  }
+});
+
 document.getElementById("sign-in-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const banner = document.getElementById("banner");
   const btn = document.getElementById("submit-btn");
-  const email = document.getElementById("email").value.trim();
+  const email = document.getElementById("magic-link-email").value.trim();
   banner.innerHTML = "";
   btn.disabled = true;
   btn.textContent = "Sending…";

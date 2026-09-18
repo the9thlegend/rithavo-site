@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Set your password — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-main" style="max-width:420px; padding-top:96px;">
+  <a class="wordmark" href="/" style="justify-content:center; display:flex; margin-bottom:32px;">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
+      <path d="M4 5 L12.5 12 L4 19" fill="none" stroke="var(--g1)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+      <path d="M11 4 L21 12 L11 20" fill="none" stroke="var(--g3)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span style="margin-left:8px;">Rithavo</span>
+  </a>
+
+  <div class="card card-body">
+    <h1 class="h2" style="font-size:1.4rem; margin:0;">Set your password</h1>
+    <p style="font-size:0.9rem;">Choose a password for your Rithavo account. It must be at least 8 characters.</p>
+
+    <div id="banner"></div>
+
+    <form id="reset-password-form">
+      <div class="app-field">
+        <label for="password">New password</label>
+        <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="submit-btn">
+        Set password
+      </button>
+    </form>
+
+    <p style="font-size:0.85rem; margin-top:8px; text-align:center;"><a href="/sign-in/">Back to sign in</a></p>
+  </div>
+</div>
+
+<script>
+const token = new URLSearchParams(window.location.search).get("token");
+if (!token) {
+  document.getElementById("banner").innerHTML =
+    '<div class="app-banner app-banner-error">This link is missing its token. Request a new one from the sign-in page.</div>';
+  document.getElementById("reset-password-form").style.display = "none";
+}
+
+document.getElementById("reset-password-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const banner = document.getElementById("banner");
+  const btn = document.getElementById("submit-btn");
+  const password = document.getElementById("password").value;
+  banner.innerHTML = "";
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    const resp = await fetch("/api/auth/password/reset", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const message = (data && data.detail) ? data.detail : "Something went wrong. Please try again.";
+      banner.innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Set password";
+      return;
+    }
+    window.location = data.redirect;
+  } catch (err) {
+    banner.innerHTML = `<div class="app-banner app-banner-error">Something went wrong. Please try again.</div>`;
+    btn.disabled = false;
+    btn.textContent = "Set password";
+  }
+});
+</script>
+</body>
+</html>

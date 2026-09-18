@@ -63,6 +63,7 @@ def app_and_client(db):
     # handful of test emails) and eventually produce a spurious 429 that
     # has nothing to do with the test actually being run.
     app.state.auth_rate_limiter.reset()
+    app.state.login_rate_limiter.reset()
     return app, TestClient(app)
 
 
