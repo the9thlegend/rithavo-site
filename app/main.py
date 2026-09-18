@@ -232,9 +232,25 @@ def auth_password_forgot(request: Request, email: str = Body(..., embed=True)):
             detail="Too many requests for this email — please wait a few minutes and try again.",
         )
     db = request.app.state.db
-    user = db.get_user_by_email(normalized_email)
+    try:
+        user = db.get_user_by_email(normalized_email)
+    except Exception as exc:
+        # Temporary diagnostic (P0 password-reset 500 investigation) --
+        # logs only the exception class/message, never the email, a
+        # token, or any credential. Re-raises unchanged: this must not
+        # alter the route's actual behavior/response, only make the
+        # existing failure observable. Remove once the root cause is
+        # confirmed and fixed.
+        logger.error("password_forgot_diagnostic stage=account_lookup exc_type=%s exc_msg=%s",
+                     type(exc).__name__, str(exc)[:300])
+        raise
     if user is not None:
-        token = issue_password_reset_token(db, config.SESSION_SECRET, normalized_email)
+        try:
+            token = issue_password_reset_token(db, config.SESSION_SECRET, normalized_email)
+        except Exception as exc:
+            logger.error("password_forgot_diagnostic stage=token_issue exc_type=%s exc_msg=%s",
+                         type(exc).__name__, str(exc)[:300])
+            raise
         link = f"{request.url.scheme}://{request.url.netloc}/reset-password/?token={token}"
         is_first_setup = not user["password_hash"]
         body = (

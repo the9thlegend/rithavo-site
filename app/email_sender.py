@@ -31,6 +31,7 @@ as app.state.db/app.state.payment_gateway — not re-selected per request.
 import os
 import smtplib
 from email.message import EmailMessage
+from email.utils import formataddr
 
 
 class ConsoleEmailSender:
@@ -62,7 +63,11 @@ class ZohoSMTPEmailSender:
 
     def send(self, to: str, subject: str, body: str) -> None:
         msg = EmailMessage()
-        msg["From"] = self.username
+        # Display name only -- the underlying mailbox/address (self.username)
+        # is unchanged. Recipients previously saw the bare address (which
+        # rendered as "hello" in some clients) because no display name was
+        # ever set.
+        msg["From"] = formataddr(("Rithavo", self.username))
         msg["To"] = to
         msg["Subject"] = subject
         msg.set_content(body)

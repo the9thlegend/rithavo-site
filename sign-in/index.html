@@ -156,6 +156,16 @@ document.getElementById("forgot-password-form").addEventListener("submit", async
       body: JSON.stringify({ email }),
     });
     const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      // Never account-revealing: a real failure (rate limit, server error)
+      // gets a generic message, exactly like the password-login form's own
+      // error handling above -- it must never look like the success case.
+      const message = (data && data.detail) ? data.detail : "Something went wrong. Please try again.";
+      banner.innerHTML = `<div class="app-banner app-banner-error">${message}</div>`;
+      btn.disabled = false;
+      btn.textContent = "Send password link";
+      return;
+    }
     const message = (data && data.message) ? data.message : "If that email has a Rithavo account, we've sent a password link.";
     banner.innerHTML = `<div class="app-banner app-banner-success">${message}</div>`;
     document.getElementById("forgot-password-form").style.display = "none";

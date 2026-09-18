@@ -189,6 +189,45 @@ def test_password_forgot_gives_the_same_generic_message_regardless_of_account_ex
 
 
 # =====================================================================
+# Temporary diagnostic logging (P0 password-reset 500 investigation) --
+# must re-raise unchanged (same status code as before) and must never
+# log the email, a token, or any credential.
+# =====================================================================
+
+def test_account_lookup_failure_still_raises_and_logs_no_sensitive_data(app_and_client, db, monkeypatch, caplog):
+    """TestClient re-raises an unhandled server exception into the test by
+    default -- this is the same underlying failure a real client would see
+    as a 500. The diagnostic must not swallow or change that, only log a
+    safe, stage-tagged, non-sensitive line alongside it."""
+    app, client = app_and_client
+
+    def _boom(email):
+        raise RuntimeError("simulated account lookup failure")
+    monkeypatch.setattr(db, "get_user_by_email", _boom)
+
+    with caplog.at_level("ERROR"), pytest.raises(RuntimeError, match="simulated account lookup failure"):
+        client.post("/auth/password/forgot", json={"email": "diagnostic-check@example.com"})
+    assert "diagnostic-check@example.com" not in caplog.text
+    assert "stage=account_lookup" in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+def test_token_issue_failure_still_raises_and_logs_no_sensitive_data(app_and_client, db, monkeypatch, caplog):
+    app, client = app_and_client
+    login_via_magic_link(client, app, "token-issue-diagnostic@example.com")
+
+    def _boom(db_, secret, email):
+        raise RuntimeError("simulated token issue failure")
+    monkeypatch.setattr("app.main.issue_password_reset_token", _boom)
+
+    with caplog.at_level("ERROR"), pytest.raises(RuntimeError, match="simulated token issue failure"):
+        client.post("/auth/password/forgot", json={"email": "token-issue-diagnostic@example.com"})
+    assert "token-issue-diagnostic@example.com" not in caplog.text
+    assert "stage=token_issue" in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+# =====================================================================
 # Existing magic-link flow + protected routes unaffected
 # =====================================================================
 
