@@ -385,11 +385,14 @@ def test_ci_refund_is_allowed_before_the_first_evaluation(app_and_client, db, mo
 
 
 def test_ci_refund_is_blocked_after_the_first_evaluation(app_and_client, db, monkeypatch):
-    """The flip side, per the approved rule 'after first evaluation ->
-    not refund eligible'. The Run action itself lives entirely on the
-    sibling app (reserve_ci_evaluation), so this simulates its effect
-    directly on evaluations_used — the point under test here is
-    refund_ad_purchase's own CI-aware branch, not the Run action."""
+    """Pre-deployment review fix: 'after first evaluation -> not refund
+    eligible' now means the WHOLE refund operation is rejected -- money
+    side AND entitlement side -- never a partial state where the
+    purchase gets marked REFUNDED while the entitlement is merely left
+    active. The Run action itself lives entirely on the sibling app
+    (reserve_ci_evaluation), so this simulates its effect directly on
+    evaluations_used -- the point under test here is refund_ad_purchase's
+    own CI-aware branch, not the Run action."""
     app, client = app_and_client
     user_id = login_via_magic_link(client, app, "refund-ci-after@example.com")
     gateway = _install_razorpay_gateway(app, monkeypatch)
@@ -401,12 +404,17 @@ def test_ci_refund_is_blocked_after_the_first_evaluation(app_and_client, db, mon
     with db.connect() as conn:
         conn.execute("UPDATE entitlements SET evaluations_used = 1 WHERE id = ?", (entitlement_id,))
 
-    refund = db.refund_ad_purchase(started["purchase_id"], user_id)
-    assert refund["entitlement_revoked"] is False
+    try:
+        db.refund_ad_purchase(started["purchase_id"], user_id)
+        raised = False
+    except ValueError:
+        raised = True
+    assert raised is True
+
     purchase = db.get_purchase(started["purchase_id"])
-    assert purchase["payment_status"] == "REFUNDED"  # the purchase itself is still marked refunded
+    assert purchase["payment_status"] == "SUCCEEDED"  # NOT marked refunded
     entitlement = db.get_entitlement(entitlement_id)
-    assert entitlement["status"] == "ACTIVE"  # but access is NOT revoked -- already evaluated
+    assert entitlement["status"] == "ACTIVE"  # untouched
 
 
 def test_ad_refund_behavior_is_completely_unchanged_by_the_ci_aware_branch(app_and_client, db, monkeypatch):

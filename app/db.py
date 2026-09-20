@@ -1307,22 +1307,35 @@ class Database:
                 entitlement = conn.execute(
                     "SELECT * FROM entitlements WHERE id = ?", (purchase["entitlement_id"],)
                 ).fetchone()
+
             revoked = False
-            if entitlement is not None:
-                # CI validity foundation: Career Intelligence has no
-                # consumed_at concept at all (that column is AD-only) —
-                # its own refund rule is evaluation-count-based instead,
-                # per the approved rule "before first evaluation -> refund
-                # eligible, after -> not eligible." AD's own consumed_at-
-                # based check is completely unchanged in the else branch;
-                # this only ADDS a second, product-specific condition.
-                if entitlement["product"] == "career_intelligence":
-                    not_yet_evaluated = entitlement["evaluations_used"] == 0
-                else:
-                    not_yet_evaluated = entitlement["consumed_at"] is None
-                if not_yet_evaluated:
+            if entitlement is not None and entitlement["product"] == "career_intelligence":
+                # Pre-deployment review fix: CI refund is now all-or-
+                # nothing, per the approved rule "after first evaluation
+                # -> refund rejected" -- rejected means the WHOLE
+                # operation (money side AND entitlement side), never a
+                # partial state where the purchase is marked REFUNDED but
+                # the entitlement is merely left active. Raising here,
+                # before either UPDATE below runs, means neither the
+                # purchase's payment_status nor the entitlement's status
+                # changes at all -- same "reject the operation" idiom
+                # already used a few lines up for a wrong payment_status.
+                # AD's own semantics (below) are completely untouched.
+                if entitlement["evaluations_used"] > 0:
+                    raise ValueError(
+                        "cannot refund a Career Intelligence purchase after its first evaluation"
+                    )
+                conn.execute("UPDATE entitlements SET status = 'REVOKED' WHERE id = ?", (entitlement["id"],))
+                revoked = True
+            elif entitlement is not None:
+                # AD's original, unchanged semantics: already-consumed
+                # (diagnosis delivered) still lets the refund proceed on
+                # the money side, but the entitlement/diagnosis/resume
+                # are left exactly as they are.
+                if entitlement["consumed_at"] is None:
                     conn.execute("UPDATE entitlements SET status = 'REVOKED' WHERE id = ?", (entitlement["id"],))
                     revoked = True
+
             conn.execute(
                 "UPDATE purchases SET payment_status = 'REFUNDED', refunded_at = ?, updated_at = ? WHERE id = ?",
                 (_now(), _now(), purchase_id),
