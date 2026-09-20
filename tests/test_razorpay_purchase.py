@@ -80,23 +80,59 @@ def test_ci_purchase_creates_order_and_confirms_to_exactly_one_entitlement(app_a
     assert purchase["amount_inr"] == 799
 
 
-def test_ci_purchase_is_not_a_subscription_second_purchase_is_independent(app_and_client, db, monkeypatch):
-    """Confirms there's no recurring-billing concept — a second CI
-    purchase is just another independent ₹799 one-time transaction."""
+def test_ci_purchase_is_blocked_while_an_active_entitlement_still_has_runway(app_and_client, db, monkeypatch):
+    """CI validity foundation: 'one active CI entitlement per email' —
+    a second purchase attempt while the first is still within its 30-day
+    validity AND has evaluations remaining must be rejected (409), not
+    silently create a second, simultaneously-usable entitlement. This
+    replaces the prior 'CI is not a subscription, a second purchase is
+    independent' test, which encoded the OLD, since-superseded behavior —
+    see the approved CI validity rules."""
     app, client = app_and_client
     login_via_magic_link(client, app, "ci-repeat@example.com")
     gateway = _install_razorpay_gateway(app, monkeypatch)
     _mock_successful_payment(gateway)
 
-    for i in range(2):
-        started = client.post("/career-intelligence/purchase", json={}).json()
-        client.post(f"/career-intelligence/purchase/{started['purchase_id']}/confirm",
-                    json=_confirm_payload(started["razorpay_order_id"], payment_id=f"pay_fake_{i}"))
+    started = client.post("/career-intelligence/purchase", json={}).json()
+    client.post(f"/career-intelligence/purchase/{started['purchase_id']}/confirm",
+                json=_confirm_payload(started["razorpay_order_id"], payment_id="pay_fake_0"))
+
+    second_attempt = client.post("/career-intelligence/purchase", json={})
+    assert second_attempt.status_code == 409
+    assert "already have an active" in second_attempt.json()["detail"]
 
     purchases = client.get("/purchases").json()
     ci_purchases = [p for p in purchases if p["product"] == "CAREER_INTELLIGENCE"]
-    assert len(ci_purchases) == 2
-    assert all(p["payment_status"] == "SUCCEEDED" for p in ci_purchases)
+    assert len(ci_purchases) == 1
+
+
+def test_ci_purchase_is_allowed_again_once_evaluations_are_exhausted(app_and_client, db, monkeypatch):
+    """The flip side of the block above: once the existing entitlement's
+    evaluations are used up, 'a new evaluation requires a new valid
+    purchase' — the second purchase must succeed."""
+    app, client = app_and_client
+    user_id = login_via_magic_link(client, app, "ci-repurchase-after-exhaustion@example.com")
+    gateway = _install_razorpay_gateway(app, monkeypatch)
+    _mock_successful_payment(gateway)
+
+    started = client.post("/career-intelligence/purchase", json={}).json()
+    client.post(f"/career-intelligence/purchase/{started['purchase_id']}/confirm",
+                json=_confirm_payload(started["razorpay_order_id"], payment_id="pay_fake_first"))
+    first_entitlement_id = db.get_purchase(started["purchase_id"])["entitlement_id"]
+
+    second_attempt = client.post("/career-intelligence/purchase", json={})
+    assert second_attempt.status_code == 409  # not yet exhausted
+
+    # Exhaust the first entitlement's evaluations directly (the Run
+    # action itself lives entirely on the sibling app, out of scope for
+    # this repo's own tests — see reserve_ci_evaluation's tests there).
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE entitlements SET evaluations_used = 3 WHERE id = ?", (first_entitlement_id,)
+        )
+
+    third_attempt = client.post("/career-intelligence/purchase", json={})
+    assert third_attempt.status_code == 200, third_attempt.text
 
 
 # ---- Application Diagnosis ----
@@ -326,12 +362,14 @@ def test_refund_before_diagnosis_revokes_entitlement_and_excludes_from_ladder(ap
     assert client.get("/diagnosis/price").json()["qualifying_count"] == 0
 
 
-def test_refund_of_a_ci_purchase_works_identically_purchases_table_is_shared(app_and_client, db, monkeypatch):
+def test_ci_refund_is_allowed_before_the_first_evaluation(app_and_client, db, monkeypatch):
     """refund_ad_purchase's name is historical — it operates purely on
-    purchase_id/payment_status, never product. Proves it works
-    unmodified for a Career Intelligence purchase too."""
+    purchase_id/payment_status, plus (CI validity foundation) a
+    product-specific 'not yet evaluated' check: for CI this now keys off
+    evaluations_used == 0, not the AD-only consumed_at column, per the
+    approved rule 'before first evaluation -> refund eligible'."""
     app, client = app_and_client
-    user_id = login_via_magic_link(client, app, "refund-ci@example.com")
+    user_id = login_via_magic_link(client, app, "refund-ci-before@example.com")
     gateway = _install_razorpay_gateway(app, monkeypatch)
     _mock_successful_payment(gateway)
     started = client.post("/career-intelligence/purchase", json={}).json()
@@ -342,6 +380,51 @@ def test_refund_of_a_ci_purchase_works_identically_purchases_table_is_shared(app
     assert refund["entitlement_revoked"] is True
     purchase = db.get_purchase(started["purchase_id"])
     assert purchase["payment_status"] == "REFUNDED"
+    entitlement = db.get_entitlement(purchase["entitlement_id"])
+    assert entitlement["status"] == "REVOKED"
+
+
+def test_ci_refund_is_blocked_after_the_first_evaluation(app_and_client, db, monkeypatch):
+    """The flip side, per the approved rule 'after first evaluation ->
+    not refund eligible'. The Run action itself lives entirely on the
+    sibling app (reserve_ci_evaluation), so this simulates its effect
+    directly on evaluations_used — the point under test here is
+    refund_ad_purchase's own CI-aware branch, not the Run action."""
+    app, client = app_and_client
+    user_id = login_via_magic_link(client, app, "refund-ci-after@example.com")
+    gateway = _install_razorpay_gateway(app, monkeypatch)
+    _mock_successful_payment(gateway)
+    started = client.post("/career-intelligence/purchase", json={}).json()
+    client.post(f"/career-intelligence/purchase/{started['purchase_id']}/confirm",
+                json=_confirm_payload(started["razorpay_order_id"]))
+    entitlement_id = db.get_purchase(started["purchase_id"])["entitlement_id"]
+    with db.connect() as conn:
+        conn.execute("UPDATE entitlements SET evaluations_used = 1 WHERE id = ?", (entitlement_id,))
+
+    refund = db.refund_ad_purchase(started["purchase_id"], user_id)
+    assert refund["entitlement_revoked"] is False
+    purchase = db.get_purchase(started["purchase_id"])
+    assert purchase["payment_status"] == "REFUNDED"  # the purchase itself is still marked refunded
+    entitlement = db.get_entitlement(entitlement_id)
+    assert entitlement["status"] == "ACTIVE"  # but access is NOT revoked -- already evaluated
+
+
+def test_ad_refund_behavior_is_completely_unchanged_by_the_ci_aware_branch(app_and_client, db, monkeypatch):
+    """Regression guard: refund_ad_purchase's AD branch must still key
+    off consumed_at exactly as before -- the new CI-specific branch is
+    additive, never a replacement of AD's own semantics."""
+    app, client = app_and_client
+    user_id = login_via_magic_link(client, app, "refund-ad-unchanged@example.com")
+    gateway = _install_razorpay_gateway(app, monkeypatch)
+    _mock_successful_payment(gateway)
+    started = client.post("/diagnosis/purchase", json={}).json()
+    client.post(f"/diagnosis/purchase/{started['purchase_id']}/confirm",
+                json=_confirm_payload(started["razorpay_order_id"]))
+
+    refund = db.refund_ad_purchase(started["purchase_id"], user_id)
+    assert refund["entitlement_revoked"] is True
+    entitlement = db.get_entitlement(db.get_purchase(started["purchase_id"])["entitlement_id"])
+    assert entitlement["status"] == "REVOKED"
 
 
 # ---- Security ----

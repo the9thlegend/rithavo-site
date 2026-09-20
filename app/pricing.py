@@ -27,3 +27,12 @@ def price_for_qualifying_count(qualifying_count: int) -> int:
 # test asserting "CI costs ₹799" read the same source, never a re-typed
 # copy of it.
 CAREER_INTELLIGENCE_PRICE_INR = 799
+
+# CI validity foundation: the two canonical commercial-rule constants.
+# Necessarily duplicated (as plain numbers, not a shared import — two
+# separately deployed repos) in the sibling app's own
+# app/entitlements.py as CI_VALIDITY_DAYS / CI_MAX_EVALUATIONS; keep both
+# pairs numerically identical if either ever changes. Application
+# Diagnosis entitlements never read either constant.
+CAREER_INTELLIGENCE_VALIDITY_DAYS = 30
+CAREER_INTELLIGENCE_MAX_EVALUATIONS = 3

@@ -450,18 +450,32 @@ def create_career_intelligence_resume(request: Request):
     """Phase 2B-1.7A Task 2: "Improve My Resume" (Stay) / "Create My
     Resume for [Target]" (New Role / New Industry / Major Transition).
 
-    Deliberately touches NOTHING in the commerce layer — no entitlement
-    check, no purchase, no consumption of anything — a Career
-    Intelligence resume is not gated by this service's own Application
-    Diagnosis credit system at all (points H/I of the phase brief).
     Uses the exact same build_tailored_resume/render_tailored_resume_docx
     pipeline as an Application Diagnosis resume (point D: reusing this
     service's own already-approved resume architecture, not the sibling
     app's), so /resume/{id}/download works for a CI resume for free —
     same ownership check, same immutable/versioned INSERT-only pattern.
+
+    CI validity foundation: still not gated by this service's own
+    Application Diagnosis credit system (points H/I of the original
+    phase brief remain true — no consumed_at, no AD entitlement
+    involved) — but it must not be reachable with NO Career Intelligence
+    purchase at all, which the original implementation allowed. This is
+    a VIEW-type check only (find_active_ci_entitlement, status='ACTIVE',
+    not expiry/evaluations-aware) so a member whose entitlement has
+    since expired or run out of evaluations can still regenerate a
+    resume from their existing assessment, per 'previous results remain
+    viewable'. No formatting/tailoring logic below is touched.
     """
     db = request.app.state.db
     session_user_id = require_user(request)
+
+    entitlement = db.find_active_ci_entitlement(session_user_id)
+    if entitlement is None:
+        raise HTTPException(
+            status_code=402,
+            detail="A Career Intelligence purchase is required before Rithavo can build you a resume for it.",
+        )
 
     view = get_career_intelligence_view(db, session_user_id)
     resume_inputs = resume_inputs_for_view(view)
@@ -513,7 +527,10 @@ def create_ci_purchase(request: Request, idempotency_key: str = Body(None, embed
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
-    result = db.begin_ci_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
+    try:
+        result = db.begin_ci_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     if result.get("replayed") and result["payment_status"] != "CREATED":
         return result
     user = db.get_user_by_id(session_user_id)

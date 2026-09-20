@@ -25,7 +25,7 @@ calls into the sibling codebase at runtime.
 import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 
@@ -483,6 +483,18 @@ _ADDITIVE_COLUMNS = [
     # so the same successful Razorpay payment can never confirm two
     # different purchase rows, even under a client-callback/webhook race.
     ("purchases", "gateway_payment_id", "TEXT"),
+    # CI validity foundation: additive on the SHARED entitlements table —
+    # the sibling app (rithavo-career-profile) applies the identical two
+    # ALTERs to the same physical table via its own _add_column_if_missing
+    # calls in init_schema(). expires_at stays NULL for every pre-existing
+    # row (legacy CI entitlements, and every Application Diagnostic
+    # entitlement, which has no expiry concept) — never backfilled with a
+    # computed/guessed date. evaluations_used defaults to 0 for every
+    # existing row — not a guess about past usage (none was ever
+    # tracked), just the correct starting point for a counter that didn't
+    # exist before now.
+    ("entitlements", "expires_at", "TEXT"),
+    ("entitlements", "evaluations_used", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 # Phase 2A: additive indexes, applied AFTER _ADDITIVE_COLUMNS (the column
@@ -1017,8 +1029,23 @@ class Database:
         always). qualifying_count_at_purchase is stored as 0 — meaningless
         for CI, kept only because the column is NOT NULL on a shared
         table shape; count_qualifying_ad_purchases/price_for_qualifying_count
-        are never called for this product."""
-        from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
+        are never called for this product.
+
+        CI validity foundation: 'one active CI entitlement per email'
+        (per user_id, which is 1:1 with the account's email) is enforced
+        HERE, under the same per-user advisory lock already held for the
+        idempotency-key check — so two concurrent purchase attempts for
+        the same user can't both pass this check before either commits.
+        'Active' deliberately means STILL USABLE, not merely
+        status='ACTIVE': an entitlement that has expired, or has used all
+        CI_MAX_EVALUATIONS runs, no longer blocks a new purchase — the
+        whole point of expiry/exhaustion is that a further evaluation
+        requires a new valid purchase (approved rule). A legacy row
+        (expires_at IS NULL) is treated as never-expiring, matching
+        reserve_ci_evaluation's own interpretation on the sibling app —
+        it still blocks a new purchase only while evaluations_used has
+        not yet reached the cap."""
+        from app.pricing import CAREER_INTELLIGENCE_MAX_EVALUATIONS, CAREER_INTELLIGENCE_PRICE_INR
         with self.connect() as conn:
             self._advisory_lock(conn, f"ci_purchase:{user_id}")
             if idempotency_key:
@@ -1032,6 +1059,18 @@ class Database:
                         "purchase_id": existing["id"], "amount_inr": existing["amount_inr"],
                         "payment_status": existing["payment_status"], "replayed": True,
                     }
+            still_valid = conn.execute(
+                "SELECT id FROM entitlements WHERE user_id = ? AND product = 'career_intelligence' "
+                "AND status = 'ACTIVE' AND (expires_at IS NULL OR expires_at > ?) "
+                "AND evaluations_used < ?",
+                (user_id, _now(), CAREER_INTELLIGENCE_MAX_EVALUATIONS),
+            ).fetchone()
+            if still_valid is not None:
+                raise ValueError(
+                    "You already have an active Career Intelligence entitlement "
+                    f"(id={still_valid['id']}) — a new purchase isn't needed until it "
+                    "expires or its evaluations are used up."
+                )
             cur = conn.execute(
                 "INSERT INTO purchases (user_id, product, amount_inr, currency, qualifying_count_at_purchase, "
                 "payment_status, gateway, idempotency_key, created_at, updated_at) "
@@ -1145,12 +1184,23 @@ class Database:
                 if payment_conflicting is not None:
                     raise ValueError("gateway_payment_id already used by a different purchase")
 
+            # CI validity foundation: expires_at = activation time + 30
+            # days, ONLY for Career Intelligence — Application Diagnostic
+            # has no expiry concept and keeps expires_at NULL, exactly
+            # like every entitlement created before this phase.
+            activated_at = _now()
+            expires_at = None
+            if entitlement_product == "career_intelligence":
+                from app.pricing import CAREER_INTELLIGENCE_VALIDITY_DAYS
+                expires_at = (
+                    datetime.fromisoformat(activated_at) + timedelta(days=CAREER_INTELLIGENCE_VALIDITY_DAYS)
+                ).isoformat()
             ent_cur = conn.execute(
                 "INSERT INTO entitlements (user_id, product, status, amount, currency, payment_source, "
-                "external_payment_reference, purchased_at, activated_at, purchase_id) "
-                "VALUES (?, ?, 'ACTIVE', ?, ?, 'rithavo_web_gateway', ?, ?, ?, ?)",
+                "external_payment_reference, purchased_at, activated_at, purchase_id, expires_at) "
+                "VALUES (?, ?, 'ACTIVE', ?, ?, 'rithavo_web_gateway', ?, ?, ?, ?, ?)",
                 (purchase["user_id"], entitlement_product, purchase["amount_inr"], purchase["currency"],
-                 gateway_payment_id or gateway_reference, _now(), _now(), purchase_id),
+                 gateway_payment_id or gateway_reference, activated_at, activated_at, purchase_id, expires_at),
             )
             entitlement_id = ent_cur.lastrowid
             conn.execute(
@@ -1258,9 +1308,21 @@ class Database:
                     "SELECT * FROM entitlements WHERE id = ?", (purchase["entitlement_id"],)
                 ).fetchone()
             revoked = False
-            if entitlement is not None and entitlement["consumed_at"] is None:
-                conn.execute("UPDATE entitlements SET status = 'REVOKED' WHERE id = ?", (entitlement["id"],))
-                revoked = True
+            if entitlement is not None:
+                # CI validity foundation: Career Intelligence has no
+                # consumed_at concept at all (that column is AD-only) —
+                # its own refund rule is evaluation-count-based instead,
+                # per the approved rule "before first evaluation -> refund
+                # eligible, after -> not eligible." AD's own consumed_at-
+                # based check is completely unchanged in the else branch;
+                # this only ADDS a second, product-specific condition.
+                if entitlement["product"] == "career_intelligence":
+                    not_yet_evaluated = entitlement["evaluations_used"] == 0
+                else:
+                    not_yet_evaluated = entitlement["consumed_at"] is None
+                if not_yet_evaluated:
+                    conn.execute("UPDATE entitlements SET status = 'REVOKED' WHERE id = ?", (entitlement["id"],))
+                    revoked = True
             conn.execute(
                 "UPDATE purchases SET payment_status = 'REFUNDED', refunded_at = ?, updated_at = ? WHERE id = ?",
                 (_now(), _now(), purchase_id),
@@ -1275,6 +1337,23 @@ class Database:
             return conn.execute(
                 "SELECT * FROM entitlements WHERE user_id = ? AND product = 'APPLICATION_DIAGNOSTIC' "
                 "AND status = 'ACTIVE' AND consumed_at IS NULL ORDER BY id LIMIT 1",
+                (user_id,),
+            ).fetchone()
+
+    def find_active_ci_entitlement(self, user_id: int):
+        """CI validity foundation: VIEW-type check only — status='ACTIVE',
+        matching the sibling app's own find_active_entitlement() exactly
+        (product='career_intelligence'). Deliberately NOT expiry- or
+        evaluations-aware: this exists so resume generation (a view of
+        already-computed results, never a new Run) keeps working after
+        expiry/evaluation-exhaustion, per 'previous results remain
+        viewable' — the Run/Re-Evaluate action itself lives entirely on
+        the sibling app (app/routers/intelligence.py's analyze()) and
+        enforces expiry/evaluations there via reserve_ci_evaluation."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM entitlements WHERE user_id = ? AND product = 'career_intelligence' "
+                "AND status = 'ACTIVE' ORDER BY id DESC LIMIT 1",
                 (user_id,),
             ).fetchone()
 
