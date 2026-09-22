@@ -143,16 +143,16 @@
 }
 
 /* Explore feed — a content grid, deliberately not .app-tile-grid's
-   people/product-directory semantics. */
-.explore-filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 20px; }
-.explore-filter-chip {
-  display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 0.82rem;
-  border: 1px solid var(--line-strong); color: var(--ink-soft); text-decoration: none; white-space: nowrap;
-  cursor: pointer; background: none; font-family: var(--font-body, inherit);
-}
-.explore-filter-chip.active { background: var(--gradient); color: #fff; border-color: transparent; }
-.explore-industry-select { min-width: 200px; }
+   people/product-directory semantics. Product Correction Phase:
+   customer-facing filter chips/industry select removed entirely (no
+   customer-facing filter UI this phase) — a two-section continuous
+   feed ("Relevant to you" then "Explore") replaces them. */
 .explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.explore-section-header {
+  grid-column: 1 / -1; font-family: var(--font-display); font-size: 1.1rem; font-weight: 500;
+  color: var(--ink); margin: 8px 0 -4px; padding-top: 8px; border-top: 1px solid var(--line);
+}
+.explore-section-header:first-child { border-top: none; padding-top: 0; }
 .explore-card {
   display: flex; flex-direction: column; border-radius: var(--r-md); overflow: hidden;
   background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: inherit;
@@ -174,6 +174,23 @@
 .explore-story-body { font-size: 1rem; line-height: 1.7; white-space: pre-line; color: var(--ink); }
 .explore-why-it-matters { margin-top: 24px; padding: 16px 20px; border-left: 3px solid var(--g2); background: var(--surface-muted); border-radius: var(--r-sm); }
 @media (max-width: 640px) { .explore-grid { grid-template-columns: 1fr; } }
+
+/* Product Correction Phase — opening a story stays inside Home
+   (a modal), never a navigation to app.rithavo.com. */
+.explore-modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000;
+  align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+}
+.explore-modal-overlay.open { display: flex; }
+.explore-modal {
+  position: relative; background: var(--surface); border-radius: var(--r-lg); max-width: 640px; width: 100%;
+  padding: 32px; box-shadow: var(--shadow-lg);
+}
+.explore-modal-close {
+  position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 1.6rem;
+  line-height: 1; cursor: pointer; color: var(--ink-faint);
+}
+.explore-modal-close:hover { color: var(--ink); }
 
 /* Admin dashboard — simple client-side tabs, no new dependency. */
 .admin-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--line); }

@@ -1,23 +1,31 @@
 """
-Home/Explore/Admin Integration Phase — the public Explore feed, proxied
-server-to-server from app.rithavo.com's already-public, already-tested
-GET /explore/stories, GET /explore/industries, and GET /explore/{id}/json
-endpoints (app/routers/explore.py on the sibling side, itself PUBLISHED-
-only and unauthenticated on that side too).
+Home/Explore/Admin Integration Phase, corrected by the Product
+Correction Phase — the Explore feed embedded in authenticated Home.
 
-No Explore data, schema, pagination, or filtering logic is duplicated
-here — every route below is a thin pass-through plus one uniform error
-mapping. This same feed powers both the embedded Explore section of
-rithavo.com/home/ and any dedicated /explore/ page on this domain; there
-is exactly one underlying implementation (the sibling's), never two.
-
-Public by design, matching the source: no session/auth required to read
-the feed, exactly like the sibling's own /explore.
+Product Correction Phase changes:
+- Explore is now authenticated-only. Every route here requires
+  require_user — a logged-out visitor gets a plain 401, never feed
+  content, never even the (now-removed) industry list. There is no
+  separate customer-facing Explore page in this service at all; Home
+  is the only place a signed-in visitor ever sees this feed.
+- No customer-facing filters: story_type/industry query parameters are
+  gone from this proxy entirely. The underlying taxonomy, story_type
+  values, and the sibling's own filtered list_published_explore_stories
+  remain untouched for Super Admin/editorial use (see routes_admin.py)
+  — only the CUSTOMER filter UI and its backing request shape were
+  scrapped this phase.
+- The feed itself is now profile-based relevance, not the generic
+  published list: this proxies to the sibling's new, real DB-paginated
+  GET /internal/api/explore/relevant-feed (one combined "relevant
+  first, then broader" ordering — see that endpoint's own docstring),
+  passing this session's own user_id. No ranking happens here or in
+  the browser; the sibling's server-side query does all of it.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from .internal_client import InternalServiceError, get as internal_get
+from .security import require_user
 
 router = APIRouter(prefix="/api/explore")
 
@@ -30,15 +38,15 @@ def _proxy_get(path: str, params: dict = None):
 
 
 @router.get("/stories")
-def explore_stories(page: int = 1, story_type: str = "", industry: str = ""):
-    return _proxy_get("/explore/stories", params={"page": page, "story_type": story_type, "industry": industry})
-
-
-@router.get("/industries")
-def explore_industries():
-    return _proxy_get("/explore/industries")
+def explore_stories(request: Request, page: int = 1, page_size: int = 12):
+    user_id = require_user(request)
+    return _proxy_get(
+        "/internal/api/explore/relevant-feed",
+        params={"user_id": user_id, "page": page, "page_size": page_size},
+    )
 
 
 @router.get("/{story_id}")
-def explore_story_detail(story_id: int):
+def explore_story_detail(request: Request, story_id: int):
+    require_user(request)
     return _proxy_get(f"/explore/{story_id}/json")
