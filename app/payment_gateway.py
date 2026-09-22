@@ -72,8 +72,20 @@ class TestPaymentGateway(PaymentGateway):
 
 
 def get_gateway() -> PaymentGateway:
+    """Cashfree Sandbox phase: Razorpay is checked FIRST, completely
+    unchanged from before -- an environment with Razorpay's three env
+    vars configured behaves identically to every prior phase. Cashfree
+    (app/cashfree_gateway.py) only ever becomes active when Razorpay is
+    NOT configured and Cashfree's own env vars are -- both are sandbox/
+    unconfigured-by-default in production today, so this ordering has
+    no effect on production until an operator deliberately configures
+    one or the other."""
     from app.razorpay_gateway import get_razorpay_gateway_if_configured
     razorpay_gateway = get_razorpay_gateway_if_configured()
     if razorpay_gateway is not None:
         return razorpay_gateway
+    from app.cashfree_gateway import get_cashfree_gateway_if_configured
+    cashfree_gateway = get_cashfree_gateway_if_configured()
+    if cashfree_gateway is not None:
+        return cashfree_gateway
     return TestPaymentGateway()

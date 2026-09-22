@@ -151,5 +151,108 @@ const RithavoApp = (() => {
     });
   }
 
-  return { apiFetch, apiJson, requireSession, renderTopbar, signOut, banner, startRazorpayPurchase, TABS };
+  let _cashfreeSdkPromise = null;
+  function _loadCashfreeSdk() {
+    if (typeof Cashfree !== "undefined") return Promise.resolve();
+    if (_cashfreeSdkPromise) return _cashfreeSdkPromise;
+    _cashfreeSdkPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Could not load the payment provider — please reload and try again."));
+      document.head.appendChild(script);
+    });
+    return _cashfreeSdkPromise;
+  }
+
+  /* Opens Cashfree Checkout in a modal (redirectTarget: "_modal") for
+     an ALREADY-CREATED order — never a navigation away from
+     rithavo.com. Unlike Razorpay's client-supplied signature, nothing
+     from the modal's own reported outcome is trusted: regardless of
+     what it reports (including a rejection — the visitor may simply
+     have closed it after actually completing payment on an underlying
+     redirect), this always calls the server's confirm-cashfree
+     endpoint afterward, which independently re-fetches the order's
+     real status from Cashfree before ever granting an entitlement. */
+  function _openCashfreeCheckout(order, confirmCashfreePath) {
+    return _loadCashfreeSdk()
+      .then(() => {
+        const cashfree = Cashfree({ mode: "sandbox" });
+        return cashfree.checkout({
+          paymentSessionId: order.cashfree_payment_session_id,
+          redirectTarget: "_modal",
+        }).catch(() => {});
+      })
+      .then(() => apiJson(confirmCashfreePath(order.purchase_id), { method: "POST", body: JSON.stringify({}) }));
+  }
+
+  /* Cashfree Sandbox phase — self-contained sibling of
+     startRazorpayPurchase: creates the purchase (server computes the
+     price) then opens Cashfree's own Checkout for it. Use this
+     directly only when the caller already knows Cashfree is the
+     active gateway; startPurchase (below) is the entry point that
+     doesn't need to know in advance. */
+  function startCashfreePurchase({ purchasePath, confirmCashfreePath }) {
+    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) })
+      .then(order => _openCashfreeCheckout(order, confirmCashfreePath));
+  }
+
+  /* Same widget-opening step startRazorpayPurchase performs, factored
+     out so it can run against an order this function did NOT itself
+     create (see startPurchase below — the purchase must be created
+     exactly once, so whichever gateway turns out to be active reuses
+     that same order rather than creating a second one).
+     startRazorpayPurchase itself is completely unchanged and still
+     works exactly as it always has for any existing caller. */
+  function _openRazorpayCheckout(order, confirmPath, description) {
+    return new Promise((resolve, reject) => {
+      if (typeof Razorpay === "undefined") {
+        reject(new Error("Payment could not be started — please reload the page and try again."));
+        return;
+      }
+      const rzp = new Razorpay({
+        key: order.razorpay_key_id,
+        amount: order.amount_inr * 100,
+        currency: "INR",
+        order_id: order.razorpay_order_id,
+        name: "Rithavo",
+        description: description,
+        handler: (response) => {
+          apiJson(confirmPath(order.purchase_id), {
+            method: "POST",
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          }).then(resolve).catch(reject);
+        },
+        modal: {
+          ondismiss: () => reject(new Error("Checkout was closed before completing payment.")),
+        },
+      });
+      rzp.on("payment.failed", () => reject(new Error("Payment failed — please try again.")));
+      rzp.open();
+    });
+  }
+
+  /* Unified entry point for a product's "Buy" button: creates the
+     purchase EXACTLY ONCE, then opens whichever checkout the server
+     actually activated for it (order.gateway, present on every
+     gateway's own create_payment_intent response) — nothing here
+     decides which gateway is "the" one; the server already did via
+     payment_gateway.get_gateway(). confirmPath is Razorpay's confirm
+     URL builder (unchanged), confirmCashfreePath is Cashfree's. */
+  function startPurchase({ purchasePath, confirmPath, confirmCashfreePath, description }) {
+    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) }).then(order => {
+      if (order.gateway === "cashfree") return _openCashfreeCheckout(order, confirmCashfreePath);
+      if (order.gateway === "razorpay") return _openRazorpayCheckout(order, confirmPath, description);
+      throw new Error("Payment is not available right now — please try again shortly.");
+    });
+  }
+
+  return {
+    apiFetch, apiJson, requireSession, renderTopbar, signOut, banner,
+    startRazorpayPurchase, startCashfreePurchase, startPurchase, TABS,
+  };
 })();

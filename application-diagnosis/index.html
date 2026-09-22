@@ -142,9 +142,10 @@
       btn.textContent = "Opening payment…";
       status.innerHTML = "";
       try {
-        await RithavoApp.startRazorpayPurchase({
+        await RithavoApp.startPurchase({
           purchasePath: "/diagnosis/purchase",
           confirmPath: (id) => `/diagnosis/purchase/${id}/confirm`,
+          confirmCashfreePath: (id) => `/diagnosis/purchase/${id}/confirm-cashfree`,
           description: "Rithavo Application Diagnosis",
         });
         // Never trust the client callback alone — re-fetch entitlement

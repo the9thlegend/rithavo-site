@@ -270,7 +270,8 @@
       title.textContent = s.headline;
       const meta = document.createElement("div");
       meta.className = "meta";
-      meta.textContent = "Source: " + (s.source_name || s.source_url || "unknown") + " · ingested " + (s.ingested_at || "").slice(0, 10);
+      const publishedText = s.source_published_at ? (" · published " + s.source_published_at.slice(0, 10)) : "";
+      meta.textContent = "Source: " + (s.source_name || s.source_url || "unknown") + publishedText + " · ingested " + (s.ingested_at || "").slice(0, 10);
       info.appendChild(title);
       info.appendChild(meta);
       const actions = document.createElement("div");

@@ -100,9 +100,10 @@ function targetLabel(t) {
       btn.textContent = "Opening payment…";
       status.innerHTML = "";
       try {
-        await RithavoApp.startRazorpayPurchase({
+        await RithavoApp.startPurchase({
           purchasePath: "/career-intelligence/purchase",
           confirmPath: (id) => `/career-intelligence/purchase/${id}/confirm`,
+          confirmCashfreePath: (id) => `/career-intelligence/purchase/${id}/confirm-cashfree`,
           description: "Rithavo Career Intelligence",
         });
         status.innerHTML = `<div class="app-banner app-banner-success">

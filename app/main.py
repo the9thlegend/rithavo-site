@@ -48,7 +48,7 @@ from app.security import (
     owned_experience_entry, owned_purchase, owned_resume, require_user,
 )
 from app.super_admin import bootstrap_super_admin
-from app import routes_admin, routes_explore, routes_mentor
+from app import routes_admin, routes_cashfree, routes_explore, routes_mentor
 
 logger = logging.getLogger("rithavo_web.diagnosis")
 
@@ -70,6 +70,7 @@ app.state.login_rate_limiter = RateLimiter()
 app.include_router(routes_explore.router)
 app.include_router(routes_admin.router)
 app.include_router(routes_mentor.router)
+app.include_router(routes_cashfree.router)
 
 
 def _row_to_dict(row):
