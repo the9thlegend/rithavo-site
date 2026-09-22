@@ -14,17 +14,18 @@
 <body>
 <div class="app-topbar" id="app-topbar"></div>
 
-<div class="app-main">
+<div class="app-main app-main-wide">
   <div id="content" class="app-skeleton">Loading your account…</div>
 </div>
 
 <script src="/app-shell.js"></script>
+<script src="/explore-feed.js"></script>
 <script>
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return; // redirected to /sign-in/
 
-  RithavoApp.renderTopbar("home", me.email);
+  RithavoApp.renderTopbar("home", me.email, me.is_super_admin);
 
   const content = document.getElementById("content");
   let profile = null;
@@ -53,11 +54,6 @@
   // P0.5A: identity panel — name/headline/current role read from the
   // same shared profile_json every other rithavo.com page already
   // parses this way (see profile/index.html's loadSharedProfile).
-  // P0.5A-3: the initial-letter avatar rendered below is still the
-  // default/fallback state, but is replaced with the user's actual
-  // Card photo (if one exists) by the fetch("/api/profile/photo") call
-  // further down — see that call's own comment for why this never
-  // shows a broken image or a technical error on any failure.
   let displayName = me.email;
   let identityMeta = "";
   if (hasProfile) {
@@ -78,6 +74,13 @@
   }
   const avatarInitial = (displayName.trim().charAt(0) || "R").toUpperCase();
 
+  // Home/Explore/Admin Integration Phase — Home is now Explore-centered:
+  // the professional-news feed is the dominant content area, and every
+  // pre-existing account/product link (Profile, Career Intelligence,
+  // Application Diagnosis, Resumes, History, Account) moves into a
+  // secondary-navigation rail alongside it, plus the new Mentorship
+  // entry point. Nothing that worked before stops working — every href
+  // below is unchanged from the previous tile grid.
   content.className = "";
   content.innerHTML = `
     <div class="app-identity-panel">
@@ -123,49 +126,34 @@
       </form>
     ` : ""}
 
-    <div class="app-tile-grid">
-      <a class="card card-hover app-tile" href="/profile/">
-        <span class="tag">Profile</span>
-        <h3>Your Rithavo Profile</h3>
-        <p>Education, experience, and the details Rithavo uses across every product.</p>
-      </a>
-      <a class="card card-hover app-tile" href="/career-intelligence/">
-        <span class="tag">Career Intelligence</span>
-        <h3>Where your career stands</h3>
-        <p>Understand your current role, and what other roles or industries could look like.</p>
-      </a>
-      <a class="card card-hover app-tile" href="/application-diagnosis/">
-        <span class="tag">Application Diagnosis</span>
-        <h3>Diagnose a job application</h3>
-        <p>Paste a job description and see exactly how your profile matches it.</p>
-      </a>
-      <a class="card card-hover app-tile" href="/resumes/">
-        <span class="tag">Resumes</span>
-        <h3>Your resumes</h3>
-        <p>Every resume Rithavo has generated for you.</p>
-      </a>
-      <a class="card card-hover app-tile" href="/history/">
-        <span class="tag">History</span>
-        <h3>Purchases &amp; past diagnoses</h3>
-        <p>A record of what you've bought and what Rithavo has told you.</p>
-      </a>
-      <a class="card card-hover app-tile" href="/account/">
-        <span class="tag">Account</span>
-        <h3>Account</h3>
-        <p>Sign out of Rithavo.</p>
-      </a>
+    <div class="home-shell">
+      <aside class="home-rail">
+        <details class="home-rail-menu" open>
+          <summary>Your Rithavo</summary>
+          <nav class="home-rail-links">
+            <a href="/profile/">Your Profile</a>
+            <a href="/career-intelligence/">Career Intelligence</a>
+            <a href="/application-diagnosis/">Application Diagnosis</a>
+            <a href="/resumes/">Your Resumes</a>
+            <a href="/mentorship/">Mentorship</a>
+            <a href="/history/">History</a>
+            <a href="/account/">Account</a>
+          </nav>
+        </details>
+      </aside>
+
+      <div class="home-main">
+        <p class="label" style="margin:0 0 4px;">Explore</p>
+        <h2 style="margin:0 0 20px; font-family:var(--font-display);">What's happening in the professional world.</h2>
+        <div id="explore-root"></div>
+      </div>
     </div>
   `;
 
-  // P0.5A-3: best-effort swap of the initial-letter avatar for the
-  // user's actual current Card photo. GET /api/profile/photo is a
-  // same-origin, session-authenticated proxy — the browser never talks
-  // to app.rithavo.com directly and never sees the server-to-server
-  // token that fetches it (see app/photo_access.py). The <img> is only
-  // ever created on a genuine 200 response, so a user with no Card, no
-  // selected photo, or an unreachable sibling simply keeps the avatar
-  // exactly as it already renders above — no broken-image icon, no
-  // error shown.
+  RithavoExplore.mount(document.getElementById("explore-root"));
+
+  // P0.5A-3 — best-effort swap of the initial-letter avatar for the
+  // user's actual current Card photo.
   (async () => {
     try {
       const resp = await RithavoApp.apiFetch("/profile/photo");
@@ -182,28 +170,7 @@
     }
   })();
 
-  // Phase P0.2: Profile -> Rithavo Card handoff. This never touches
-  // Card data itself — it mints a short-lived, single-use token
-  // server-side (POST /api/card/continue) and hands the browser off to
-  // the sibling app in one real cross-origin navigation, so the same
-  // already-authenticated rithavo.com visitor lands on their existing
-  // Rithavo Card without a second manual sign-in. A plain <a href>
-  // can't do this: the token must travel in a POST body (never a URL,
-  // where it could leak via logs/referrer), which needs a real
-  // auto-submitted form, not a link.
-  // P0.5A-2: "View Your Rithavo Card" and "Manage Card Sharing" both
-  // start the exact same, already-authorized handoff (POST
-  // /api/card/continue -> auto-submitted form -> the sibling's own
-  // unmodified GET /card) — there is only one Card destination to hand
-  // off to, and the sibling's own Card page is the authoritative place
-  // for Card management and sharing (public link, mutual-follow-gated
-  // Card Share). "Manage Card Sharing" replaces the earlier "Share Your
-  // Rithavo Card" label (P0.5A-1 finding): that wording implied a
-  // generic public share action rithavo.com doesn't actually perform —
-  // Card Share is a private, mutual-follow-gated contact exchange, not
-  // a broadcastable link. This is deliberately the same mechanism
-  // twice, not two different flows, so it can never duplicate or
-  // diverge from Card creation/provisioning.
+  // Phase P0.2: Profile -> Rithavo Card handoff (unchanged).
   document.querySelectorAll(".card-handoff-btn").forEach((cardBtn) => {
     cardBtn.addEventListener("click", async () => {
       const errorBox = document.getElementById("card-cta-error");

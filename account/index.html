@@ -28,7 +28,7 @@
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return;
-  RithavoApp.renderTopbar("account", me.email);
+  RithavoApp.renderTopbar("account", me.email, me.is_super_admin);
   document.getElementById("email").textContent = me.email;
   document.getElementById("sign-out-btn").addEventListener("click", () => RithavoApp.signOut());
 })();

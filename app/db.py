@@ -431,6 +431,16 @@ CREATE TABLE IF NOT EXISTS purchases (
 CREATE INDEX IF NOT EXISTS idx_education_user ON education (user_id);
 CREATE INDEX IF NOT EXISTS idx_experience_user ON experience_entries (user_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_user ON purchases (user_id);
+
+-- Home/Explore/Admin Integration Phase — genuinely new, owned by this
+-- service (not shared with the sibling): explicit Super Admin
+-- membership. A dedicated table, not a users.is_super_admin flag, so
+-- authorization is always "is this user_id a row here," never "does
+-- this email happen to match" — see app/super_admin.py.
+CREATE TABLE IF NOT EXISTS super_admins (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    created_at TEXT NOT NULL
+);
 """
 
 # ---- Phase 1: additive columns on already-existing shared tables ----
@@ -656,6 +666,27 @@ class Database:
             conn.execute(
                 "UPDATE users SET password_hash = ?, password_updated_at = ? WHERE id = ?",
                 (password_hash, _now(), user_id),
+            )
+
+    # ---- Super Admin (owned entirely by this service) ----
+
+    def is_super_admin(self, user_id: int) -> bool:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT 1 FROM super_admins WHERE user_id = ?", (user_id,)
+            ).fetchone() is not None
+
+    def add_super_admin_if_missing(self, user_id: int) -> None:
+        """Idempotent -- safe to call on every startup. INSERT OR IGNORE
+        (SQLite) / ON CONFLICT DO NOTHING (Postgres) both collapse to
+        the same no-op-on-duplicate behavior via this table's own
+        primary key, so no pre-check-then-insert race is needed."""
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO super_admins (user_id, created_at) VALUES (?, ?) "
+                "ON CONFLICT (user_id) DO NOTHING" if self._is_postgres else
+                "INSERT OR IGNORE INTO super_admins (user_id, created_at) VALUES (?, ?)",
+                (user_id, _now()),
             )
 
     # ---- shared profile (read-only from this service through Phase

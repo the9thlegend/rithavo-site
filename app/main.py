@@ -47,6 +47,8 @@ from app.security import (
     owned_career_profile, owned_diagnosis, owned_education, owned_entitlement,
     owned_experience_entry, owned_purchase, owned_resume, require_user,
 )
+from app.super_admin import bootstrap_super_admin
+from app import routes_admin, routes_explore, routes_mentor
 
 logger = logging.getLogger("rithavo_web.diagnosis")
 
@@ -55,6 +57,7 @@ app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, https_on
 
 app.state.db = Database(config.DATABASE_URL or config.DB_PATH)
 app.state.db.init_schema()
+bootstrap_super_admin(app.state.db, config.SUPER_ADMIN_EMAIL, config.SUPER_ADMIN_PASSWORD)
 app.state.email_sender = get_email_sender()
 app.state.payment_gateway = get_gateway()
 app.state.auth_rate_limiter = RateLimiter()
@@ -63,6 +66,10 @@ app.state.auth_rate_limiter = RateLimiter()
 # email requests must not share one counter, or five failed passwords
 # would also block a legitimate magic-link request for the same address.
 app.state.login_rate_limiter = RateLimiter()
+
+app.include_router(routes_explore.router)
+app.include_router(routes_admin.router)
+app.include_router(routes_mentor.router)
 
 
 def _row_to_dict(row):
@@ -172,9 +179,17 @@ def _post_login_redirect(request: Request, db, user_id: int) -> RedirectResponse
     app.rithavo.com, and hasn't completed rithavo.com's own onboarding
     either) goes to /onboarding/ instead of straight to /home/ —
     everyone else (existing profile, however it was created) is
-    unaffected and still lands on /home/ exactly as before."""
-    has_profile = db.get_career_profile(user_id) is not None
-    path = "home" if has_profile else "onboarding"
+    unaffected and still lands on /home/ exactly as before.
+
+    Home/Explore/Admin Integration Phase: a Super Admin lands on
+    /admin/ instead — checked first, since the bootstrap account has no
+    career_profiles row at all and would otherwise be sent to
+    /onboarding/ like any other brand-new signup."""
+    if db.is_super_admin(user_id):
+        path = "admin"
+    else:
+        has_profile = db.get_career_profile(user_id) is not None
+        path = "home" if has_profile else "onboarding"
     destination = f"{request.url.scheme}://{request.url.netloc}/{path}/"
     return RedirectResponse(destination, status_code=302)
 
@@ -563,7 +578,16 @@ def get_me(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
     user = db.get_user_by_id(session_user_id)
-    return {"user_id": session_user_id, "email": user["email"] if user else None}
+    return {
+        "user_id": session_user_id, "email": user["email"] if user else None,
+        # Home/Explore/Admin Integration Phase — the shared nav shell
+        # (app-shell.js) uses this to decide whether to render the
+        # Admin tab; every server-side Admin route still independently
+        # re-checks db.is_super_admin itself (see require_super_admin),
+        # so this flag is a UI convenience only, never a security
+        # boundary on its own.
+        "is_super_admin": db.is_super_admin(session_user_id),
+    }
 
 
 # ---- education (new, owned by this service) ----

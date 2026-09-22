@@ -102,3 +102,87 @@
 }
 .app-entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 @media (max-width: 560px) { .app-entry-grid { grid-template-columns: 1fr; } }
+
+/* Home/Explore/Admin Integration Phase. */
+
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.7rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  background: var(--surface-muted); color: var(--ink-soft); border: 1px solid var(--line);
+}
+.badge-active { color: #1f5c3a; border-color: color-mix(in srgb, #2e8b57 35%, var(--line)); }
+.badge-pending { color: #8a5a1f; border-color: color-mix(in srgb, #c08a2b 35%, var(--line)); }
+
+/* Home: a secondary-navigation rail beside the Explore feed. Desktop:
+   fixed-width rail + fluid content. Mobile: the rail collapses above
+   the feed via a native <details>, matching this file's existing
+   .app-choice-card / dropzone philosophy of zero extra JS for layout. */
+.home-shell { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+.home-rail-menu summary {
+  list-style: none; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-faint); padding: 4px 0 10px; cursor: default;
+}
+.home-rail-menu summary::-webkit-details-marker { display: none; }
+.home-rail-menu summary::marker { content: none; }
+.home-rail-links { display: flex; flex-direction: column; gap: 2px; }
+.home-rail-links a {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px;
+  border-radius: var(--r-sm); color: var(--ink-soft); text-decoration: none; font-size: 0.9rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.home-rail-links a:hover { background: var(--surface-muted); color: var(--ink); }
+@media (max-width: 720px) {
+  .home-shell { grid-template-columns: 1fr; gap: 16px; }
+  .home-rail-menu summary {
+    cursor: pointer; text-transform: none; font-size: 0.9rem; letter-spacing: normal;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink-soft);
+  }
+  .home-rail-menu[open] summary { border-radius: var(--r-sm) var(--r-sm) 0 0; }
+  .home-rail-links { border: 1px solid var(--line); border-top: none; border-radius: 0 0 var(--r-sm) var(--r-sm); padding: 6px; }
+}
+
+/* Explore feed — a content grid, deliberately not .app-tile-grid's
+   people/product-directory semantics. */
+.explore-filterbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 20px; }
+.explore-filter-chip {
+  display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 0.82rem;
+  border: 1px solid var(--line-strong); color: var(--ink-soft); text-decoration: none; white-space: nowrap;
+  cursor: pointer; background: none; font-family: var(--font-body, inherit);
+}
+.explore-filter-chip.active { background: var(--gradient); color: #fff; border-color: transparent; }
+.explore-industry-select { min-width: 200px; }
+.explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.explore-card {
+  display: flex; flex-direction: column; border-radius: var(--r-md); overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer;
+}
+.explore-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.explore-card-image { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface-muted); }
+.explore-card-image-fallback { width: 100%; aspect-ratio: 16 / 9; background: var(--gradient); }
+.explore-card-body { padding: 16px; }
+.explore-chip {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+  background: var(--surface-muted); color: var(--ink-soft); margin-right: 6px;
+}
+.explore-card-headline { font-size: 1rem; font-weight: 600; margin: 8px 0 6px; line-height: 1.35; color: var(--ink); }
+.explore-card-summary { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 8px; line-height: 1.5; }
+.explore-card-meta { font-size: 0.75rem; color: var(--ink-faint); }
+.explore-empty, .explore-end { text-align: center; color: var(--ink-faint); padding: 40px 20px; }
+.explore-story-image { width: 100%; border-radius: var(--r-md); margin: 16px 0 24px; max-height: 400px; object-fit: cover; }
+.explore-story-body { font-size: 1rem; line-height: 1.7; white-space: pre-line; color: var(--ink); }
+.explore-why-it-matters { margin-top: 24px; padding: 16px 20px; border-left: 3px solid var(--g2); background: var(--surface-muted); border-radius: var(--r-sm); }
+@media (max-width: 640px) { .explore-grid { grid-template-columns: 1fr; } }
+
+/* Admin dashboard — simple client-side tabs, no new dependency. */
+.admin-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+.admin-tab-btn {
+  padding: 10px 16px; border: none; background: none; cursor: pointer; font-size: 0.88rem;
+  color: var(--ink-soft); border-bottom: 2px solid transparent; font-family: inherit;
+}
+.admin-tab-btn.active { color: var(--ink); border-bottom-color: var(--g2); font-weight: 600; }
+.admin-tab-panel { display: none; }
+.admin-tab-panel.active { display: block; }
+.admin-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-row-actions .btn { padding: 6px 12px; font-size: 0.78rem; }

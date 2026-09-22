@@ -30,7 +30,7 @@
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return;
-  RithavoApp.renderTopbar("history", me.email);
+  RithavoApp.renderTopbar("history", me.email, me.is_super_admin);
 
   try {
     const purchases = await RithavoApp.apiJson("/purchases");

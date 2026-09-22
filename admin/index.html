@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main app-main-wide">
+  <div id="content" class="app-skeleton">Loading Admin…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  if (!me.is_super_admin) {
+    document.getElementById("content").innerHTML = `<div class="app-banner app-banner-error">Not authorized.</div>`;
+    return;
+  }
+  RithavoApp.renderTopbar("admin", me.email, me.is_super_admin);
+
+  const content = document.getElementById("content");
+  content.className = "";
+  content.innerHTML = `
+    <p class="label" style="margin:0 0 4px;">Admin</p>
+    <h1 class="h2" style="margin:0 0 24px;">Rithavo control center.</h1>
+
+    <div class="admin-tabs">
+      <button type="button" class="admin-tab-btn active" data-tab="stories">Explore</button>
+      <button type="button" class="admin-tab-btn" data-tab="ingestion">News Ingestion</button>
+      <button type="button" class="admin-tab-btn" data-tab="taxonomy">Taxonomy</button>
+      <button type="button" class="admin-tab-btn" data-tab="mentorship">Mentorship</button>
+      <button type="button" class="admin-tab-btn" data-tab="users">Users</button>
+    </div>
+
+    <div id="tab-stories" class="admin-tab-panel active">
+      <button type="button" class="btn btn-primary" id="new-story-btn" style="margin-bottom:16px;">New story</button>
+      <div id="story-form-container"></div>
+      <div id="stories-list" class="app-list">Loading…</div>
+    </div>
+
+    <div id="tab-ingestion" class="admin-tab-panel">
+      <button type="button" class="btn btn-primary" id="refresh-ingestion-btn" style="margin-bottom:16px;">Refresh ingestion</button>
+      <div id="ingestion-result"></div>
+      <div id="ingestion-list" class="app-list">Loading…</div>
+    </div>
+
+    <div id="tab-taxonomy" class="admin-tab-panel">
+      <div class="card card-body" style="margin-bottom:20px;">
+        <form id="new-industry-form">
+          <div class="app-field"><label for="industry-name">New industry name</label><input type="text" id="industry-name" required></div>
+          <div class="app-field"><label for="industry-parent">Parent (leave blank for a top-level group)</label>
+            <select id="industry-parent"><option value="">— top level —</option></select>
+          </div>
+          <button type="submit" class="btn btn-primary">Add industry</button>
+        </form>
+      </div>
+      <div id="taxonomy-list" class="app-list">Loading…</div>
+    </div>
+
+    <div id="tab-mentorship" class="admin-tab-panel">
+      <h2 style="font-size:1.05rem;">Pending applications</h2>
+      <div id="mentor-applications-list" class="app-list" style="margin-bottom:32px;">Loading…</div>
+      <h2 style="font-size:1.05rem;">All sessions</h2>
+      <div id="mentor-sessions-list" class="app-list">Loading…</div>
+    </div>
+
+    <div id="tab-users" class="admin-tab-panel">
+      <div class="app-field" style="max-width:360px;">
+        <label for="user-search">Search by email</label>
+        <input type="text" id="user-search" placeholder="someone@example.com">
+      </div>
+      <div id="users-list" class="app-list">Type to search.</div>
+    </div>
+  `;
+
+  document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".admin-tab-panel").forEach((p) => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  const STORY_TYPES = {
+    LAYOFFS_HIRING: "Layoffs & Hiring", LEADERSHIP: "Leadership & Appointments", MA: "Mergers & Acquisitions",
+    COMPANY_DEVELOPMENT: "Company Developments", PRODUCT_TECHNOLOGY: "Product & Technology",
+    PARTNERSHIP: "Partnerships", WORKPLACE: "Workplace", CAREER: "Career", BUSINESS: "Business",
+    REGULATORY: "Regulatory", GLOBAL: "Global",
+  };
+
+  let industryTreeCache = [];
+
+  // ---- Explore stories ----
+
+  function storyFormHtml(story) {
+    story = story || {};
+    const industryIds = (story.industries || []).map((i) => i.id);
+    let industryOptions = "";
+    industryTreeCache.forEach((group) => {
+      industryOptions += `<option value="${group.parent.id}" ${industryIds.includes(group.parent.id) ? "selected" : ""}>${group.parent.name}</option>`;
+      group.children.forEach((c) => {
+        industryOptions += `<option value="${c.id}" ${industryIds.includes(c.id) ? "selected" : ""}>&nbsp;&nbsp;— ${c.name}</option>`;
+      });
+    });
+    let typeOptions = "";
+    Object.keys(STORY_TYPES).forEach((slug) => {
+      typeOptions += `<option value="${slug}" ${story.story_type === slug ? "selected" : ""}>${STORY_TYPES[slug]}</option>`;
+    });
+    return `
+      <div class="card card-body" style="margin-bottom:20px;">
+        <form id="story-form">
+          <div class="app-field"><label>Headline</label><input type="text" name="headline" value="${story.headline || ""}" required></div>
+          <div class="app-field"><label>Summary</label><textarea name="summary" required>${story.summary || ""}</textarea></div>
+          <div class="app-field"><label>Story type</label><select name="story_type">${typeOptions}</select></div>
+          <div class="app-field"><label>Industries</label><select name="industry_ids" multiple size="6">${industryOptions}</select></div>
+          <div class="app-field"><label>Source name</label><input type="text" name="source_name" value="${story.source_name || ""}"></div>
+          <div class="app-field"><label>Source URL</label><input type="text" name="source_url" value="${story.source_url || ""}"></div>
+          <div class="app-field"><label>Image</label><input type="file" name="image" accept="image/*"></div>
+          <div class="app-field"><label>Body</label><textarea name="body">${story.body || ""}</textarea></div>
+          <div class="app-field"><label>Why it matters</label><textarea name="why_it_matters">${story.why_it_matters || ""}</textarea></div>
+          <div id="story-form-error"></div>
+          <button type="submit" class="btn btn-primary">${story.id ? "Save changes" : "Create story"}</button>
+          <button type="button" class="btn btn-ghost" id="cancel-story-form">Cancel</button>
+        </form>
+      </div>
+    `;
+  }
+
+  function openStoryForm(story) {
+    const container = document.getElementById("story-form-container");
+    container.innerHTML = storyFormHtml(story);
+    document.getElementById("cancel-story-form").addEventListener("click", () => { container.innerHTML = ""; });
+    document.getElementById("story-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        headline: form.headline.value, summary: form.summary.value, story_type: form.story_type.value,
+        source_name: form.source_name.value, source_url: form.source_url.value,
+        body: form.body.value, why_it_matters: form.why_it_matters.value,
+        industry_ids: Array.from(form.industry_ids.selectedOptions).map((o) => parseInt(o.value, 10)),
+      };
+      const errorBox = document.getElementById("story-form-error");
+      errorBox.innerHTML = "";
+      try {
+        const saved = story && story.id
+          ? await RithavoApp.apiJson(`/admin/explore/stories/${story.id}`, { method: "POST", body: JSON.stringify(payload) })
+          : await RithavoApp.apiJson("/admin/explore/stories", { method: "POST", body: JSON.stringify(payload) });
+        const imageFile = form.image.files[0];
+        if (imageFile) {
+          const fd = new FormData();
+          fd.append("image", imageFile);
+          await RithavoApp.apiFetch(`/admin/explore/stories/${saved.id}/image`, { method: "POST", body: fd });
+        }
+        container.innerHTML = "";
+        loadStories();
+      } catch (err) {
+        RithavoApp.banner(errorBox, "error", "Couldn't save that story — please check the required fields.");
+      }
+    });
+  }
+
+  document.getElementById("new-story-btn").addEventListener("click", () => openStoryForm(null));
+
+  async function loadStories() {
+    const list = document.getElementById("stories-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/explore/stories");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load stories right now.</div>`;
+      return;
+    }
+    const stories = data.stories || [];
+    if (!stories.length) { list.innerHTML = `<div class="app-empty">No stories yet.</div>`; return; }
+    list.innerHTML = "";
+    stories.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      const info = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = s.headline;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = (STORY_TYPES[s.story_type] || s.story_type) + (s.ingested_at ? " · ingested" : "");
+      const badge = document.createElement("span");
+      badge.className = "badge " + (s.status === "PUBLISHED" ? "badge-active" : "badge-pending");
+      badge.textContent = s.status;
+      info.appendChild(title);
+      info.appendChild(document.createTextNode(" "));
+      info.appendChild(badge);
+      info.appendChild(meta);
+      const actions = document.createElement("div");
+      actions.className = "admin-row-actions";
+      const editBtn = document.createElement("button");
+      editBtn.type = "button"; editBtn.className = "btn btn-ghost"; editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => openStoryForm(s));
+      actions.appendChild(editBtn);
+      if (s.status === "DRAFT") {
+        const pubBtn = document.createElement("button");
+        pubBtn.type = "button"; pubBtn.className = "btn btn-ghost"; pubBtn.textContent = "Publish";
+        pubBtn.addEventListener("click", async () => { await RithavoApp.apiJson(`/admin/explore/stories/${s.id}/publish`, { method: "POST", body: "{}" }); loadStories(); });
+        actions.appendChild(pubBtn);
+      } else {
+        const unpubBtn = document.createElement("button");
+        unpubBtn.type = "button"; unpubBtn.className = "btn btn-ghost"; unpubBtn.textContent = "Unpublish";
+        unpubBtn.addEventListener("click", async () => { await RithavoApp.apiJson(`/admin/explore/stories/${s.id}/unpublish`, { method: "POST", body: "{}" }); loadStories(); });
+        actions.appendChild(unpubBtn);
+        const viewBtn = document.createElement("a");
+        viewBtn.href = `https://app.rithavo.com/explore/${s.id}`; viewBtn.target = "_blank"; viewBtn.rel = "noopener";
+        viewBtn.className = "btn btn-ghost"; viewBtn.textContent = "Preview";
+        actions.appendChild(viewBtn);
+      }
+      const delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "btn btn-ghost"; delBtn.textContent = "Delete";
+      delBtn.addEventListener("click", async () => {
+        if (!confirm("Delete this story permanently?")) return;
+        await RithavoApp.apiJson(`/admin/explore/stories/${s.id}/delete`, { method: "POST", body: "{}" });
+        loadStories();
+      });
+      actions.appendChild(delBtn);
+      row.appendChild(info);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+  }
+
+  // ---- Ingestion ----
+
+  document.getElementById("refresh-ingestion-btn").addEventListener("click", async () => {
+    const resultBox = document.getElementById("ingestion-result");
+    resultBox.innerHTML = `<div class="app-banner app-banner-info">Refreshing…</div>`;
+    try {
+      const result = await RithavoApp.apiJson("/admin/explore/ingest", { method: "POST", body: "{}" });
+      resultBox.innerHTML = `<div class="app-banner app-banner-success">Fetched ${result.total_inserted} new stories from ${result.feeds_configured} feed(s) (${result.total_skipped_duplicate} duplicates skipped, ${result.feeds_failed} feed(s) failed).</div>`;
+      loadIngestionQueue();
+    } catch (e) {
+      resultBox.innerHTML = `<div class="app-banner app-banner-error">Couldn't refresh ingestion right now.</div>`;
+    }
+  });
+
+  async function loadIngestionQueue() {
+    const list = document.getElementById("ingestion-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/explore/stories/pending-review");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load the ingestion queue right now.</div>`;
+      return;
+    }
+    const stories = data.stories || [];
+    if (!stories.length) { list.innerHTML = `<div class="app-empty">Nothing awaiting review.</div>`; return; }
+    list.innerHTML = "";
+    stories.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      const info = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = s.headline;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = "Source: " + (s.source_name || s.source_url || "unknown") + " · ingested " + (s.ingested_at || "").slice(0, 10);
+      info.appendChild(title);
+      info.appendChild(meta);
+      const actions = document.createElement("div");
+      actions.className = "admin-row-actions";
+      const editBtn = document.createElement("button");
+      editBtn.type = "button"; editBtn.className = "btn btn-ghost"; editBtn.textContent = "Edit before publishing";
+      editBtn.addEventListener("click", () => {
+        document.querySelector('.admin-tab-btn[data-tab="stories"]').click();
+        openStoryForm(s);
+      });
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button"; rejectBtn.className = "btn btn-ghost"; rejectBtn.textContent = "Reject";
+      rejectBtn.addEventListener("click", async () => {
+        await RithavoApp.apiJson(`/admin/explore/stories/${s.id}/delete`, { method: "POST", body: "{}" });
+        loadIngestionQueue();
+      });
+      actions.appendChild(editBtn);
+      actions.appendChild(rejectBtn);
+      row.appendChild(info);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+  }
+
+  // ---- Taxonomy ----
+
+  async function loadTaxonomy() {
+    const list = document.getElementById("taxonomy-list");
+    const parentSelect = document.getElementById("industry-parent");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/explore/industries");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load industries right now.</div>`;
+      return;
+    }
+    industryTreeCache = (data.tree || []).map((group) => ({
+      parent: group.parent, children: group.children.filter((c) => c.is_active),
+    })).filter((group) => group.parent.is_active);
+
+    parentSelect.innerHTML = `<option value="">— top level —</option>` +
+      (data.tree || []).filter((g) => g.parent.is_active).map((g) => `<option value="${g.parent.id}">${g.parent.name}</option>`).join("");
+
+    list.innerHTML = "";
+    (data.tree || []).forEach((group) => {
+      [group.parent, ...group.children].forEach((industry) => {
+        const row = document.createElement("div");
+        row.className = "card app-list-row";
+        const info = document.createElement("div");
+        info.textContent = (industry.parent_id ? "— " : "") + industry.name;
+        const badge = document.createElement("span");
+        badge.className = "badge " + (industry.is_active ? "badge-active" : "");
+        badge.textContent = industry.is_active ? "Active" : "Inactive";
+        info.appendChild(document.createTextNode(" "));
+        info.appendChild(badge);
+        const actions = document.createElement("div");
+        actions.className = "admin-row-actions";
+        if (industry.is_active) {
+          const deactivateBtn = document.createElement("button");
+          deactivateBtn.type = "button"; deactivateBtn.className = "btn btn-ghost"; deactivateBtn.textContent = "Deactivate";
+          deactivateBtn.addEventListener("click", async () => {
+            await RithavoApp.apiJson(`/admin/explore/industries/${industry.id}/deactivate`, { method: "POST", body: "{}" });
+            loadTaxonomy();
+          });
+          actions.appendChild(deactivateBtn);
+        }
+        row.appendChild(info);
+        row.appendChild(actions);
+        list.appendChild(row);
+      });
+    });
+  }
+
+  document.getElementById("new-industry-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("industry-name").value;
+    const parentId = document.getElementById("industry-parent").value;
+    await RithavoApp.apiJson("/admin/explore/industries", {
+      method: "POST", body: JSON.stringify({ name, parent_id: parentId || null }),
+    });
+    document.getElementById("industry-name").value = "";
+    loadTaxonomy();
+  });
+
+  // ---- Mentorship ----
+
+  async function loadMentorApplications() {
+    const list = document.getElementById("mentor-applications-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/mentors/applications");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load applications right now.</div>`;
+      return;
+    }
+    const applications = data.applications || [];
+    if (!applications.length) { list.innerHTML = `<div class="app-empty">No pending applications.</div>`; return; }
+    list.innerHTML = "";
+    applications.forEach((a) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      const info = document.createElement("div");
+      info.textContent = `User #${a.user_id} · ${a.years_of_experience} years experience`;
+      const actions = document.createElement("div");
+      actions.className = "admin-row-actions";
+      const verifyBtn = document.createElement("button");
+      verifyBtn.type = "button"; verifyBtn.className = "btn btn-ghost"; verifyBtn.textContent = "Verify";
+      verifyBtn.addEventListener("click", async () => {
+        await RithavoApp.apiJson(`/admin/mentors/applications/${a.id}/verify`, { method: "POST", body: "{}" });
+        loadMentorApplications();
+      });
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button"; rejectBtn.className = "btn btn-ghost"; rejectBtn.textContent = "Reject";
+      rejectBtn.addEventListener("click", async () => {
+        await RithavoApp.apiJson(`/admin/mentors/applications/${a.id}/reject`, { method: "POST", body: "{}" });
+        loadMentorApplications();
+      });
+      actions.appendChild(verifyBtn);
+      actions.appendChild(rejectBtn);
+      row.appendChild(info);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+  }
+
+  async function loadMentorSessions() {
+    const list = document.getElementById("mentor-sessions-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/mentors/sessions");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load sessions right now.</div>`;
+      return;
+    }
+    const sessions = data.sessions || [];
+    if (!sessions.length) { list.innerHTML = `<div class="app-empty">No sessions yet.</div>`; return; }
+    list.innerHTML = "";
+    sessions.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      row.innerHTML = `<div>Mentor #${s.mentor_user_id} · Mentee #${s.mentee_user_id}</div><span class="badge">${s.status}</span>`;
+      list.appendChild(row);
+    });
+  }
+
+  // ---- Users ----
+
+  let userSearchTimer = null;
+  document.getElementById("user-search").addEventListener("input", (e) => {
+    clearTimeout(userSearchTimer);
+    const q = e.target.value;
+    userSearchTimer = setTimeout(async () => {
+      const list = document.getElementById("users-list");
+      if (!q.trim()) { list.innerHTML = "Type to search."; return; }
+      let data;
+      try {
+        data = await RithavoApp.apiJson("/admin/users?q=" + encodeURIComponent(q));
+      } catch (err) {
+        list.innerHTML = `<div class="app-empty">Search failed.</div>`;
+        return;
+      }
+      const users = data.users || [];
+      if (!users.length) { list.innerHTML = `<div class="app-empty">No matching accounts.</div>`; return; }
+      list.innerHTML = "";
+      users.forEach((u) => {
+        const row = document.createElement("div");
+        row.className = "card app-list-row";
+        row.innerHTML = `<div>${u.email}<div class="meta">Created ${u.created_at.slice(0, 10)}</div></div>` +
+          (u.is_verified_mentor ? `<span class="badge badge-active">Mentor</span>` : "");
+        list.appendChild(row);
+      });
+    }, 300);
+  });
+
+  await loadTaxonomy();
+  loadStories();
+  loadIngestionQueue();
+  loadMentorApplications();
+  loadMentorSessions();
+})();
+</script>
+</body>
+</html>

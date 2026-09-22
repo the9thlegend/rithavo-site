@@ -60,7 +60,7 @@
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return;
-  RithavoApp.renderTopbar("profile", me.email);
+  RithavoApp.renderTopbar("profile", me.email, me.is_super_admin);
 
   async function loadSharedProfile() {
     const mount = document.getElementById("shared-profile");

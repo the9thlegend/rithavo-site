@@ -25,7 +25,7 @@
 (async () => {
   const me = await RithavoApp.requireSession();
   if (!me) return;
-  RithavoApp.renderTopbar("resumes", me.email);
+  RithavoApp.renderTopbar("resumes", me.email, me.is_super_admin);
 
   const content = document.getElementById("content");
   try {

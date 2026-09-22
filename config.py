@@ -91,5 +91,30 @@ CARD_APP_BASE_URL = os.environ.get("RITHAVO_CARD_APP_URL", "https://app.rithavo.
 # suite (both would silently drop the cookie, breaking every session).
 SESSION_COOKIE_HTTPS_ONLY = bool(DATABASE_URL)
 
+# Home/Explore/Admin Integration Phase — rithavo.com is the one
+# canonical customer-facing surface; app.rithavo.com is now an
+# internal-only boundary this service's own backend calls
+# server-to-server (never from a browser). Same no-fallback rule as
+# CARD_HANDOFF_SECRET/PHOTO_ACCESS_SECRET above: unset means None, and
+# every caller must treat that as "not configured" and refuse to
+# operate, never fall back to an insecure default. Must be set to the
+# exact same value as the sibling's own RITHAVO_INTERNAL_SERVICE_SECRET
+# in production.
+INTERNAL_SERVICE_SECRET = os.environ.get("RITHAVO_INTERNAL_SERVICE_SECRET")
+
+# Where the sibling's internal service API actually lives — same
+# service, same host as CARD_APP_BASE_URL, but named for its own
+# purpose so the two are never confused when read independently.
+INTERNAL_SERVICE_BASE_URL = os.environ.get("RITHAVO_INTERNAL_SERVICE_URL", CARD_APP_BASE_URL)
+
+# One dedicated Rithavo Super Admin account. Bootstrapped idempotently
+# at startup (see app/super_admin.py) only when BOTH are set — a
+# missing password never creates a passwordless admin account. The
+# plaintext password is read once, hashed immediately via the existing
+# hash_password (same scrypt KDF as ordinary user passwords), and never
+# logged, stored, or reachable again in plaintext form.
+SUPER_ADMIN_EMAIL = os.environ.get("RITHAVO_SUPER_ADMIN_EMAIL")
+SUPER_ADMIN_PASSWORD = os.environ.get("RITHAVO_SUPER_ADMIN_PASSWORD")
+
 if not DATABASE_URL:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -63,13 +63,21 @@ const RithavoApp = (() => {
     { key: "career-intelligence", label: "Career Intelligence", href: "/career-intelligence/" },
     { key: "application-diagnosis", label: "Application Diagnosis", href: "/application-diagnosis/" },
     { key: "resumes", label: "Resumes", href: "/resumes/" },
+    { key: "mentorship", label: "Mentorship", href: "/mentorship/" },
     { key: "history", label: "History", href: "/history/" },
   ];
 
-  function renderTopbar(activeKey, email) {
+  // Home/Explore/Admin Integration Phase — the Admin tab is appended
+  // only for a confirmed Super Admin (isSuperAdmin from GET /me), never
+  // rendered speculatively. Every /api/admin/* route still
+  // independently re-checks db.is_super_admin server-side regardless of
+  // whether this tab is shown — this is a UI convenience, not the
+  // authorization boundary itself.
+  function renderTopbar(activeKey, email, isSuperAdmin) {
     const mount = document.getElementById("app-topbar");
     if (!mount) return;
-    const tabsHtml = TABS.map(t =>
+    const tabs = isSuperAdmin ? [...TABS, { key: "admin", label: "Admin", href: "/admin/" }] : TABS;
+    const tabsHtml = tabs.map(t =>
       `<li><a href="${t.href}" ${t.key === activeKey ? 'aria-current="page"' : ""}>${t.label}</a></li>`
     ).join("");
     mount.innerHTML = `

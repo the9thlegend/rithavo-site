@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mentorship — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/app-shell.css">
+</head>
+<body>
+<div class="app-topbar" id="app-topbar"></div>
+
+<div class="app-main app-main-wide">
+  <div id="content" class="app-skeleton">Loading Mentorship…</div>
+</div>
+
+<script src="/app-shell.js"></script>
+<script>
+(async () => {
+  const me = await RithavoApp.requireSession();
+  if (!me) return;
+  RithavoApp.renderTopbar("mentorship", me.email, me.is_super_admin);
+
+  const content = document.getElementById("content");
+  content.className = "";
+  content.innerHTML = `
+    <p class="label" style="margin:0 0 4px;">Mentorship</p>
+    <h1 class="h2" style="margin:0 0 28px;">15-minute mentorship sessions.</h1>
+
+    <section style="margin-bottom:40px;">
+      <h2 style="font-size:1.1rem;">Become a Mentor</h2>
+      <div id="mentor-status-panel" class="card card-body">Loading…</div>
+    </section>
+
+    <section style="margin-bottom:40px;">
+      <h2 style="font-size:1.1rem;">Discover Mentors</h2>
+      <div id="discover-mentors-list" class="app-list">Loading…</div>
+    </section>
+
+    <section>
+      <h2 style="font-size:1.1rem;">My Mentorship Sessions</h2>
+      <div id="my-sessions-list" class="app-list">Loading…</div>
+    </section>
+  `;
+
+  async function loadMentorStatus() {
+    const panel = document.getElementById("mentor-status-panel");
+    let status;
+    try {
+      status = await RithavoApp.apiJson("/mentor/status");
+    } catch (e) {
+      panel.innerHTML = `<p>Couldn't load your mentor status right now.</p>`;
+      return;
+    }
+    if (status.is_verified_mentor) {
+      panel.innerHTML = `<p><span class="badge badge-active">Verified Mentor</span></p>
+        <p style="margin:8px 0 0;">Incoming session requests appear in "My Mentorship Sessions" below.</p>`;
+      return;
+    }
+    if (status.application && status.application.status === "PENDING") {
+      panel.innerHTML = `<p><span class="badge badge-pending">Application pending review</span></p>
+        <p style="margin:8px 0 0;">Submitted with ${status.application.years_of_experience} years of experience.</p>`;
+      return;
+    }
+    if (status.application && status.application.status === "REJECTED") {
+      panel.innerHTML = `<p><span class="badge">Not approved</span></p>
+        <p style="margin:8px 0 0;">Your last mentor application wasn't approved.</p>`;
+      return;
+    }
+    panel.innerHTML = `
+      <p style="margin:0 0 12px;">Mentors need at least 10 years of experience in their field to apply.</p>
+      <form id="mentor-apply-form">
+        <div class="app-field">
+          <label for="years">Years of experience</label>
+          <input type="number" id="years" name="years" min="0" required>
+        </div>
+        <div id="mentor-apply-error"></div>
+        <button type="submit" class="btn btn-primary">Apply to become a mentor</button>
+      </form>
+    `;
+    document.getElementById("mentor-apply-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const years = parseInt(document.getElementById("years").value, 10);
+      const errorBox = document.getElementById("mentor-apply-error");
+      errorBox.innerHTML = "";
+      try {
+        await RithavoApp.apiJson("/mentor/apply", { method: "POST", body: JSON.stringify({ years_of_experience: years }) });
+        loadMentorStatus();
+      } catch (err) {
+        RithavoApp.banner(errorBox, "error", "Couldn't submit that application — please try again.");
+      }
+    });
+  }
+
+  async function loadDiscoverMentors() {
+    const list = document.getElementById("discover-mentors-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/mentor/discover");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load mentors right now.</div>`;
+      return;
+    }
+    const mentors = data.mentors || [];
+    if (!mentors.length) {
+      list.innerHTML = `<div class="app-empty">No verified mentors yet — check back soon.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    mentors.forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      const info = document.createElement("div");
+      const nameEl = document.createElement("strong");
+      nameEl.textContent = m.name;
+      const metaEl = document.createElement("div");
+      metaEl.className = "meta";
+      metaEl.textContent = (m.headline ? m.headline + " · " : "") + m.years_of_experience + " years experience";
+      info.appendChild(nameEl);
+      info.appendChild(metaEl);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-ghost";
+      btn.textContent = "Request 15-minute session";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await RithavoApp.apiJson(`/mentor/${m.user_id}/request-session`, { method: "POST", body: JSON.stringify({}) });
+          btn.textContent = "Requested";
+          loadMySessions();
+        } catch (e) {
+          btn.disabled = false;
+          btn.textContent = "Request 15-minute session";
+        }
+      });
+      row.appendChild(info);
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
+  function sessionActionButton(label, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-ghost";
+    btn.textContent = label;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
+  async function loadMySessions() {
+    const list = document.getElementById("my-sessions-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/mentor/sessions");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load your sessions right now.</div>`;
+      return;
+    }
+    const rows = data.sessions || [];
+    if (!rows.length) {
+      list.innerHTML = `<div class="app-empty">No mentorship sessions yet.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    rows.forEach((row) => {
+      const s = row.session;
+      const el = document.createElement("div");
+      el.className = "card app-list-row";
+      const info = document.createElement("div");
+      const nameEl = document.createElement("strong");
+      nameEl.textContent = row.counterpart_name + (row.viewer_is_mentor ? " (mentee)" : " (mentor)");
+      const metaEl = document.createElement("div");
+      metaEl.className = "meta";
+      metaEl.textContent = s.status + (s.scheduled_at ? " · scheduled " + s.scheduled_at : "");
+      info.appendChild(nameEl);
+      info.appendChild(metaEl);
+      const actions = document.createElement("div");
+      actions.className = "admin-row-actions";
+
+      if (row.viewer_is_mentor && s.status === "REQUESTED") {
+        actions.appendChild(sessionActionButton("Accept", async () => {
+          await RithavoApp.apiJson(`/mentor/sessions/${s.id}/accept`, { method: "POST", body: JSON.stringify({}) });
+          loadMySessions();
+        }));
+      }
+      if (s.status === "ACCEPTED") {
+        const input = document.createElement("input");
+        input.type = "datetime-local";
+        input.style.marginRight = "6px";
+        actions.appendChild(input);
+        actions.appendChild(sessionActionButton("Schedule", async () => {
+          if (!input.value) return;
+          await RithavoApp.apiJson(`/mentor/sessions/${s.id}/schedule`, {
+            method: "POST", body: JSON.stringify({ scheduled_at: input.value }),
+          });
+          loadMySessions();
+        }));
+      }
+      if (row.viewer_is_mentor && s.status === "SCHEDULED") {
+        actions.appendChild(sessionActionButton("Start", async () => {
+          await RithavoApp.apiJson(`/mentor/sessions/${s.id}/start`, { method: "POST", body: JSON.stringify({}) });
+          loadMySessions();
+        }));
+      }
+      if (row.viewer_is_mentor && s.status === "STARTED") {
+        actions.appendChild(sessionActionButton("Complete", async () => {
+          await RithavoApp.apiJson(`/mentor/sessions/${s.id}/complete`, { method: "POST", body: JSON.stringify({}) });
+          loadMySessions();
+        }));
+      }
+      el.appendChild(info);
+      el.appendChild(actions);
+      list.appendChild(el);
+    });
+  }
+
+  loadMentorStatus();
+  loadDiscoverMentors();
+  loadMySessions();
+})();
+</script>
+</body>
+</html>
