@@ -39,6 +39,7 @@ from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, ev
 from app.email_sender import get_email_sender
 from app.payment_gateway import get_gateway
 from app.photo_access import fetch_selected_photo, issue_photo_access_token
+from app.profile_proxy import proxy_profile_edit
 from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
 from app.razorpay_gateway import RazorpayVerificationError
 from app.rate_limit import RateLimiter
@@ -449,6 +450,31 @@ def get_profile(request: Request):
     session_user_id = require_user(request)
     profile = owned_career_profile(db, session_user_id, session_user_id)
     return {"user_id": session_user_id, "career_profile": _row_to_dict(profile)}
+
+
+# ---- Customer-Facing Profile Routing Correction: /profile/edit reverse-
+#      proxies the sibling's real Profile 2.0 UI (unified Professional
+#      Background timeline + edit forms) so a customer is never sent to
+#      app.rithavo.com — see app/profile_proxy.py for the full mapping. ----
+
+@app.get("/profile/edit")
+async def profile_edit_proxy_root(request: Request):
+    return await proxy_profile_edit(request)
+
+
+@app.post("/profile/edit")
+async def profile_edit_proxy_root_post(request: Request):
+    return await proxy_profile_edit(request)
+
+
+@app.get("/profile/edit/{rest:path}")
+async def profile_edit_proxy(request: Request, rest: str):
+    return await proxy_profile_edit(request, rest)
+
+
+@app.post("/profile/edit/{rest:path}")
+async def profile_edit_proxy_post(request: Request, rest: str):
+    return await proxy_profile_edit(request, rest)
 
 
 @app.get("/career-intelligence")

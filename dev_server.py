@@ -43,5 +43,11 @@ async def app(scope, receive, send):
         scope["path"] = scope["path"][len("/api"):] or "/"
         scope["root_path"] = "/api"
         await api_app(scope, receive, send)
+    elif scope["type"] == "http" and scope["path"].startswith("/profile/edit"):
+        # Mirrors vercel.json's own dedicated /profile/edit(/.*)? rule
+        # (Customer-Facing Profile Routing Correction) -- routed straight
+        # to the FastAPI app with no /api stripping, since app/main.py's
+        # proxy routes are registered at this exact bare path.
+        await api_app(scope, receive, send)
     else:
         await static_app(scope, receive, send)

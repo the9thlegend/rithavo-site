@@ -17,6 +17,7 @@
       "status": 308
     },
     { "src": "/api/(.*)", "dest": "api/index.py" },
+    { "src": "/profile/edit(/.*)?", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
