@@ -1,6 +1,6 @@
 """
 Super Admin Final Correction phase — the Explore story Preview must
-stay entirely within rithavo.com. GET /api/admin/explore/stories/{id}
+stay entirely within rithavo.com. GET /admin/explore/stories/{id}
 (already existed, used elsewhere in routes_admin.py) is what the
 in-page preview modal calls instead of navigating to
 app.rithavo.com/explore/{id} — this file proves that route still works
@@ -41,13 +41,13 @@ def test_preview_proxy_works_for_a_published_story(app_and_client, db, monkeypat
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_get", _fake_get)
-    resp = client.get("/api/admin/explore/stories/1")
+    resp = client.get("/admin/explore/stories/1")
     assert resp.status_code == 200
     assert resp.json()["headline"] == "Published Story"
 
 
 def test_preview_proxy_works_for_a_draft_story_too(app_and_client, db, monkeypatch):
-    """Unlike the customer-facing /api/explore/{id} (PUBLISHED-only),
+    """Unlike the customer-facing /explore/{id} (PUBLISHED-only),
     the admin's own preview must work for a DRAFT story as well --
     reviewing a story before publishing it is the whole point."""
     app, client = app_and_client
@@ -60,7 +60,7 @@ def test_preview_proxy_works_for_a_draft_story_too(app_and_client, db, monkeypat
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_get", _fake_get)
-    resp = client.get("/api/admin/explore/stories/2")
+    resp = client.get("/admin/explore/stories/2")
     assert resp.status_code == 200
     assert resp.json()["status"] == "DRAFT"
 
@@ -68,5 +68,5 @@ def test_preview_proxy_works_for_a_draft_story_too(app_and_client, db, monkeypat
 def test_non_admin_cannot_use_the_preview_proxy(app_and_client, db):
     app, client = app_and_client
     login_via_magic_link(client, app, "not-an-admin-preview@example.com")
-    resp = client.get("/api/admin/explore/stories/1")
+    resp = client.get("/admin/explore/stories/1")
     assert resp.status_code == 403

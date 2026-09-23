@@ -47,7 +47,7 @@ def test_require_super_admin_accepts_a_bootstrapped_admin(app_and_client, db):
     app, client = app_and_client
     bootstrap_super_admin(db, "real-admin@example.com", "a-real-password")
     login_via_magic_link(client, app, "real-admin@example.com")
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     # Not 401/403 -- may still fail with 502/503 against an unconfigured
     # internal service secret in this test environment, which is a
     # separate, already-covered concern (test_routes_admin.py).
@@ -57,5 +57,5 @@ def test_require_super_admin_accepts_a_bootstrapped_admin(app_and_client, db):
 def test_require_super_admin_rejects_an_ordinary_signed_in_user(app_and_client, db):
     app, client = app_and_client
     login_via_magic_link(client, app, "ordinary-user@example.com")
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     assert resp.status_code == 403

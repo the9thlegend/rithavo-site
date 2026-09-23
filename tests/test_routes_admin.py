@@ -26,14 +26,14 @@ def admin_client(app_and_client, db):
 
 def test_unauthenticated_visitor_is_rejected(app_and_client):
     _, client = app_and_client
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     assert resp.status_code == 401
 
 
 def test_ordinary_signed_in_user_is_rejected(app_and_client, db):
     app, client = app_and_client
     login_via_magic_link(client, app, "not-an-admin@example.com")
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     assert resp.status_code == 403
 
 
@@ -43,7 +43,7 @@ def test_list_stories_proxies_to_sibling(admin_client, monkeypatch):
     app, client = admin_client
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_get", lambda path, params=None: {"stories": [{"id": 1}]})
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     assert resp.status_code == 200
     assert resp.json() == {"stories": [{"id": 1}]}
 
@@ -59,7 +59,7 @@ def test_create_story_forwards_payload(admin_client, monkeypatch):
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_post", _fake_post)
-    resp = client.post("/api/admin/explore/stories", json={"headline": "H", "summary": "S"})
+    resp = client.post("/admin/explore/stories", json={"headline": "H", "summary": "S"})
     assert resp.status_code == 200
     assert captured["path"] == "/internal/api/explore/stories"
     assert captured["body"] == {"headline": "H", "summary": "S"}
@@ -69,8 +69,8 @@ def test_publish_and_unpublish_proxy(admin_client, monkeypatch):
     app, client = admin_client
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_post", lambda path, json_body=None: {"ok": True})
-    assert client.post("/api/admin/explore/stories/1/publish").json() == {"ok": True}
-    assert client.post("/api/admin/explore/stories/1/unpublish").json() == {"ok": True}
+    assert client.post("/admin/explore/stories/1/publish").json() == {"ok": True}
+    assert client.post("/admin/explore/stories/1/unpublish").json() == {"ok": True}
 
 
 def test_verify_mentor_application_includes_admin_email(admin_client, monkeypatch):
@@ -84,7 +84,7 @@ def test_verify_mentor_application_includes_admin_email(admin_client, monkeypatc
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_post", _fake_post)
-    resp = client.post("/api/admin/mentors/applications/7/verify")
+    resp = client.post("/admin/mentors/applications/7/verify")
     assert resp.status_code == 200
     assert captured["path"] == "/internal/api/mentors/applications/7/verify"
     assert captured["body"]["reviewed_by"] == "dashboard-admin@example.com"
@@ -98,7 +98,7 @@ def test_sibling_failure_maps_to_error_without_leaking_detail(admin_client, monk
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_get", _raise)
-    resp = client.get("/api/admin/explore/stories")
+    resp = client.get("/admin/explore/stories")
     assert resp.status_code == 503
     assert "internal detail" not in resp.text
 
@@ -113,5 +113,5 @@ def test_search_users_proxies_query(admin_client, monkeypatch):
 
     import app.routes_admin as mod
     monkeypatch.setattr(mod, "internal_get", _fake_get)
-    client.get("/api/admin/users", params={"q": "someone"})
+    client.get("/admin/users", params={"q": "someone"})
     assert captured["params"]["q"] == "someone"

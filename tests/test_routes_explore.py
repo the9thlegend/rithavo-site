@@ -2,7 +2,7 @@
 Home/Explore/Admin Integration Phase, corrected by the Product
 Correction Phase — app/routes_explore.py. Explore is now
 authenticated-only, with no customer-facing filters: this proxy calls
-the sibling's real DB-paginated GET /internal/api/explore/relevant-feed
+the sibling's real DB-paginated GET /internal/explore/relevant-feed
 with this session's own user_id, and nothing else. The sibling's own
 relevance/ranking correctness is covered in
 rithavo-career-profile/tests/test_relevant_feed.py and
@@ -22,13 +22,13 @@ from .conftest import login_via_magic_link
 
 def test_unauthenticated_visitor_cannot_reach_the_feed(app_and_client):
     _, client = app_and_client
-    resp = client.get("/api/explore/stories")
+    resp = client.get("/explore/stories")
     assert resp.status_code == 401
 
 
 def test_unauthenticated_visitor_cannot_reach_story_detail(app_and_client):
     _, client = app_and_client
-    resp = client.get("/api/explore/1")
+    resp = client.get("/explore/1")
     assert resp.status_code == 401
 
 
@@ -47,7 +47,7 @@ def test_stories_proxies_with_the_callers_own_user_id(app_and_client, db, monkey
     import app.routes_explore as mod
     monkeypatch.setattr(mod, "internal_get", _fake_get)
 
-    resp = client.get("/api/explore/stories")
+    resp = client.get("/explore/stories")
     assert resp.status_code == 200
     assert captured["path"] == "/internal/api/explore/relevant-feed"
     assert captured["params"]["user_id"] == user_id
@@ -66,7 +66,7 @@ def test_stories_never_forwards_a_client_supplied_user_id(app_and_client, db, mo
     import app.routes_explore as mod
     monkeypatch.setattr(mod, "internal_get", lambda path, params=None: captured.update(params) or {})
 
-    client.get("/api/explore/stories", params={"user_id": real_user_id + 9999})
+    client.get("/explore/stories", params={"user_id": real_user_id + 9999})
     assert captured["user_id"] == real_user_id
 
 
@@ -81,7 +81,7 @@ def test_no_story_type_or_industry_filter_parameters_exist(app_and_client, db, m
     import app.routes_explore as mod
     monkeypatch.setattr(mod, "internal_get", lambda path, params=None: captured.update(params) or {})
 
-    client.get("/api/explore/stories", params={"story_type": "LAYOFFS_HIRING", "industry": "5"})
+    client.get("/explore/stories", params={"story_type": "LAYOFFS_HIRING", "industry": "5"})
     assert "story_type" not in captured
     assert "industry" not in captured
 
@@ -94,7 +94,7 @@ def test_industries_proxy_endpoint_no_longer_exists(app_and_client, db):
     real industries listing."""
     app, client = app_and_client
     login_via_magic_link(client, app, "explore-no-industries-endpoint@example.com")
-    resp = client.get("/api/explore/industries")
+    resp = client.get("/explore/industries")
     assert resp.status_code == 422
 
 
@@ -109,7 +109,7 @@ def test_story_detail_proxies_by_id_when_authenticated(app_and_client, db, monke
 
     import app.routes_explore as mod
     monkeypatch.setattr(mod, "internal_get", _fake_get)
-    resp = client.get("/api/explore/42")
+    resp = client.get("/explore/42")
     assert resp.json() == {"id": 42}
     assert captured["path"] == "/explore/42/json"
 
@@ -123,6 +123,6 @@ def test_sibling_failure_maps_to_a_generic_error_not_a_500(app_and_client, db, m
 
     import app.routes_explore as mod
     monkeypatch.setattr(mod, "internal_get", _raise)
-    resp = client.get("/api/explore/stories")
+    resp = client.get("/explore/stories")
     assert resp.status_code == 502
     assert "boom" not in resp.text  # never leak the sibling's raw error detail

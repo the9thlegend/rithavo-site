@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from .internal_client import InternalServiceError, get as internal_get, post as internal_post, post_file
 from .super_admin import require_super_admin
 
-router = APIRouter(prefix="/api/admin")
+router = APIRouter(prefix="/admin")
 
 
 def _proxy_get(path: str, params: dict = None):

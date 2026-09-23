@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Request
 from .internal_client import InternalServiceError, get as internal_get, post as internal_post
 from .security import require_user
 
-router = APIRouter(prefix="/api/mentor")
+router = APIRouter(prefix="/mentor")
 
 
 def _proxy_get(path: str, params: dict = None):
