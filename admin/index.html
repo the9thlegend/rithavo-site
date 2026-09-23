@@ -100,6 +100,68 @@
     REGULATORY: "Regulatory", GLOBAL: "Global",
   };
 
+  // Super Admin Preview correction: stays entirely on rithavo.com --
+  // an in-page modal fetching the sibling's data server-to-server via
+  // the existing /api/admin/explore/stories/{id} proxy (works for any
+  // status, unlike the customer-facing /api/explore/{id}, which is
+  // PUBLISHED-only) instead of ever navigating the admin's own browser
+  // to app.rithavo.com. Only the story's own thumbnail image bytes
+  // still come from the sibling's public image endpoint -- the same
+  // established pattern the customer-facing Home feed already uses,
+  // never a page navigation.
+  function ensurePreviewModal() {
+    let modal = document.getElementById("story-preview-modal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "story-preview-modal";
+    modal.className = "explore-modal-overlay";
+    modal.innerHTML = `
+      <div class="explore-modal" role="dialog" aria-modal="true">
+        <button type="button" class="explore-modal-close" aria-label="Close">&times;</button>
+        <div class="explore-modal-body"></div>
+      </div>
+    `;
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("open"); });
+    modal.querySelector(".explore-modal-close").addEventListener("click", () => modal.classList.remove("open"));
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  async function openStoryPreview(storyId) {
+    const modal = ensurePreviewModal();
+    const body = modal.querySelector(".explore-modal-body");
+    body.innerHTML = `<div class="app-skeleton">Loading…</div>`;
+    modal.classList.add("open");
+    let s;
+    try {
+      s = await RithavoApp.apiJson(`/admin/explore/stories/${storyId}`);
+    } catch (e) {
+      body.innerHTML = `<div class="app-banner app-banner-error">Couldn't load this story right now.</div>`;
+      return;
+    }
+    const image = s.has_image
+      ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${s.id}" alt="">`
+      : "";
+    const industries = (s.industries || []).map((i) => `<span class="explore-chip">${i.name}</span>`).join("");
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `
+      ${image}
+      <span class="badge ${s.status === "PUBLISHED" ? "badge-active" : "badge-pending"}">${s.status}</span>
+      <span class="explore-chip">${s.story_type_label || s.story_type}</span>${industries}
+      <h2 style="margin:12px 0 6px;"></h2>
+      <div class="explore-card-meta" style="margin-bottom:16px;"></div>
+      <div class="explore-story-body"></div>
+      ${s.why_it_matters ? `<div class="explore-why-it-matters"><strong>Why it matters</strong><div class="explore-story-body"></div></div>` : ""}
+    `;
+    wrapper.querySelector("h2").textContent = s.headline;
+    wrapper.querySelector(".explore-card-meta").textContent =
+      (s.source_name || "") + (s.source_url ? " · " + s.source_url : "") + (s.published_at ? " · " + s.published_at.slice(0, 10) : "");
+    wrapper.querySelector(".explore-story-body").textContent = s.body || s.summary || "";
+    if (s.why_it_matters) wrapper.querySelectorAll(".explore-story-body")[1].textContent = s.why_it_matters;
+    body.innerHTML = "";
+    body.appendChild(wrapper);
+  }
+
   let industryTreeCache = [];
 
   // ---- Explore stories ----
@@ -217,9 +279,9 @@
         unpubBtn.type = "button"; unpubBtn.className = "btn btn-ghost"; unpubBtn.textContent = "Unpublish";
         unpubBtn.addEventListener("click", async () => { await RithavoApp.apiJson(`/admin/explore/stories/${s.id}/unpublish`, { method: "POST", body: "{}" }); loadStories(); });
         actions.appendChild(unpubBtn);
-        const viewBtn = document.createElement("a");
-        viewBtn.href = `https://app.rithavo.com/explore/${s.id}`; viewBtn.target = "_blank"; viewBtn.rel = "noopener";
-        viewBtn.className = "btn btn-ghost"; viewBtn.textContent = "Preview";
+        const viewBtn = document.createElement("button");
+        viewBtn.type = "button"; viewBtn.className = "btn btn-ghost"; viewBtn.textContent = "Preview";
+        viewBtn.addEventListener("click", () => openStoryPreview(s.id));
         actions.appendChild(viewBtn);
       }
       const delBtn = document.createElement("button");

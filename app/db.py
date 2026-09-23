@@ -493,6 +493,13 @@ _ADDITIVE_COLUMNS = [
     # so the same successful Razorpay payment can never confirm two
     # different purchase rows, even under a client-callback/webhook race.
     ("purchases", "gateway_payment_id", "TEXT"),
+    # Cashfree customer-phone phase: the CUSTOMER's own mobile number
+    # for this specific purchase (Cashfree's Create Order API requires
+    # one) — never the merchant/KYC contact number, never a hardcoded
+    # placeholder, and never anything persisted on users/career_profiles/
+    # Profile 2.0. NULL for every Razorpay/test purchase, which never
+    # needs this at all.
+    ("purchases", "customer_phone", "TEXT"),
     # CI validity foundation: additive on the SHARED entitlements table —
     # the sibling app (rithavo-career-profile) applies the identical two
     # ALTERs to the same physical table via its own _add_column_if_missing
@@ -1125,6 +1132,17 @@ class Database:
                 "UPDATE purchases SET payment_status = 'PENDING', gateway_reference = COALESCE(?, gateway_reference), "
                 "updated_at = ? WHERE id = ? AND payment_status = 'CREATED'",
                 (gateway_reference, _now(), purchase_id),
+            )
+
+    def set_purchase_customer_phone(self, purchase_id: int, customer_phone: str) -> None:
+        """Cashfree customer-phone phase — stored at the purchase/
+        payment level only (never users/career_profiles/Profile 2.0),
+        purely for this one payment's own reconciliation and for what
+        was actually sent to Cashfree."""
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE purchases SET customer_phone = ?, updated_at = ? WHERE id = ?",
+                (customer_phone, _now(), purchase_id),
             )
 
     def get_purchase(self, purchase_id: int):

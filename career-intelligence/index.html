@@ -82,13 +82,39 @@ function targetLabel(t) {
   if (!data.has_assessment) {
     let price;
     try { price = await RithavoApp.apiJson("/career-intelligence/price"); }
-    catch (err) { price = { amount_inr: 799 }; }
+    catch (err) { price = { amount_inr: 799, launch_locked: true, gateway: "test" }; }
+
+    // Pre-Launch Product Lock: a clear, intentional pre-launch state —
+    // never an error/broken-product look — with a CTA into the one
+    // thing a prospect CAN do right now.
+    if (price.launch_locked) {
+      content.innerHTML = `
+        <div class="card card-body">
+          <p>You don't have a completed Career Intelligence assessment yet. Career Intelligence
+          helps you understand whether you're doing well in your current role, whether you
+          could do better elsewhere, and what other roles or industries could look like.</p>
+          <p><strong style="color:var(--ink); font-size:1.3rem;">Available at launch</strong></p>
+          <p>You can purchase this on launch day. Create your Rithavo Profile till then.</p>
+          <a class="btn btn-primary" href="/profile/">Create My Rithavo Profile</a>
+        </div>
+      `;
+      return;
+    }
+
+    const needsPhone = price.gateway === "cashfree";
     content.innerHTML = `
       <div class="card card-body">
         <p>You don't have a completed Career Intelligence assessment yet. Career Intelligence
         helps you understand whether you're doing well in your current role, whether you
         could do better elsewhere, and what other roles or industries could look like.</p>
         <p><strong style="color:var(--ink); font-size:1.5rem;">₹${price.amount_inr}</strong> one-time</p>
+        ${needsPhone ? `
+        <div class="app-field" style="max-width:280px;">
+          <label for="ci-customer-phone">Mobile number</label>
+          <input type="tel" id="ci-customer-phone" placeholder="10-digit mobile number" maxlength="10">
+          <span class="hint">Used only for this payment, by our payment partner.</span>
+        </div>
+        ` : ""}
         <button class="btn btn-primary" id="buy-ci-btn">Buy Career Intelligence</button>
         <div id="buy-ci-status"></div>
       </div>
@@ -96,15 +122,24 @@ function targetLabel(t) {
     document.getElementById("buy-ci-btn").addEventListener("click", async () => {
       const btn = document.getElementById("buy-ci-btn");
       const status = document.getElementById("buy-ci-status");
+      status.innerHTML = "";
+      let customerPhone;
+      if (needsPhone) {
+        customerPhone = (document.getElementById("ci-customer-phone").value || "").trim();
+        if (!/^[6-9]\d{9}$/.test(customerPhone)) {
+          RithavoApp.banner(status, "error", "Please enter a valid 10-digit mobile number.");
+          return;
+        }
+      }
       btn.disabled = true;
       btn.textContent = "Opening payment…";
-      status.innerHTML = "";
       try {
         await RithavoApp.startPurchase({
           purchasePath: "/career-intelligence/purchase",
           confirmPath: (id) => `/career-intelligence/purchase/${id}/confirm`,
           confirmCashfreePath: (id) => `/career-intelligence/purchase/${id}/confirm-cashfree`,
           description: "Rithavo Career Intelligence",
+          customerPhone: customerPhone,
         });
         status.innerHTML = `<div class="app-banner app-banner-success">
           Payment received — your Career Intelligence entitlement is now active. We'll be in

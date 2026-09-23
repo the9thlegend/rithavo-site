@@ -20,6 +20,7 @@ the client), never a direct backend-to-backend call.
 
 import json
 import logging
+import re
 import uuid
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -48,6 +49,7 @@ from app.security import (
     owned_experience_entry, owned_purchase, owned_resume, require_user,
 )
 from app.super_admin import bootstrap_super_admin
+from app.launch_lock import is_purchase_locked
 from app import routes_admin, routes_cashfree, routes_explore, routes_mentor
 
 logger = logging.getLogger("rithavo_web.diagnosis")
@@ -520,6 +522,28 @@ def create_career_intelligence_resume(request: Request):
     return {"resume_id": resume_id, "version": version, "resume_context": resume_inputs["resume_context"]}
 
 
+_INDIAN_MOBILE_RE = re.compile(r"^[6-9]\d{9}$")
+
+
+def _validate_customer_phone_for_gateway(gateway, customer_phone):
+    """Cashfree customer-phone phase. When Cashfree is the active
+    gateway, a valid 10-digit Indian mobile number is REQUIRED — never
+    a hardcoded placeholder and never the merchant's own KYC contact
+    number, which is separate, Cashfree-account-level information this
+    service never touches. When any other gateway is active
+    (Razorpay/test), this is a no-op that returns None regardless of
+    what was submitted — Razorpay's own customer flow is completely
+    unaffected, per instruction."""
+    if getattr(gateway, "name", None) != "cashfree":
+        return None
+    phone = (customer_phone or "").strip()
+    if not _INDIAN_MOBILE_RE.match(phone):
+        raise HTTPException(
+            status_code=400, detail="Please enter a valid 10-digit Indian mobile number to continue.",
+        )
+    return phone
+
+
 # ---- Career Intelligence: purchase (Phase 2B-2) ----
 
 @app.get("/career-intelligence/price")
@@ -527,22 +551,47 @@ def preview_ci_price(request: Request):
     """Read-only, side-effect-free — mirrors GET /diagnosis/price's own
     purpose exactly. CI has no ladder (flat ₹799), but this still goes
     through require_user (not a public price list) and never creates a
-    purchase row, for the same reason preview_ad_price doesn't."""
+    purchase row, for the same reason preview_ad_price doesn't.
+    launch_locked/gateway (Pre-Launch Product Lock + Cashfree phone
+    phases): lets the frontend show the pre-launch teaser and decide
+    whether to collect a customer phone number BEFORE ever attempting
+    to create a purchase — informational only, the actual enforcement
+    is server-side in create_ci_purchase below regardless of what this
+    reports."""
     require_user(request)
-    return {"amount_inr": CAREER_INTELLIGENCE_PRICE_INR}
+    gateway = request.app.state.payment_gateway
+    return {
+        "amount_inr": CAREER_INTELLIGENCE_PRICE_INR,
+        "launch_locked": is_purchase_locked(),
+        "gateway": gateway.name,
+    }
 
 
 @app.post("/career-intelligence/purchase")
-def create_ci_purchase(request: Request, idempotency_key: str = Body(None, embed=True)):
+def create_ci_purchase(
+    request: Request, idempotency_key: str = Body(None, embed=True), customer_phone: str = Body(None, embed=True),
+):
     """Career Intelligence's equivalent of POST /diagnosis/purchase —
     same idempotency-key semantics, same gateway-agnostic
     create_payment_intent call. The price is always
     CAREER_INTELLIGENCE_PRICE_INR, computed server-side inside
     Database.begin_ci_purchase; nothing here accepts a client-supplied
-    amount."""
+    amount.
+
+    Pre-Launch Product Lock: checked FIRST, before any purchase row (or
+    Cashfree/Razorpay order) is ever created — a hard 403, never just a
+    hidden/disabled frontend button. Direct/manual API calls hit this
+    exact same check.
+
+    Cashfree customer phone: required and validated only when Cashfree
+    is the active gateway (Razorpay's own flow is completely
+    unaffected — it never receives or needs this value)."""
+    if is_purchase_locked():
+        raise HTTPException(status_code=403, detail="Career Intelligence is not available for purchase yet.")
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
+    validated_phone = _validate_customer_phone_for_gateway(gateway, customer_phone)
     try:
         result = db.begin_ci_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
     except ValueError as exc:
@@ -550,7 +599,11 @@ def create_ci_purchase(request: Request, idempotency_key: str = Body(None, embed
     if result.get("replayed") and result["payment_status"] != "CREATED":
         return result
     user = db.get_user_by_id(session_user_id)
-    intent = gateway.create_payment_intent(result["purchase_id"], result["amount_inr"], user["email"])
+    if validated_phone:
+        db.set_purchase_customer_phone(result["purchase_id"], validated_phone)
+    intent = gateway.create_payment_intent(
+        result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
+    )
     db.mark_purchase_pending(result["purchase_id"], intent.get("gateway_reference"))
     return {**result, **intent, "payment_status": "PENDING"}
 
@@ -681,7 +734,8 @@ def preview_ad_price(request: Request):
     completed purchase elsewhere), which is expected and correct."""
     db = request.app.state.db
     session_user_id = require_user(request)
-    return db.preview_ad_price(session_user_id)
+    gateway = request.app.state.payment_gateway
+    return {**db.preview_ad_price(session_user_id), "launch_locked": is_purchase_locked(), "gateway": gateway.name}
 
 
 @app.get("/diagnosis/entitlement/active")
@@ -694,7 +748,9 @@ def get_active_ad_entitlement(request: Request):
 
 
 @app.post("/diagnosis/purchase")
-def create_ad_purchase(request: Request, idempotency_key: str = Body(None, embed=True)):
+def create_ad_purchase(
+    request: Request, idempotency_key: str = Body(None, embed=True), customer_phone: str = Body(None, embed=True),
+):
     """Starts a purchase. The price is computed entirely server-side
     (Database.begin_ad_purchase, race-safe against this same user's
     concurrent attempts) — nothing here accepts or trusts a client-supplied
@@ -705,10 +761,17 @@ def create_ad_purchase(request: Request, idempotency_key: str = Body(None, embed
     payment; for the real gateway that would be a checkout redirect, for
     the test gateway it's a value the test suite can hand straight to
     /payments/webhook, exactly the way the real gateway's own webhook
-    delivery would."""
+    delivery would.
+
+    Pre-Launch Product Lock + Cashfree customer phone: see
+    create_ci_purchase's own docstring — identical rules, this is
+    Application Diagnostic's copy of the same two checks."""
+    if is_purchase_locked():
+        raise HTTPException(status_code=403, detail="Application Diagnostic is not available for purchase yet.")
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
+    validated_phone = _validate_customer_phone_for_gateway(gateway, customer_phone)
     result = db.begin_ad_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
     if result.get("replayed") and result["payment_status"] != "CREATED":
         # A retried request landed on a purchase that already moved past
@@ -717,7 +780,11 @@ def create_ad_purchase(request: Request, idempotency_key: str = Body(None, embed
         # second gateway intent for the same purchase.
         return result
     user = db.get_user_by_id(session_user_id)
-    intent = gateway.create_payment_intent(result["purchase_id"], result["amount_inr"], user["email"])
+    if validated_phone:
+        db.set_purchase_customer_phone(result["purchase_id"], validated_phone)
+    intent = gateway.create_payment_intent(
+        result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
+    )
     db.mark_purchase_pending(result["purchase_id"], intent.get("gateway_reference"))
     return {**result, **intent, "payment_status": "PENDING"}
 

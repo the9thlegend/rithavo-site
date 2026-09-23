@@ -45,14 +45,20 @@ class RazorpayGateway(PaymentGateway):
         self._webhook_secret = webhook_secret
         self._client = razorpay.Client(auth=(key_id, key_secret))
 
-    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str) -> dict:
+    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str, customer_phone: str = None) -> dict:
         """Creates a Razorpay Order for the server-calculated amount.
         The order's own `notes.purchase_id` and `receipt` both carry the
         internal purchase id, purely for reconciliation/support lookups
         on Razorpay's own dashboard — nothing in this service's own
         verification logic trusts them; verify_payment/verify_webhook
         always re-derive the purchase from OUR OWN gateway_reference
-        column, never from a client- or provider-echoed value alone."""
+        column, never from a client- or provider-echoed value alone.
+
+        customer_phone: accepted only to satisfy the shared
+        PaymentGateway signature — Razorpay's own existing customer
+        flow is completely unmodified and never uses it; Razorpay
+        Checkout collects/prefills contact details entirely on its own
+        widget, unrelated to this parameter."""
         order = self._client.order.create({
             "amount": amount_inr * 100,  # Razorpay amounts are in paise
             "currency": "INR",

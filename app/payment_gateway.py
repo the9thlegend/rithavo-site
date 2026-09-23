@@ -18,11 +18,18 @@ class PaymentGateway(ABC):
     name: str
 
     @abstractmethod
-    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str) -> dict:
+    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str, customer_phone: str = None) -> dict:
         """Start a payment for an already-created PENDING purchase row.
         Returns whatever the frontend needs to complete payment (for a
         real gateway: a checkout session/order id; for the test gateway: a
-        deterministic reference the test can immediately confirm with)."""
+        deterministic reference the test can immediately confirm with).
+
+        customer_phone (Cashfree customer-phone phase): optional, and
+        ignored entirely by gateways that don't need it (Razorpay,
+        Test) — added here only so main.py's purchase routes can call
+        every gateway through one shared signature. Never a merchant
+        contact number, never a hardcoded placeholder; validated
+        server-side in main.py before this is ever called."""
         raise NotImplementedError
 
     @abstractmethod
@@ -47,7 +54,7 @@ class TestPaymentGateway(PaymentGateway):
 
     name = "test"
 
-    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str) -> dict:
+    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str, customer_phone: str = None) -> dict:
         reference = f"test_pay_{purchase_id}_{amount_inr}"
         return {"gateway": self.name, "purchase_id": purchase_id, "gateway_reference": reference,
                 "amount_inr": amount_inr}

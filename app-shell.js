@@ -192,8 +192,8 @@ const RithavoApp = (() => {
      directly only when the caller already knows Cashfree is the
      active gateway; startPurchase (below) is the entry point that
      doesn't need to know in advance. */
-  function startCashfreePurchase({ purchasePath, confirmCashfreePath }) {
-    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) })
+  function startCashfreePurchase({ purchasePath, confirmCashfreePath, customerPhone }) {
+    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({ customer_phone: customerPhone }) })
       .then(order => _openCashfreeCheckout(order, confirmCashfreePath));
   }
 
@@ -243,8 +243,8 @@ const RithavoApp = (() => {
      decides which gateway is "the" one; the server already did via
      payment_gateway.get_gateway(). confirmPath is Razorpay's confirm
      URL builder (unchanged), confirmCashfreePath is Cashfree's. */
-  function startPurchase({ purchasePath, confirmPath, confirmCashfreePath, description }) {
-    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) }).then(order => {
+  function startPurchase({ purchasePath, confirmPath, confirmCashfreePath, description, customerPhone }) {
+    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({ customer_phone: customerPhone }) }).then(order => {
       if (order.gateway === "cashfree") return _openCashfreeCheckout(order, confirmCashfreePath);
       if (order.gateway === "razorpay") return _openRazorpayCheckout(order, confirmPath, description);
       throw new Error("Payment is not available right now — please try again shortly.");

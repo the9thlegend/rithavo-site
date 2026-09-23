@@ -76,7 +76,7 @@ def test_ci_purchase_creates_a_cashfree_order_with_server_computed_amount(app_an
     _install_cashfree_gateway(app, monkeypatch)
     captured = _mock_order_creation(monkeypatch)
 
-    resp = client.post("/career-intelligence/purchase", json={})
+    resp = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["amount_inr"] == 799
@@ -95,7 +95,7 @@ def test_customer_cannot_submit_a_different_amount(app_and_client, monkeypatch):
     _install_cashfree_gateway(app, monkeypatch)
     captured = _mock_order_creation(monkeypatch)
 
-    client.post("/career-intelligence/purchase", json={"amount_inr": 1})
+    client.post("/career-intelligence/purchase", json={"amount_inr": 1, "customer_phone": "9876543210"})
     assert captured["json"]["order_amount"] == 799.0
 
 
@@ -105,7 +105,7 @@ def test_ad_purchase_creates_a_cashfree_order(app_and_client, monkeypatch):
     _install_cashfree_gateway(app, monkeypatch)
     captured = _mock_order_creation(monkeypatch)
 
-    resp = client.post("/diagnosis/purchase", json={})
+    resp = client.post("/diagnosis/purchase", json={"customer_phone": "9876543210"})
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["amount_inr"] == 399
@@ -120,7 +120,7 @@ def test_ci_purchase_confirms_to_exactly_one_entitlement_when_paid(app_and_clien
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     _mock_order_status(monkeypatch, "PAID")
@@ -148,7 +148,7 @@ def test_confirm_is_rejected_when_order_still_active(app_and_client, db, monkeyp
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     _mock_order_status(monkeypatch, "ACTIVE")
@@ -166,7 +166,7 @@ def test_confirm_is_rejected_for_an_expired_order(app_and_client, monkeypatch):
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     _mock_order_status(monkeypatch, "EXPIRED")
@@ -180,7 +180,7 @@ def test_confirm_handles_cashfree_api_failure_without_confirming(app_and_client,
     gateway = _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     import app.cashfree_gateway as cf_module
@@ -195,7 +195,7 @@ def test_confirming_twice_does_not_create_a_second_entitlement(app_and_client, d
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     _mock_order_status(monkeypatch, "PAID")
@@ -218,7 +218,7 @@ def test_ci_entitlement_receives_existing_validity_rules(app_and_client, db, mon
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
     _mock_order_status(monkeypatch, "PAID")
     client.post(f"/career-intelligence/purchase/{purchase_id}/confirm-cashfree")
@@ -238,7 +238,7 @@ def test_ad_entitlement_receives_existing_approved_rules(app_and_client, db, mon
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
 
-    started = client.post("/diagnosis/purchase", json={})
+    started = client.post("/diagnosis/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
     _mock_order_status(monkeypatch, "PAID")
     confirmed = client.post(f"/diagnosis/purchase/{purchase_id}/confirm-cashfree")
@@ -259,7 +259,7 @@ def test_cannot_confirm_another_users_purchase(app_and_client, monkeypatch):
     login_via_magic_link(client, app, "cf-victim@example.com")
     _install_cashfree_gateway(app, monkeypatch)
     _mock_order_creation(monkeypatch)
-    started = client.post("/career-intelligence/purchase", json={})
+    started = client.post("/career-intelligence/purchase", json={"customer_phone": "9876543210"})
     purchase_id = started.json()["purchase_id"]
 
     login_via_magic_link(client, app, "cf-attacker@example.com")

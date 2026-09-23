@@ -116,5 +116,15 @@ INTERNAL_SERVICE_BASE_URL = os.environ.get("RITHAVO_INTERNAL_SERVICE_URL", CARD_
 SUPER_ADMIN_EMAIL = os.environ.get("RITHAVO_SUPER_ADMIN_EMAIL")
 SUPER_ADMIN_PASSWORD = os.environ.get("RITHAVO_SUPER_ADMIN_PASSWORD")
 
+# Pre-Launch Product Lock phase — the one centralized launch-date
+# configuration point (see app/launch_lock.py for how it's used). Must
+# be an ISO 8601 datetime, e.g. "2026-10-15T00:00:00+05:30". Unset (the
+# default, and the correct state until a real date is provided) means
+# "no launch date configured yet" — app/launch_lock.py treats that as
+# LOCKED, never as "launch already happened." This is a hard business
+# rule: CI/AD purchases must never become purchasable merely because
+# this value was left unset by accident.
+LAUNCH_DATE = os.environ.get("RITHAVO_LAUNCH_DATE")
+
 if not DATABASE_URL:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)

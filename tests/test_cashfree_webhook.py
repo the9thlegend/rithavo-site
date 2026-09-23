@@ -43,7 +43,7 @@ def _create_pending_purchase(app, client, monkeypatch, product_path="/career-int
         })
 
     monkeypatch.setattr(cf_module.httpx, "post", _fake_post)
-    resp = client.post(product_path, json={})
+    resp = client.post(product_path, json={"customer_phone": "9876543210"})
     data = resp.json()
     return data["purchase_id"], data["gateway_reference"]
 

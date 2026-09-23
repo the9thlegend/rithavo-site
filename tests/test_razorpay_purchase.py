@@ -46,7 +46,7 @@ def test_ci_price_is_always_799(app_and_client):
     login_via_magic_link(client, app, "ci-price@example.com")
     resp = client.get("/career-intelligence/price")
     assert resp.status_code == 200
-    assert resp.json() == {"amount_inr": 799}
+    assert resp.json()["amount_inr"] == 799
 
 
 def test_ci_purchase_creates_order_and_confirms_to_exactly_one_entitlement(app_and_client, db, monkeypatch):
@@ -293,7 +293,8 @@ def test_pending_purchase_never_advances_the_ladder(app_and_client, db, monkeypa
     client.post("/diagnosis/purchase", json={})  # left PENDING, never confirmed
 
     preview = client.get("/diagnosis/price").json()
-    assert preview == {"qualifying_count": 0, "amount_inr": 399}
+    assert preview["qualifying_count"] == 0
+    assert preview["amount_inr"] == 399
 
 
 def test_failed_purchase_never_advances_the_ladder(app_and_client, db, monkeypatch):
@@ -309,7 +310,8 @@ def test_failed_purchase_never_advances_the_ladder(app_and_client, db, monkeypat
     db.fail_ad_purchase(started["purchase_id"])
 
     preview = client.get("/diagnosis/price").json()
-    assert preview == {"qualifying_count": 0, "amount_inr": 399}
+    assert preview["qualifying_count"] == 0
+    assert preview["amount_inr"] == 399
 
 
 def test_refunded_purchase_never_advances_the_ladder(app_and_client, db, monkeypatch):
@@ -325,7 +327,8 @@ def test_refunded_purchase_never_advances_the_ladder(app_and_client, db, monkeyp
     db.refund_ad_purchase(started["purchase_id"], user_id)
 
     preview = client.get("/diagnosis/price").json()
-    assert preview == {"qualifying_count": 0, "amount_inr": 399}
+    assert preview["qualifying_count"] == 0
+    assert preview["amount_inr"] == 399
 
 
 def test_admin_grant_never_advances_the_ladder(app_and_client, db, monkeypatch):
@@ -335,7 +338,8 @@ def test_admin_grant_never_advances_the_ladder(app_and_client, db, monkeypatch):
     db.admin_grant_ad_entitlement(user_id)
 
     preview = client.get("/diagnosis/price").json()
-    assert preview == {"qualifying_count": 0, "amount_inr": 399}
+    assert preview["qualifying_count"] == 0
+    assert preview["amount_inr"] == 399
 
 
 # ---- Refund regression (Task 8/existing refund rules, now proven
@@ -479,8 +483,8 @@ def test_purchase_endpoints_accept_no_client_supplied_price_field():
     start_ci = inspect.signature(main.create_ci_purchase)
     assert "amount_inr" not in start_ad.parameters
     assert "amount_inr" not in start_ci.parameters
-    assert list(start_ad.parameters) == ["request", "idempotency_key"]
-    assert list(start_ci.parameters) == ["request", "idempotency_key"]
+    assert list(start_ad.parameters) == ["request", "idempotency_key", "customer_phone"]
+    assert list(start_ci.parameters) == ["request", "idempotency_key", "customer_phone"]
 
 
 def test_confirm_route_requires_authentication(app_and_client, monkeypatch):
@@ -630,7 +634,8 @@ def test_recovered_failed_purchase_counts_exactly_once_toward_the_ad_ladder(app_
     assert confirmed.status_code == 200, confirmed.text
 
     preview = client.get("/diagnosis/price").json()
-    assert preview == {"qualifying_count": 1, "amount_inr": 339}  # counted exactly once
+    assert preview["qualifying_count"] == 1
+    assert preview["amount_inr"] == 339  # counted exactly once
 
 
 def test_attacker_cannot_confirm_a_different_users_failed_purchase_via_retry(app_and_client, db, monkeypatch):

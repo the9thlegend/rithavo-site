@@ -42,13 +42,13 @@ Razorpay, Cashfree's order_amount is already a decimal rupee value) —
 this module never accepts, trusts, or forwards a client-supplied
 amount.
 
-customer_phone is a REQUIRED field on Cashfree's Create Order API and
-Rithavo does not collect a phone number anywhere in this product today
-— a fixed placeholder is used (see _PLACEHOLDER_CUSTOMER_PHONE) for
-this Sandbox phase. This is a genuine, documented limitation: a real
-phone number (or confirmation from Cashfree that it is waivable for
-this merchant category) is required before production activation —
-see this phase's own report.
+customer_phone is a REQUIRED field on Cashfree's Create Order API.
+Cashfree customer-phone phase: this is now the CUSTOMER's own mobile
+number, collected and validated by main.py's purchase routes before
+this module is ever called — never the merchant/KYC contact number
+(a separate, Cashfree-account-level detail this module never touches),
+and never a hardcoded placeholder. create_payment_intent raises if
+called without one; there is no silent fallback.
 """
 
 import os
@@ -68,10 +68,6 @@ _PRODUCTION_BASE_URL = "https://api.cashfree.com/pg"
 # implicitly, if Cashfree deprecates this version.
 _API_VERSION = "2025-01-01"
 _REQUEST_TIMEOUT_SECONDS = 15.0
-# See module docstring — no phone number is collected anywhere in this
-# product today; this is a Sandbox-phase placeholder, not a production
-# answer.
-_PLACEHOLDER_CUSTOMER_PHONE = "9999999999"
 
 _PAID_STATUS = "PAID"
 
@@ -101,7 +97,7 @@ class CashfreeGateway(PaymentGateway):
             "Content-Type": "application/json",
         }
 
-    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str) -> dict:
+    def create_payment_intent(self, purchase_id: int, amount_inr: int, user_email: str, customer_phone: str = None) -> dict:
         """Creates a Cashfree Order for the server-calculated amount.
         Unlike Razorpay (which mints its own order id), Cashfree
         requires THIS service to supply a unique order_id -- generated
@@ -112,7 +108,20 @@ class CashfreeGateway(PaymentGateway):
         Razorpay) is always OUR OWN order_id, never Cashfree's separate
         cf_order_id -- the webhook payload echoes back our own
         order_id, which is what get_purchase_by_gateway_reference needs
-        to resolve the purchase."""
+        to resolve the purchase.
+
+        customer_phone (Cashfree customer-phone phase): the CUSTOMER's
+        own number for this purchase -- REQUIRED. This is the one
+        gateway that actually needs it (Cashfree's Create Order API
+        requires customer_phone), and there is deliberately no
+        placeholder fallback here anymore: main.py's
+        _validate_customer_phone_for_gateway already validated and
+        required a real number before this was ever called, so a
+        missing/blank value reaching here is a caller bug, not a
+        legitimate "no phone available" case -- it fails loudly rather
+        than silently substituting a fake number into a real order."""
+        if not customer_phone:
+            raise CashfreeVerificationError("customer_phone is required to create a Cashfree order")
         order_id = f"rithavo_{purchase_id}_{secrets.token_hex(4)}"
         body = {
             "order_id": order_id,
@@ -121,7 +130,7 @@ class CashfreeGateway(PaymentGateway):
             "customer_details": {
                 "customer_id": f"rithavo_user_{purchase_id}",
                 "customer_email": user_email,
-                "customer_phone": _PLACEHOLDER_CUSTOMER_PHONE,
+                "customer_phone": customer_phone,
             },
         }
         try:

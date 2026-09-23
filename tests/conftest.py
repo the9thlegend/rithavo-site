@@ -35,6 +35,21 @@ if POSTGRES_DSN and not _dsn_host_is_allowed(POSTGRES_DSN):
     )
 
 
+@pytest.fixture(autouse=True)
+def _launch_has_happened_by_default(monkeypatch):
+    """Pre-Launch Product Lock phase: is_purchase_locked() defaults to
+    LOCKED whenever no launch date is configured (the correct default —
+    see app/launch_lock.py) — which would otherwise 403 every single
+    existing purchase-flow test in this suite, none of which are about
+    the lock itself. Autoused so every test gets a past (already-
+    launched) date by default and can exercise the payment machinery
+    exactly as before; tests that specifically verify the lock
+    (test_launch_lock.py) override this back to unset/future
+    explicitly."""
+    import config
+    monkeypatch.setattr(config, "LAUNCH_DATE", "2020-01-01T00:00:00+00:00")
+
+
 @pytest.fixture
 def db(tmp_path):
     if POSTGRES_DSN:
