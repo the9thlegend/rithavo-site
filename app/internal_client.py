@@ -57,11 +57,15 @@ def get(path: str, params: dict = None):
     return _handle(resp)
 
 
-def post(path: str, json_body: dict = None):
+def post(path: str, json_body: dict = None, timeout: float = _REQUEST_TIMEOUT_SECONDS):
+    """timeout defaults to the same fixed value every other call has
+    always used -- pass an explicit, larger value only for a specific
+    endpoint genuinely known to take longer (see routes_admin.py's own
+    call for /explore/ingest), never as a blanket increase."""
     try:
         resp = httpx.post(
             f"{config.INTERNAL_SERVICE_BASE_URL}{path}", json=json_body or {},
-            headers=_headers(), timeout=_REQUEST_TIMEOUT_SECONDS,
+            headers=_headers(), timeout=timeout,
         )
     except httpx.HTTPError as e:
         raise InternalServiceError(f"Internal service request failed: {e}", status_code=502)

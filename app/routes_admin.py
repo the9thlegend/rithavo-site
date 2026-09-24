@@ -25,9 +25,12 @@ def _proxy_get(path: str, params: dict = None):
         raise HTTPException(status_code=e.status_code, detail="Admin service is temporarily unavailable.")
 
 
-def _proxy_post(path: str, json_body: dict = None):
+def _proxy_post(path: str, json_body: dict = None, timeout: float = None):
     try:
-        return internal_post(path, json_body=json_body)
+        kwargs = {"json_body": json_body}
+        if timeout is not None:
+            kwargs["timeout"] = timeout
+        return internal_post(path, **kwargs)
     except InternalServiceError as e:
         raise HTTPException(status_code=e.status_code, detail="Admin service is temporarily unavailable.")
 
@@ -125,10 +128,22 @@ def deactivate_industry(request: Request, industry_id: int):
 
 # ---- Explore: news ingestion ----
 
+# Production incident: ingestion fetches every configured RSS feed and
+# routinely takes longer than the internal client's normal, fast-API-call
+# timeout (see app/internal_client.py's own default) -- this is the one
+# proxy call known to genuinely need longer, so it alone gets an explicit
+# override rather than raising the timeout for every internal API call.
+# Chosen with headroom over the sibling's own worst-case bound for this
+# operation (app/explore_ingest.py's per-feed timeout x its concurrency
+# batching), and within both services' 60-second function ceiling
+# (vercel.json).
+_INGESTION_TIMEOUT_SECONDS = 45.0
+
+
 @router.post("/explore/ingest")
 def trigger_ingestion(request: Request):
     require_super_admin(request)
-    return _proxy_post("/internal/api/explore/ingest")
+    return _proxy_post("/internal/api/explore/ingest", timeout=_INGESTION_TIMEOUT_SECONDS)
 
 
 # ---- Mentorship: admin ----

@@ -9,6 +9,9 @@
     { "src": "**/*.docx", "use": "@vercel/static" },
     { "src": "CNAME", "use": "@vercel/static" }
   ],
+  "functions": {
+    "api/index.py": { "maxDuration": 60 }
+  },
   "routes": [
     {
       "src": "/(.*)",
