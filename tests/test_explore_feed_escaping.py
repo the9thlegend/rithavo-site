@@ -175,9 +175,9 @@ def test_image_and_why_it_matters_still_render_when_present():
     out = _run(_legit_story(has_image=True, why_it_matters="because"))
     card, detail = _parse(out["card"]), _parse(out["detail"])
     (card_img,) = [a for t, a in card.attrs if t == "img"]
-    assert card_img["src"] == "https://app.rithavo.com/explore/image/103"
+    assert card_img["src"] == "/api/explore/103/image"   # same-origin: served by rithavo.com
     (detail_img,) = [a for t, a in detail.attrs if t == "img"]
-    assert detail_img["src"] == "https://app.rithavo.com/explore/image/103"
+    assert detail_img["src"] == "/api/explore/103/image"
     assert "explore-why-it-matters" in detail.classes
 
 
@@ -207,3 +207,10 @@ def test_the_test_can_detect_the_bug_it_guards_against():
 def test_no_externally_sourced_field_is_interpolated_raw():
     for needle in ("${i.name}", "${s.story_type_label", "${s.source_url}", "${meta}", "${s.id}"):
         assert needle not in SOURCE, needle
+
+
+def test_rendered_markup_never_points_the_browser_at_the_sibling_service():
+    out = _run(_legit_story(has_image=True, why_it_matters="because"))
+    assert "app.rithavo.com" not in out["card"]
+    assert "app.rithavo.com" not in out["detail"]
+    assert "app.rithavo.com" not in _run(_legit_story(has_image=False))["card"]

@@ -23,8 +23,9 @@ Product Correction Phase changes:
 """
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 
-from .internal_client import InternalServiceError, get as internal_get
+from .internal_client import InternalServiceError, get as internal_get, get_bytes as internal_get_bytes
 from .security import require_user
 
 router = APIRouter(prefix="/explore")
@@ -49,4 +50,21 @@ def explore_stories(request: Request, page: int = 1, page_size: int = 12):
 @router.get("/{story_id}")
 def explore_story_detail(request: Request, story_id: int):
     require_user(request)
-    return _proxy_get(f"/explore/{story_id}/json")
+    return _proxy_get(f"/internal/api/explore/published/{story_id}")
+
+
+@router.get("/{story_id}/image")
+def explore_story_image(request: Request, story_id: int):
+    """A published story's image, served from rithavo.com so the customer
+    browser never fetches app.rithavo.com/explore/image/{id}. Same
+    authenticated-only rule and same PUBLISHED-only filtering (enforced by
+    the internal endpoint) as the detail route above."""
+    require_user(request)
+    try:
+        content, content_type = internal_get_bytes(f"/internal/api/explore/published/{story_id}/image")
+    except InternalServiceError as e:
+        raise HTTPException(status_code=e.status_code, detail="Explore is temporarily unavailable.")
+    return Response(
+        content=content, media_type=content_type or "application/octet-stream",
+        headers={"Cache-Control": "private, max-age=300"},
+    )

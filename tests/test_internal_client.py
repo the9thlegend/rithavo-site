@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 import config
-from app.internal_client import InternalServiceError, get, post, post_file
+from app.internal_client import InternalServiceError, get, get_bytes, post, post_file
 
 TEST_SECRET = "test-internal-secret"
 
@@ -102,3 +102,41 @@ def test_post_file_sends_multipart(monkeypatch):
     result = post_file("/internal/api/explore/stories/1/image", "image", "photo.png", b"bytes", "image/png")
     assert result == {"image_ref": "ref"}
     assert captured["files"]["image"] == ("photo.png", b"bytes", "image/png")
+
+
+class _FakeBinaryResponse:
+    def __init__(self, status_code, content=b"", content_type=None):
+        self.status_code = status_code
+        self.content = content
+        self.headers = {"content-type": content_type} if content_type else {}
+
+
+def test_get_bytes_sends_bearer_header_and_returns_content_and_type(monkeypatch):
+    captured = {}
+
+    def _fake_get(url, headers, timeout):
+        captured["url"] = url
+        captured["headers"] = headers
+        return _FakeBinaryResponse(200, b"imgbytes", "image/png")
+
+    import app.internal_client as client_module
+    monkeypatch.setattr(client_module.httpx, "get", _fake_get)
+    assert get_bytes("/internal/api/explore/published/5/image") == (b"imgbytes", "image/png")
+    assert captured["url"] == "https://app.rithavo.com/internal/api/explore/published/5/image"
+    assert captured["headers"]["Authorization"] == f"Bearer {TEST_SECRET}"
+
+
+def test_get_bytes_raises_with_the_upstream_status_and_on_network_errors(monkeypatch):
+    import app.internal_client as client_module
+    monkeypatch.setattr(client_module.httpx, "get", lambda url, headers, timeout: _FakeBinaryResponse(404))
+    with pytest.raises(InternalServiceError) as not_found:
+        get_bytes("/internal/api/explore/published/5/image")
+    assert not_found.value.status_code == 404
+
+    def _boom(url, headers, timeout):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(client_module.httpx, "get", _boom)
+    with pytest.raises(InternalServiceError) as outage:
+        get_bytes("/internal/api/explore/published/5/image")
+    assert outage.value.status_code == 502

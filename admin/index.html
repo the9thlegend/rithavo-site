@@ -116,10 +116,9 @@
   // the existing /api/admin/explore/stories/{id} proxy (works for any
   // status, unlike the customer-facing /api/explore/{id}, which is
   // PUBLISHED-only) instead of ever navigating the admin's own browser
-  // to app.rithavo.com. Only the story's own thumbnail image bytes
-  // still come from the sibling's public image endpoint -- the same
-  // established pattern the customer-facing Home feed already uses,
-  // never a page navigation.
+  // to app.rithavo.com. The story's thumbnail is served from
+  // rithavo.com too (/api/explore/{id}/image, which fetches it
+  // server-to-server) -- the browser never contacts app.rithavo.com.
   function ensurePreviewModal() {
     let modal = document.getElementById("story-preview-modal");
     if (modal) return modal;
@@ -151,7 +150,7 @@
       return;
     }
     const image = s.has_image
-      ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${s.id}" alt="">`
+      ? `<img class="explore-story-image" src="/api/explore/${s.id}/image" alt="">`
       : "";
     const industries = (s.industries || []).map((i) => `<span class="explore-chip">${esc(i.name)}</span>`).join("");
     const wrapper = document.createElement("div");

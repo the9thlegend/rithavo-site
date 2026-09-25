@@ -47,7 +47,7 @@ window.RithavoExplore = (function () {
 
   function cardMarkup(s) {
     const image = s.has_image
-      ? `<img class="explore-card-image" src="https://app.rithavo.com/explore/image/${esc(encodeURIComponent(s.id))}" alt="" loading="lazy">`
+      ? `<img class="explore-card-image" src="/api/explore/${esc(encodeURIComponent(s.id))}/image" alt="" loading="lazy">`
       : `<div class="explore-card-image-fallback"></div>`;
     const meta = (s.source_name || "Rithavo") + (s.published_at ? " · " + s.published_at.slice(0, 10) : "");
     return `${image}<div class="explore-card-body">
@@ -60,7 +60,7 @@ window.RithavoExplore = (function () {
 
   function detailMarkup(s) {
     const image = s.image_ref || s.has_image
-      ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${esc(encodeURIComponent(s.id))}" alt="">`
+      ? `<img class="explore-story-image" src="/api/explore/${esc(encodeURIComponent(s.id))}/image" alt="">`
       : "";
     const industries = (s.industries || []).map((i) => `<span class="explore-chip">${esc(i.name)}</span>`).join("");
     const sourceUrl = safeExternalUrl(s.source_url);

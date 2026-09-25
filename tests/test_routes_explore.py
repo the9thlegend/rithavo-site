@@ -111,7 +111,7 @@ def test_story_detail_proxies_by_id_when_authenticated(app_and_client, db, monke
     monkeypatch.setattr(mod, "internal_get", _fake_get)
     resp = client.get("/explore/42")
     assert resp.json() == {"id": 42}
-    assert captured["path"] == "/explore/42/json"
+    assert captured["path"] == "/internal/api/explore/published/42"   # the service-authenticated endpoint, not a public sibling route
 
 
 def test_sibling_failure_maps_to_a_generic_error_not_a_500(app_and_client, db, monkeypatch):
@@ -126,3 +126,64 @@ def test_sibling_failure_maps_to_a_generic_error_not_a_500(app_and_client, db, m
     resp = client.get("/explore/stories")
     assert resp.status_code == 502
     assert "boom" not in resp.text  # never leak the sibling's raw error detail
+
+
+# ---- Story images are served from rithavo.com (Explore Canonical Surface hardening) ----
+
+def test_unauthenticated_visitor_cannot_reach_a_story_image(app_and_client):
+    _, client = app_and_client
+    assert client.get("/explore/1/image").status_code == 401
+
+
+def test_story_image_is_fetched_server_to_server_and_served_from_rithavo(app_and_client, db, monkeypatch):
+    app, client = app_and_client
+    login_via_magic_link(client, app, "explore-image-user@example.com")
+    captured = {}
+
+    def _fake_bytes(path):
+        captured["path"] = path
+        return b"PNGbytes", "image/png"
+
+    import app.routes_explore as mod
+    monkeypatch.setattr(mod, "internal_get_bytes", _fake_bytes)
+    resp = client.get("/explore/42/image")
+    assert resp.status_code == 200
+    assert resp.content == b"PNGbytes"
+    assert resp.headers["content-type"] == "image/png"
+    assert resp.headers["cache-control"] == "private, max-age=300"
+    assert captured["path"] == "/internal/api/explore/published/42/image"
+
+
+def test_story_image_for_a_draft_or_missing_story_is_a_404_not_a_500(app_and_client, db, monkeypatch):
+    app, client = app_and_client
+    login_via_magic_link(client, app, "explore-image-404-user@example.com")
+
+    def _raise(path):
+        raise InternalServiceError("not published", status_code=404)
+
+    import app.routes_explore as mod
+    monkeypatch.setattr(mod, "internal_get_bytes", _raise)
+    assert client.get("/explore/7/image").status_code == 404
+
+
+def test_story_image_sibling_outage_maps_to_a_generic_error(app_and_client, db, monkeypatch):
+    app, client = app_and_client
+    login_via_magic_link(client, app, "explore-image-outage-user@example.com")
+
+    def _raise(path):
+        raise InternalServiceError("boom", status_code=502)
+
+    import app.routes_explore as mod
+    monkeypatch.setattr(mod, "internal_get_bytes", _raise)
+    resp = client.get("/explore/7/image")
+    assert resp.status_code == 502
+    assert "boom" not in resp.text
+
+
+def test_the_customer_explore_page_and_script_never_point_a_browser_at_the_sibling_service():
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    for name in ("explore-feed.js", "home/index.html"):
+        text = (root / name).read_text(encoding="utf-8")
+        assert "https://app.rithavo.com" not in text, name
+        assert "app.rithavo.com/explore" not in text, name

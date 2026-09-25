@@ -57,6 +57,21 @@ def get(path: str, params: dict = None):
     return _handle(resp)
 
 
+def get_bytes(path: str) -> tuple:
+    """Same authenticated GET as get(), for a binary body (an Explore
+    story image): returns (content, content_type) instead of parsing
+    JSON. Same failure mapping as every other call here."""
+    try:
+        resp = httpx.get(
+            f"{config.INTERNAL_SERVICE_BASE_URL}{path}", headers=_headers(), timeout=_REQUEST_TIMEOUT_SECONDS,
+        )
+    except httpx.HTTPError as e:
+        raise InternalServiceError(f"Internal service request failed: {e}", status_code=502)
+    if resp.status_code >= 400:
+        raise InternalServiceError(f"Internal service returned HTTP {resp.status_code}", status_code=resp.status_code)
+    return resp.content, resp.headers.get("content-type")
+
+
 def post(path: str, json_body: dict = None, timeout: float = _REQUEST_TIMEOUT_SECONDS):
     """timeout defaults to the same fixed value every other call has
     always used -- pass an explicit, larger value only for a specific
