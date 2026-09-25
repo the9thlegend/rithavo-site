@@ -20,21 +20,67 @@ window.RithavoExplore = (function () {
     REGULATORY: "Regulatory", GLOBAL: "Global",
   };
 
-  function cardHtml(s) {
+  // Story fields (source name, industry names, source URL, type label) come
+  // from RSS feeds / the Admin editor, so anything placed inside an HTML
+  // template is escaped first. Escaping ", ' and & as well as < > keeps the
+  // result safe in element text and in quoted attribute values, and the
+  // browser decodes it back to the exact original string.
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // The citation link is an external web page. Only an absolute http(s) URL
+  // becomes a link (returned unchanged -- never normalized or rewritten);
+  // anything else, including javascript:, data: or an unparseable value,
+  // renders no link at all.
+  function safeExternalUrl(raw) {
+    if (typeof raw !== "string" || !raw) return "";
+    try {
+      const protocol = new URL(raw).protocol;
+      return protocol === "http:" || protocol === "https:" ? raw : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function cardMarkup(s) {
     const image = s.has_image
-      ? `<img class="explore-card-image" src="https://app.rithavo.com/explore/image/${s.id}" alt="" loading="lazy">`
+      ? `<img class="explore-card-image" src="https://app.rithavo.com/explore/image/${esc(encodeURIComponent(s.id))}" alt="" loading="lazy">`
       : `<div class="explore-card-image-fallback"></div>`;
     const meta = (s.source_name || "Rithavo") + (s.published_at ? " · " + s.published_at.slice(0, 10) : "");
+    return `${image}<div class="explore-card-body">
+      <span class="explore-chip">${esc(s.story_type_label || STORY_TYPE_LABELS_FALLBACK[s.story_type] || s.story_type)}</span>
+      <div class="explore-card-headline"></div>
+      <p class="explore-card-summary"></p>
+      <div class="explore-card-meta">${esc(meta)}</div>
+    </div>`;
+  }
+
+  function detailMarkup(s) {
+    const image = s.image_ref || s.has_image
+      ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${esc(encodeURIComponent(s.id))}" alt="">`
+      : "";
+    const industries = (s.industries || []).map((i) => `<span class="explore-chip">${esc(i.name)}</span>`).join("");
+    const sourceUrl = safeExternalUrl(s.source_url);
+    return `
+          ${image}
+          <span class="explore-chip">${esc(s.story_type_label || s.story_type)}</span>${industries}
+          <h2 style="margin:12px 0 6px;"></h2>
+          <div class="explore-card-meta" style="margin-bottom:16px;"></div>
+          <div class="explore-story-body"></div>
+          ${s.why_it_matters ? `<div class="explore-why-it-matters"><strong>Why it matters</strong><div class="explore-story-body"></div></div>` : ""}
+          ${sourceUrl ? `<p style="margin-top:20px;"><a href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">Read the original source →</a></p>` : ""}
+        `;
+  }
+
+  function cardHtml(s) {
     const wrapper = document.createElement("a");
     wrapper.className = "explore-card";
     wrapper.href = "#";
     wrapper.dataset.storyId = s.id;
-    wrapper.innerHTML = `${image}<div class="explore-card-body">
-      <span class="explore-chip">${s.story_type_label || STORY_TYPE_LABELS_FALLBACK[s.story_type] || s.story_type}</span>
-      <div class="explore-card-headline"></div>
-      <p class="explore-card-summary"></p>
-      <div class="explore-card-meta">${meta}</div>
-    </div>`;
+    wrapper.innerHTML = cardMarkup(s);
     wrapper.querySelector(".explore-card-headline").textContent = s.headline;
     wrapper.querySelector(".explore-card-summary").textContent = s.summary;
     return wrapper;
@@ -78,20 +124,8 @@ window.RithavoExplore = (function () {
     fetch(`/api/explore/${id}`)
       .then((r) => r.json())
       .then((s) => {
-        const image = s.image_ref || s.has_image
-          ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${s.id}" alt="">`
-          : "";
-        const industries = (s.industries || []).map((i) => `<span class="explore-chip">${i.name}</span>`).join("");
         const wrapper = document.createElement("div");
-        wrapper.innerHTML = `
-          ${image}
-          <span class="explore-chip">${s.story_type_label || s.story_type}</span>${industries}
-          <h2 style="margin:12px 0 6px;"></h2>
-          <div class="explore-card-meta" style="margin-bottom:16px;"></div>
-          <div class="explore-story-body"></div>
-          ${s.why_it_matters ? `<div class="explore-why-it-matters"><strong>Why it matters</strong><div class="explore-story-body"></div></div>` : ""}
-          ${s.source_url ? `<p style="margin-top:20px;"><a href="${s.source_url}" target="_blank" rel="noopener noreferrer">Read the original source →</a></p>` : ""}
-        `;
+        wrapper.innerHTML = detailMarkup(s);
         wrapper.querySelector("h2").textContent = s.headline;
         wrapper.querySelector(".explore-card-meta").textContent =
           (s.source_name || "Rithavo") + (s.published_at ? " · " + s.published_at.slice(0, 10) : "");
