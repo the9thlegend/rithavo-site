@@ -93,6 +93,17 @@
     });
   });
 
+  // Every value that came from outside this page (RSS-ingested story text,
+  // industry names, user emails) is escaped before it is placed inside an
+  // HTML template. Escaping ", ' and & as well as < > keeps the result safe
+  // in both element text and quoted attribute values, and the browser
+  // decodes it back to the exact original string (URLs with & keep working).
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
   const STORY_TYPES = {
     LAYOFFS_HIRING: "Layoffs & Hiring", LEADERSHIP: "Leadership & Appointments", MA: "Mergers & Acquisitions",
     COMPANY_DEVELOPMENT: "Company Developments", PRODUCT_TECHNOLOGY: "Product & Technology",
@@ -142,12 +153,12 @@
     const image = s.has_image
       ? `<img class="explore-story-image" src="https://app.rithavo.com/explore/image/${s.id}" alt="">`
       : "";
-    const industries = (s.industries || []).map((i) => `<span class="explore-chip">${i.name}</span>`).join("");
+    const industries = (s.industries || []).map((i) => `<span class="explore-chip">${esc(i.name)}</span>`).join("");
     const wrapper = document.createElement("div");
     wrapper.innerHTML = `
       ${image}
-      <span class="badge ${s.status === "PUBLISHED" ? "badge-active" : "badge-pending"}">${s.status}</span>
-      <span class="explore-chip">${s.story_type_label || s.story_type}</span>${industries}
+      <span class="badge ${s.status === "PUBLISHED" ? "badge-active" : "badge-pending"}">${esc(s.status)}</span>
+      <span class="explore-chip">${esc(s.story_type_label || s.story_type)}</span>${industries}
       <h2 style="margin:12px 0 6px;"></h2>
       <div class="explore-card-meta" style="margin-bottom:16px;"></div>
       <div class="explore-story-body"></div>
@@ -171,9 +182,9 @@
     const industryIds = (story.industries || []).map((i) => i.id);
     let industryOptions = "";
     industryTreeCache.forEach((group) => {
-      industryOptions += `<option value="${group.parent.id}" ${industryIds.includes(group.parent.id) ? "selected" : ""}>${group.parent.name}</option>`;
+      industryOptions += `<option value="${group.parent.id}" ${industryIds.includes(group.parent.id) ? "selected" : ""}>${esc(group.parent.name)}</option>`;
       group.children.forEach((c) => {
-        industryOptions += `<option value="${c.id}" ${industryIds.includes(c.id) ? "selected" : ""}>&nbsp;&nbsp;— ${c.name}</option>`;
+        industryOptions += `<option value="${c.id}" ${industryIds.includes(c.id) ? "selected" : ""}>&nbsp;&nbsp;— ${esc(c.name)}</option>`;
       });
     });
     let typeOptions = "";
@@ -183,15 +194,15 @@
     return `
       <div class="card card-body" style="margin-bottom:20px;">
         <form id="story-form">
-          <div class="app-field"><label>Headline</label><input type="text" name="headline" value="${story.headline || ""}" required></div>
-          <div class="app-field"><label>Summary</label><textarea name="summary" required>${story.summary || ""}</textarea></div>
+          <div class="app-field"><label>Headline</label><input type="text" name="headline" value="${esc(story.headline)}" required></div>
+          <div class="app-field"><label>Summary</label><textarea name="summary" required>${esc(story.summary)}</textarea></div>
           <div class="app-field"><label>Story type</label><select name="story_type">${typeOptions}</select></div>
           <div class="app-field"><label>Industries</label><select name="industry_ids" multiple size="6">${industryOptions}</select></div>
-          <div class="app-field"><label>Source name</label><input type="text" name="source_name" value="${story.source_name || ""}"></div>
-          <div class="app-field"><label>Source URL</label><input type="text" name="source_url" value="${story.source_url || ""}"></div>
+          <div class="app-field"><label>Source name</label><input type="text" name="source_name" value="${esc(story.source_name)}"></div>
+          <div class="app-field"><label>Source URL</label><input type="text" name="source_url" value="${esc(story.source_url)}"></div>
           <div class="app-field"><label>Image</label><input type="file" name="image" accept="image/*"></div>
-          <div class="app-field"><label>Body</label><textarea name="body">${story.body || ""}</textarea></div>
-          <div class="app-field"><label>Why it matters</label><textarea name="why_it_matters">${story.why_it_matters || ""}</textarea></div>
+          <div class="app-field"><label>Body</label><textarea name="body">${esc(story.body)}</textarea></div>
+          <div class="app-field"><label>Why it matters</label><textarea name="why_it_matters">${esc(story.why_it_matters)}</textarea></div>
           <div id="story-form-error"></div>
           <button type="submit" class="btn btn-primary">${story.id ? "Save changes" : "Create story"}</button>
           <button type="button" class="btn btn-ghost" id="cancel-story-form">Cancel</button>
@@ -375,7 +386,7 @@
     })).filter((group) => group.parent.is_active);
 
     parentSelect.innerHTML = `<option value="">— top level —</option>` +
-      (data.tree || []).filter((g) => g.parent.is_active).map((g) => `<option value="${g.parent.id}">${g.parent.name}</option>`).join("");
+      (data.tree || []).filter((g) => g.parent.is_active).map((g) => `<option value="${g.parent.id}">${esc(g.parent.name)}</option>`).join("");
 
     list.innerHTML = "";
     (data.tree || []).forEach((group) => {
@@ -474,7 +485,7 @@
     sessions.forEach((s) => {
       const row = document.createElement("div");
       row.className = "card app-list-row";
-      row.innerHTML = `<div>Mentor #${s.mentor_user_id} · Mentee #${s.mentee_user_id}</div><span class="badge">${s.status}</span>`;
+      row.innerHTML = `<div>Mentor #${s.mentor_user_id} · Mentee #${s.mentee_user_id}</div><span class="badge">${esc(s.status)}</span>`;
       list.appendChild(row);
     });
   }
@@ -501,7 +512,7 @@
       users.forEach((u) => {
         const row = document.createElement("div");
         row.className = "card app-list-row";
-        row.innerHTML = `<div>${u.email}<div class="meta">Created ${u.created_at.slice(0, 10)}</div></div>` +
+        row.innerHTML = `<div>${esc(u.email)}<div class="meta">Created ${u.created_at.slice(0, 10)}</div></div>` +
           (u.is_verified_mentor ? `<span class="badge badge-active">Mentor</span>` : "");
         list.appendChild(row);
       });
