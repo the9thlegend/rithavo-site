@@ -193,7 +193,12 @@ window.RithavoExplore = (function () {
             sentinel.textContent = renderedAnyCard ? "You're all caught up." : "";
             sentinel.style.display = renderedAnyCard ? "" : "none";
           } else {
-            sentinel.style.display = "none"; // hidden until intersecting again
+            // Stay in the layout -- never display:none -- while more pages
+            // remain. A display:none element has no layout box, so the
+            // IntersectionObserver below could never see it intersect again
+            // once hidden that way, permanently stalling pagination after
+            // page 1. Clearing the text is enough to show it's idle.
+            sentinel.textContent = "";
           }
         })
         .catch(() => { loading = false; sentinel.textContent = "Couldn't load more stories right now."; });
@@ -203,7 +208,6 @@ window.RithavoExplore = (function () {
 
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && hasMore) {
-        sentinel.style.display = "";
         sentinel.textContent = "Loading more…";
         loadMore();
       }
