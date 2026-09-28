@@ -36,14 +36,58 @@
     <h1 class="h2" style="margin:0 0 24px;">Rithavo control center.</h1>
 
     <div class="admin-tabs">
-      <button type="button" class="admin-tab-btn active" data-tab="stories">Explore</button>
+      <button type="button" class="admin-tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button type="button" class="admin-tab-btn" data-tab="stories">Explore</button>
       <button type="button" class="admin-tab-btn" data-tab="ingestion">News Ingestion</button>
       <button type="button" class="admin-tab-btn" data-tab="taxonomy">Taxonomy</button>
       <button type="button" class="admin-tab-btn" data-tab="mentorship">Mentorship</button>
       <button type="button" class="admin-tab-btn" data-tab="users">Users</button>
     </div>
 
-    <div id="tab-stories" class="admin-tab-panel active">
+    <div id="tab-dashboard" class="admin-tab-panel active">
+      <div class="dash-toolbar">
+        <div class="dash-range" id="dash-range">
+          <button type="button" data-range="today">Today</button>
+          <button type="button" data-range="7d" class="active">7 days</button>
+          <button type="button" data-range="30d">30 days</button>
+          <button type="button" data-range="all">All time</button>
+        </div>
+        <div class="dash-updated" id="dash-updated">Last updated: —</div>
+      </div>
+
+      <div class="dash-cards" id="dash-cards">
+        <div class="app-skeleton">Loading dashboard…</div>
+      </div>
+
+      <div class="dash-mini-grid">
+        <div class="dash-section">
+          <h3>Visitor analytics</h3>
+          <div id="dash-visitors" class="app-list">Loading…</div>
+        </div>
+        <div class="dash-section">
+          <h3>Pre-launch funnel</h3>
+          <div id="dash-funnel"></div>
+        </div>
+      </div>
+
+      <div class="dash-mini-grid">
+        <div class="dash-section">
+          <h3>Profile activity</h3>
+          <div id="dash-profile-activity"></div>
+        </div>
+        <div class="dash-section">
+          <h3>System &amp; launch status</h3>
+          <div id="dash-system"></div>
+        </div>
+      </div>
+
+      <div class="dash-section">
+        <h3>Members</h3>
+        <div id="dash-members" class="app-list">Loading…</div>
+      </div>
+    </div>
+
+    <div id="tab-stories" class="admin-tab-panel">
       <button type="button" class="btn btn-primary" id="new-story-btn" style="margin-bottom:16px;">New story</button>
       <div id="story-form-container"></div>
       <div id="stories-list" class="app-list">Loading…</div>
@@ -94,6 +138,7 @@
       document.querySelectorAll(".admin-tab-panel").forEach((p) => p.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+      if (btn.dataset.tab === "dashboard") refreshDashboard();
     });
   });
 
@@ -526,6 +571,150 @@
     });
   }
 
+  // ---- Live Super Admin Command Center (Dashboard) ----
+  // First-party only: reads /admin/dashboard/summary and
+  // /admin/dashboard/members (both Super-Admin-only, see
+  // app/routes_dashboard.py). Lightweight polling while this tab is
+  // the active one and the document is visible -- no WebSockets, no
+  // third-party analytics.
+
+  let dashRange = "7d";
+  let dashPollTimer = null;
+
+  function dashCard(label, value, highlight) {
+    return `<div class="card dash-card${highlight ? " dash-card-highlight" : ""}">
+      <div class="dash-card-label">${esc(label)}</div>
+      <div class="dash-card-value">${esc(value)}</div>
+    </div>`;
+  }
+
+  async function loadDashboard() {
+    const cards = document.getElementById("dash-cards");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/dashboard/summary?range=" + encodeURIComponent(dashRange));
+    } catch (e) {
+      cards.innerHTML = `<div class="app-empty">Couldn't load the dashboard right now.</div>`;
+      return;
+    }
+    const sc = data.summary_cards || {};
+    cards.innerHTML = [
+      dashCard("Total Visitors", sc.total_visitors ?? 0),
+      dashCard("Total Members", sc.total_members ?? 0, true),
+      dashCard("New Members", sc.new_members ?? 0),
+      dashCard("Page Views", sc.page_views ?? 0),
+      dashCard("Most Visited Page", sc.most_visited_page || "—"),
+      dashCard("CI Interest", sc.ci_interest ?? 0),
+      dashCard("AD Interest", sc.ad_interest ?? 0),
+      dashCard("Launch Status", sc.launch_status || "—"),
+    ].join("");
+
+    const v = data.visitors || {};
+    const topPagesHtml = (v.top_pages || []).length
+      ? v.top_pages.map((p) => `<div class="dash-kv"><span>${esc(p.path)}</span><span>${esc(p.views)}</span></div>`).join("")
+      : `<div class="app-empty">No page views recorded yet.</div>`;
+    document.getElementById("dash-visitors").innerHTML = `
+      <div class="card card-body">
+        <div class="dash-kv"><span>Total visitors</span><span>${esc(v.total_visitors ?? 0)}</span></div>
+        <div class="dash-kv"><span>Page views</span><span>${esc(v.page_views ?? 0)}</span></div>
+        <div class="dash-kv"><span>New sessions</span><span>${esc(v.new_sessions ?? 0)}</span></div>
+        <div class="dash-kv"><span>Returning sessions</span><span>${esc(v.returning_sessions ?? 0)}</span></div>
+      </div>
+      <div class="card card-body" style="margin-top:12px;">
+        <div class="dash-card-label" style="margin-bottom:6px;">Top pages</div>
+        ${topPagesHtml}
+      </div>
+    `;
+
+    const f = data.funnel || {};
+    document.getElementById("dash-funnel").innerHTML = `
+      <div class="card card-body">
+        <div class="dash-kv"><span>Visitors</span><span>${esc(f.visitors ?? 0)}</span></div>
+        <div class="dash-kv"><span>Registrations</span><span>${esc(f.registrations ?? 0)}</span></div>
+        <div class="dash-kv"><span>Members</span><span>${esc(f.members ?? 0)}</span></div>
+        <div class="dash-kv"><span>Started a profile</span><span>${esc(f.profile_activity ?? 0)}</span></div>
+        <div class="dash-kv"><span>CI interest (CTA clicks)</span><span>${esc(f.ci_interest ?? 0)}</span></div>
+        <div class="dash-kv"><span>AD interest (CTA clicks)</span><span>${esc(f.ad_interest ?? 0)}</span></div>
+        <div class="dash-kv"><span>Purchases</span><span><span class="badge ${f.purchases === "OPEN" ? "badge-active" : "badge-pending"}">${esc(f.purchases)}</span></span></div>
+      </div>
+    `;
+
+    const pa = data.profile_activity || {};
+    document.getElementById("dash-profile-activity").innerHTML = `
+      <div class="card card-body">
+        <div class="dash-kv"><span>Profiles started</span><span>${esc(pa.profiles_started ?? 0)}</span></div>
+        <div class="dash-kv"><span>Profiles completed</span><span>${esc(pa.profiles_completed ?? 0)}</span></div>
+        <div class="dash-kv"><span>Average completeness</span><span>${pa.average_completeness_pct != null ? esc(pa.average_completeness_pct) + "%" : "—"}</span></div>
+      </div>
+    `;
+
+    const sys = data.system || {};
+    document.getElementById("dash-system").innerHTML = `
+      <div class="card card-body">
+        <div class="dash-kv"><span>Registration</span><span><span class="badge badge-active">${esc(sys.registration)}</span></span></div>
+        <div class="dash-kv"><span>Purchases (CI / AD)</span><span><span class="badge ${sys.purchases === "OPEN" ? "badge-active" : "badge-pending"}">${esc(sys.purchases)}</span></span></div>
+        <div class="dash-kv"><span>Launch date</span><span>${esc(sys.launch_date)}</span></div>
+        <div class="dash-kv"><span>Cashfree</span><span><span class="badge ${sys.cashfree_activated ? "badge-active" : ""}">${sys.cashfree_activated ? "Activated" : "Not activated"}</span></span></div>
+      </div>
+    `;
+
+    document.getElementById("dash-updated").textContent = "Last updated: " + new Date(data.generated_at).toLocaleString();
+  }
+
+  async function loadDashboardMembers() {
+    const list = document.getElementById("dash-members");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/dashboard/members");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load members right now.</div>`;
+      return;
+    }
+    const members = data.members || [];
+    if (!members.length) { list.innerHTML = `<div class="app-empty">No members yet.</div>`; return; }
+    const rows = members.map((m) => `
+      <tr>
+        <td>${esc(m.name || "—")}</td>
+        <td>${esc(m.email)}</td>
+        <td>${m.registered_at ? esc(m.registered_at.slice(0, 10)) : "—"}</td>
+        <td>${m.profile_completeness_pct != null ? esc(m.profile_completeness_pct) + "%" : "—"}</td>
+      </tr>`).join("");
+    list.innerHTML = `
+      <div class="card card-body" style="overflow-x:auto;">
+        <table class="dash-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Registered</th><th>Profile completion</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function refreshDashboard() {
+    loadDashboard();
+    loadDashboardMembers();
+  }
+
+  document.querySelectorAll("#dash-range button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#dash-range button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      dashRange = btn.dataset.range;
+      loadDashboard();
+    });
+  });
+
+  function startDashboardPolling() {
+    stopDashboardPolling();
+    dashPollTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && document.getElementById("tab-dashboard").classList.contains("active")) {
+        refreshDashboard();
+      }
+    }, 30000);
+  }
+  function stopDashboardPolling() {
+    if (dashPollTimer) { clearInterval(dashPollTimer); dashPollTimer = null; }
+  }
+
   // ---- Users ----
 
   let userSearchTimer = null;
@@ -561,6 +750,8 @@
   loadIngestionRuns();
   loadMentorApplications();
   loadMentorSessions();
+  refreshDashboard();
+  startDashboardPolling();
 })();
 </script>
 </body>

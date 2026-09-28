@@ -23,7 +23,7 @@ import logging
 import re
 import uuid
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -51,7 +51,11 @@ from app.security import (
 )
 from app.super_admin import bootstrap_super_admin
 from app.launch_lock import is_purchase_locked
-from app import routes_admin, routes_cashfree, routes_explore, routes_mentor
+from app.analytics import (
+    ALLOWED_EVENT_TYPES, device_category_from_user_agent, get_or_create_session_id, SESSION_COOKIE_NAME,
+    validate_event_type,
+)
+from app import routes_admin, routes_cashfree, routes_dashboard, routes_explore, routes_mentor
 
 logger = logging.getLogger("rithavo_web.diagnosis")
 
@@ -72,6 +76,7 @@ app.state.login_rate_limiter = RateLimiter()
 
 app.include_router(routes_explore.router)
 app.include_router(routes_admin.router)
+app.include_router(routes_dashboard.router)
 app.include_router(routes_mentor.router)
 app.include_router(routes_cashfree.router)
 
@@ -142,6 +147,23 @@ def _auth_error_code(exc: MagicLinkError) -> str:
     return "invalid"
 
 
+def _record_session_event(request: Request, response, event_type: str, user_id: int = None) -> None:
+    """Pre-Launch Registration / Live Admin Command Center phase --
+    used for the two server-recorded events (registration_completed,
+    login) where relying on a client-side beacon would be less
+    reliable than the route that already knows the real outcome.
+    Never blocks or fails the auth flow itself if recording fails."""
+    try:
+        session_id, is_new = get_or_create_session_id(request)
+        if is_new:
+            response.set_cookie(
+                SESSION_COOKIE_NAME, session_id, max_age=60 * 60 * 24 * 365, httponly=False, samesite="lax",
+            )
+        request.app.state.db.record_analytics_event(event_type, session_id=session_id, user_id=user_id)
+    except Exception:
+        logger.warning("analytics_event_record_failed event_type=%s", event_type)
+
+
 @app.get("/auth/verify")
 def auth_verify(request: Request, token: str):
     db = request.app.state.db
@@ -160,9 +182,14 @@ def auth_verify(request: Request, token: str):
         error_code = _auth_error_code(exc)
         destination = f"{request.url.scheme}://{request.url.netloc}/sign-in/?auth_error={error_code}"
         return RedirectResponse(destination, status_code=302)
+    existed_before = db.get_user_by_email(email) is not None
     user_id = db.get_or_create_user(email)
     request.session["user_id"] = user_id
-    return _post_login_redirect(request, db, user_id)
+    response = _post_login_redirect(request, db, user_id)
+    _record_session_event(
+        request, response, "login" if existed_before else "registration_completed", user_id=user_id,
+    )
+    return response
 
 
 def _post_login_redirect(request: Request, db, user_id: int) -> RedirectResponse:
@@ -216,7 +243,7 @@ _GENERIC_RESET_REQUESTED_MESSAGE = (
 
 
 @app.post("/auth/login")
-def auth_login(request: Request, email: str = Body(..., embed=True), password: str = Body(..., embed=True)):
+def auth_login(request: Request, response: Response, email: str = Body(..., embed=True), password: str = Body(..., embed=True)):
     """Deliberately returns the exact same error, with the exact same
     status code, whether the email doesn't exist, has no password set
     yet, or the password is simply wrong — account-enumeration
@@ -234,6 +261,7 @@ def auth_login(request: Request, email: str = Body(..., embed=True), password: s
         raise HTTPException(status_code=401, detail=_GENERIC_LOGIN_ERROR)
     request.session["user_id"] = user["id"]
     redirect = _post_login_redirect(request, db, user["id"])
+    _record_session_event(request, response, "login", user_id=user["id"])
     return {"status": "ok", "redirect": redirect.headers["location"]}
 
 
@@ -296,6 +324,35 @@ def auth_password_reset(request: Request, token: str = Body(..., embed=True), pa
     request.session["user_id"] = user["id"]
     redirect = _post_login_redirect(request, db, user["id"])
     return {"status": "ok", "redirect": redirect.headers["location"]}
+
+
+# ---- Pre-Launch Registration / Live Admin Command Center: public,
+#      unauthenticated client-side analytics beacon. Deliberately thin:
+#      validates the event type against the closed vocabulary, derives
+#      session_id/device_category server-side, attaches the current
+#      user_id only if the caller already has a session -- never
+#      accepts a user_id or session_id from the client body. Never
+#      raises on a malformed/unrecognized event_type; a broken or
+#      malicious beacon must not surface as an error to the visitor. ----
+
+@app.post("/api/analytics/event")
+def analytics_event(request: Request, response: Response, event_type: str = Body(..., embed=True), path: str = Body(None, embed=True)):
+    if not validate_event_type(event_type):
+        return {"status": "ignored"}
+    try:
+        session_id, is_new = get_or_create_session_id(request)
+        if is_new:
+            response.set_cookie(
+                SESSION_COOKIE_NAME, session_id, max_age=60 * 60 * 24 * 365, httponly=False, samesite="lax",
+            )
+        user_id = request.session.get("user_id")
+        device_category = device_category_from_user_agent(request.headers.get("user-agent"))
+        request.app.state.db.record_analytics_event(
+            event_type, session_id=session_id, user_id=user_id, path=path, device_category=device_category,
+        )
+    except Exception:
+        logger.warning("analytics_event_beacon_failed event_type=%s", event_type)
+    return {"status": "ok"}
 
 
 # ---- P0 onboarding: resume upload -> extract (preview only) -> confirm

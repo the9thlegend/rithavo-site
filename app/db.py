@@ -441,6 +441,33 @@ CREATE TABLE IF NOT EXISTS super_admins (
     user_id INTEGER PRIMARY KEY REFERENCES users(id),
     created_at TEXT NOT NULL
 );
+
+-- Pre-Launch Registration / Live Admin Command Center phase — the one
+-- new table this phase adds. A closed, small vocabulary of event_type
+-- values (enforced in code, see app/analytics.py), never a generic
+-- events warehouse: page_view, registration_completed, login,
+-- ci_interest, ad_interest. session_id is a random, first-party,
+-- non-identifying cookie value (see app/analytics.py's own docstring)
+-- -- present on every row, including for a logged-out visitor.
+-- user_id is populated only once a visitor is authenticated; never the
+-- other way around. No IP address, no fingerprinting signal, and no
+-- free-form properties/metadata column -- every column here has one
+-- fixed meaning, so this can never grow into an ad-hoc analytics
+-- warehouse merely by adding new keys to a blob.
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    path TEXT,
+    session_id TEXT NOT NULL,
+    user_id INTEGER REFERENCES users(id),
+    referrer TEXT,
+    device_category TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_type_created ON analytics_events (event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events (session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_path ON analytics_events (path);
 """
 
 # ---- Phase 1: additive columns on already-existing shared tables ----
@@ -695,6 +722,126 @@ class Database:
                 "INSERT OR IGNORE INTO super_admins (user_id, created_at) VALUES (?, ?)",
                 (user_id, _now()),
             )
+
+    # ---- Pre-Launch Registration / Live Admin Command Center: analytics ----
+
+    def record_analytics_event(self, event_type: str, *, session_id: str, path: str = None,
+                                user_id: int = None, referrer: str = None, device_category: str = None) -> None:
+        """The one write path onto analytics_events -- event_type is
+        validated against app/analytics.py's closed allowlist by every
+        caller before this is ever reached (this method itself doesn't
+        re-validate, matching the rest of this file's convention of
+        trusting its own callers, all of which are in this codebase)."""
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT INTO analytics_events (event_type, path, session_id, user_id, referrer, "
+                "device_category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (event_type, path, session_id, user_id, referrer, device_category, _now()),
+            )
+
+    def count_analytics_events(self, event_type: str, since: str = None) -> int:
+        with self.connect() as conn:
+            if since:
+                return conn.execute(
+                    "SELECT count(*) AS c FROM analytics_events WHERE event_type = ? AND created_at >= ?",
+                    (event_type, since),
+                ).fetchone()["c"]
+            return conn.execute(
+                "SELECT count(*) AS c FROM analytics_events WHERE event_type = ?", (event_type,)
+            ).fetchone()["c"]
+
+    def count_distinct_sessions(self, event_type: str = "page_view", since: str = None) -> int:
+        """'Total visitors' -- distinct first-party session_id values
+        that produced at least one event of this type, optionally
+        restricted to a time window."""
+        with self.connect() as conn:
+            if since:
+                return conn.execute(
+                    "SELECT count(DISTINCT session_id) AS c FROM analytics_events "
+                    "WHERE event_type = ? AND created_at >= ?", (event_type, since),
+                ).fetchone()["c"]
+            return conn.execute(
+                "SELECT count(DISTINCT session_id) AS c FROM analytics_events WHERE event_type = ?",
+                (event_type,),
+            ).fetchone()["c"]
+
+    def list_top_pages(self, since: str = None, limit: int = 10) -> list:
+        with self.connect() as conn:
+            if since:
+                return conn.execute(
+                    "SELECT path, count(*) AS views FROM analytics_events "
+                    "WHERE event_type = 'page_view' AND path IS NOT NULL AND created_at >= ? "
+                    "GROUP BY path ORDER BY views DESC LIMIT ?", (since, limit),
+                ).fetchall()
+            return conn.execute(
+                "SELECT path, count(*) AS views FROM analytics_events "
+                "WHERE event_type = 'page_view' AND path IS NOT NULL "
+                "GROUP BY path ORDER BY views DESC LIMIT ?", (limit,),
+            ).fetchall()
+
+    def count_new_vs_returning_sessions(self, since: str) -> dict:
+        """A session is 'new' (within the selected window) if the
+        EARLIEST page_view it ever produced, all-time, falls inside
+        that window -- 'returning' if it was already seen before the
+        window started. Reliably computable from what's actually
+        stored; never guessed."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT session_id, min(created_at) AS first_seen FROM analytics_events "
+                "WHERE event_type = 'page_view' GROUP BY session_id"
+            ).fetchall()
+        new_count = sum(1 for r in rows if r["first_seen"] >= since)
+        returning_count = 0
+        with self.connect() as conn:
+            active = conn.execute(
+                "SELECT DISTINCT session_id FROM analytics_events "
+                "WHERE event_type = 'page_view' AND created_at >= ?", (since,),
+            ).fetchall()
+        active_ids = {r["session_id"] for r in active}
+        first_seen_by_session = {r["session_id"]: r["first_seen"] for r in rows}
+        for sid in active_ids:
+            if first_seen_by_session.get(sid, "") < since:
+                returning_count += 1
+        new_in_window = sum(1 for sid in active_ids if first_seen_by_session.get(sid, "") >= since)
+        return {"new": new_in_window, "returning": returning_count}
+
+    def count_users_since(self, since: str) -> int:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT count(*) AS c FROM users WHERE created_at >= ?", (since,)
+            ).fetchone()["c"]
+
+    def count_all_users(self) -> int:
+        with self.connect() as conn:
+            return conn.execute("SELECT count(*) AS c FROM users").fetchone()["c"]
+
+    def list_members(self, limit: int = 200) -> list:
+        """Super Admin-only member list -- email/created_at always
+        present (the `users` table itself); name and completeness_pct
+        only when a career_profiles row exists yet (most-recently-
+        registered first, matching the existing Users search tab's own
+        newest-first convention)."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT u.id, u.email, u.created_at, p.completeness_pct, p.profile_json "
+                "FROM users u LEFT JOIN career_profiles p ON p.user_id = u.id "
+                "ORDER BY u.created_at DESC LIMIT ?", (limit,),
+            ).fetchall()
+
+    def count_profiles_started(self) -> int:
+        with self.connect() as conn:
+            return conn.execute("SELECT count(*) AS c FROM career_profiles").fetchone()["c"]
+
+    def count_profiles_completed(self, threshold_pct: int = 100) -> int:
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT count(*) AS c FROM career_profiles WHERE completeness_pct >= ?", (threshold_pct,)
+            ).fetchone()["c"]
+
+    def average_profile_completeness(self):
+        with self.connect() as conn:
+            row = conn.execute("SELECT avg(completeness_pct) AS avg_pct FROM career_profiles").fetchone()
+            return row["avg_pct"]
 
     # ---- shared profile (read-only from this service through Phase
     #      2B-1.7A — the P0 onboarding work below is the first time this

@@ -430,3 +430,23 @@ a.journey-title:hover { border-color: var(--line-strong); }
 .mx-auto { margin-left: auto; margin-right: auto; }
 .mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; } .mt-40 { margin-top: 40px; } .mt-64 { margin-top: 64px; }
 .gap-12 { gap: 12px; } .gap-16 { gap: 16px; } .gap-24 { gap: 24px; }
+
+/* ---- Pre-launch banner (Pre-Launch Registration phase) ---- */
+.prelaunch-banner {
+  background: var(--gradient-soft);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 24px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.prelaunch-banner .wrap {
+  display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  max-width: 1100px; margin: 0 auto;
+}
+.prelaunch-banner a {
+  color: var(--ink); font-weight: 600; text-decoration: underline; white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .prelaunch-banner { padding: 10px 16px; font-size: 0.8rem; }
+}

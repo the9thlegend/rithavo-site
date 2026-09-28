@@ -203,3 +203,31 @@
 .admin-tab-panel.active { display: block; }
 .admin-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .admin-row-actions .btn { padding: 6px 12px; font-size: 0.78rem; }
+
+/* Live Super Admin Command Center — a focused first-party dashboard,
+   not a generic analytics platform: plain stat cards + existing
+   .app-list-row idiom, no chart library. */
+.dash-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.dash-range { display: flex; gap: 4px; }
+.dash-range button {
+  padding: 6px 14px; border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface);
+  color: var(--ink-soft); font-size: 0.8rem; cursor: pointer; font-family: inherit;
+}
+.dash-range button.active { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 600; }
+.dash-updated { font-size: 0.78rem; color: var(--ink-faint); }
+.dash-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+@media (max-width: 860px) { .dash-cards { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .dash-cards { grid-template-columns: 1fr; } }
+.dash-card { padding: 20px; }
+.dash-card .dash-card-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); font-weight: 600; }
+.dash-card .dash-card-value { font-family: var(--font-display); font-size: 1.7rem; color: var(--ink); margin-top: 6px; line-height: 1.2; }
+.dash-card.dash-card-highlight { border-color: var(--g2); background: color-mix(in srgb, var(--g2) 6%, var(--surface)); }
+.dash-section { margin-bottom: 32px; }
+.dash-section h3 { font-size: 1rem; margin: 0 0 12px; }
+.dash-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.dash-table th, .dash-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.dash-table th { color: var(--ink-faint); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.dash-mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 640px) { .dash-mini-grid { grid-template-columns: 1fr; } }
+.dash-kv { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+.dash-kv:last-child { border-bottom: none; }

@@ -105,6 +105,39 @@
   }
 })();
 
+// Pre-Launch Registration / Live Admin Command Center: first-party
+// analytics beacon. Fires page_view once per page load, and
+// ci_interest/ad_interest on clicks toward either product's marketing
+// or purchase page -- CTA-click signal only, never a purchase or
+// conversion event. Never blocks navigation: uses fetch with
+// keepalive and ignores any failure.
+(function () {
+  function beacon(eventType, path) {
+    try {
+      fetch("/api/analytics/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({ event_type: eventType, path: path || window.location.pathname }),
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  beacon("page_view");
+
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a[href]");
+    if (!a) return;
+    var href = a.getAttribute("href") || "";
+    if (href.indexOf("career-intelligence") !== -1) {
+      beacon("ci_interest");
+    } else if (href.indexOf("application-diagnos") !== -1) {
+      beacon("ad_interest");
+    }
+  });
+})();
+
 // Attribution passthrough for diagnostic CTAs
 (function () {
   var params = new URLSearchParams(window.location.search);
