@@ -52,6 +52,10 @@
     <div id="tab-ingestion" class="admin-tab-panel">
       <button type="button" class="btn btn-primary" id="refresh-ingestion-btn" style="margin-bottom:16px;">Refresh ingestion</button>
       <div id="ingestion-result"></div>
+      <h3 style="margin-top:24px;">Recent ingestion runs</h3>
+      <p class="meta">Scheduled (hourly) and manual runs alike.</p>
+      <div id="ingestion-runs-list" class="app-list">Loading…</div>
+      <h3 style="margin-top:24px;">Awaiting editorial review</h3>
       <div id="ingestion-list" class="app-list">Loading…</div>
     </div>
 
@@ -315,12 +319,45 @@
     resultBox.innerHTML = `<div class="app-banner app-banner-info">Refreshing…</div>`;
     try {
       const result = await RithavoApp.apiJson("/admin/explore/ingest", { method: "POST", body: "{}" });
-      resultBox.innerHTML = `<div class="app-banner app-banner-success">Fetched ${result.total_inserted} new stories from ${result.feeds_configured} feed(s) (${result.total_skipped_duplicate} duplicates skipped, ${result.feeds_failed} feed(s) failed).</div>`;
+      resultBox.innerHTML = `<div class="app-banner app-banner-success">Fetched ${result.total_inserted} new stories from ${result.feeds_configured} feed(s) (${result.total_skipped_duplicate} duplicates skipped, ${result.feeds_failed} feed(s) failed, ${result.total_auto_published || 0} auto-published, ${result.total_held_for_review || 0} held for review).</div>`;
       loadIngestionQueue();
+      loadIngestionRuns();
     } catch (e) {
       resultBox.innerHTML = `<div class="app-banner app-banner-error">Couldn't refresh ingestion right now.</div>`;
     }
   });
+
+  // Autonomous Continuous News Pipeline — minimal, read-only: the last
+  // 20 runs (scheduled or manual), same app-list-row idiom as every
+  // other admin list on this page, no separate dashboard.
+  async function loadIngestionRuns() {
+    const list = document.getElementById("ingestion-runs-list");
+    let data;
+    try {
+      data = await RithavoApp.apiJson("/admin/explore/ingestion-runs");
+    } catch (e) {
+      list.innerHTML = `<div class="app-empty">Couldn't load ingestion run history right now.</div>`;
+      return;
+    }
+    const runs = data.runs || [];
+    if (!runs.length) { list.innerHTML = `<div class="app-empty">No ingestion runs recorded yet.</div>`; return; }
+    list.innerHTML = "";
+    runs.forEach((r) => {
+      const row = document.createElement("div");
+      row.className = "card app-list-row";
+      const info = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = `${r.started_at ? r.started_at.slice(0, 16).replace("T", " ") : "unknown time"} · ${r.triggered_by} · ${r.status}`;
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `Feeds: ${r.feeds_succeeded}/${r.feeds_configured} succeeded · ${r.total_inserted} inserted · ${r.total_skipped_duplicate} duplicates · ${r.total_auto_published} auto-published · ${r.total_held_for_review} held for review`
+        + (r.failure_detail ? ` · Issues: ${r.failure_detail}` : "");
+      info.appendChild(title);
+      info.appendChild(meta);
+      row.appendChild(info);
+      list.appendChild(row);
+    });
+  }
 
   async function loadIngestionQueue() {
     const list = document.getElementById("ingestion-list");
@@ -521,6 +558,7 @@
   await loadTaxonomy();
   loadStories();
   loadIngestionQueue();
+  loadIngestionRuns();
   loadMentorApplications();
   loadMentorSessions();
 })();

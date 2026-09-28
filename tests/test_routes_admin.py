@@ -48,6 +48,30 @@ def test_list_stories_proxies_to_sibling(admin_client, monkeypatch):
     assert resp.json() == {"stories": [{"id": 1}]}
 
 
+# ---- Autonomous Continuous News Pipeline: ingestion-run visibility ----
+
+def test_ingestion_runs_requires_super_admin(app_and_client):
+    _, client = app_and_client
+    resp = client.get("/admin/explore/ingestion-runs")
+    assert resp.status_code == 401
+
+
+def test_ingestion_runs_proxies_to_sibling(admin_client, monkeypatch):
+    app, client = admin_client
+    captured = {}
+
+    def _fake_get(path, params=None):
+        captured["path"] = path
+        return {"runs": [{"id": 1, "status": "COMPLETED", "triggered_by": "cron"}]}
+
+    import app.routes_admin as mod
+    monkeypatch.setattr(mod, "internal_get", _fake_get)
+    resp = client.get("/admin/explore/ingestion-runs")
+    assert resp.status_code == 200
+    assert captured["path"] == "/internal/api/explore/ingestion-runs"
+    assert resp.json() == {"runs": [{"id": 1, "status": "COMPLETED", "triggered_by": "cron"}]}
+
+
 def test_create_story_forwards_payload(admin_client, monkeypatch):
     app, client = admin_client
     captured = {}

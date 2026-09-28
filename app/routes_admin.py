@@ -146,6 +146,16 @@ def trigger_ingestion(request: Request):
     return _proxy_post("/internal/api/explore/ingest", timeout=_INGESTION_TIMEOUT_SECONDS)
 
 
+# Autonomous Continuous News Pipeline — minimal Super Admin visibility
+# into the scheduled (and manual) ingestion runs; a thin, read-only
+# proxy exactly like every other route in this file, never a second
+# store of this data on rithavo-site's own side.
+@router.get("/explore/ingestion-runs")
+def list_ingestion_runs(request: Request):
+    require_super_admin(request)
+    return _proxy_get("/internal/api/explore/ingestion-runs")
+
+
 # ---- Mentorship: admin ----
 
 @router.get("/mentors/applications")
