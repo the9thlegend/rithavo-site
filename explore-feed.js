@@ -179,6 +179,12 @@ window.RithavoExplore = (function () {
     function loadMore() {
       if (loading || (page > 1 && !hasMore)) return;
       loading = true;
+      // The sentinel's own initial markup already reads "Loading…" for
+      // this function's very first call (page 1); only a page-2-or-later
+      // call needs this set here, so a request that's still in flight is
+      // never left showing the blank idle text set below on the previous
+      // page's completion (see the !hasMore/else branch a few lines down).
+      if (page > 1) sentinel.textContent = "Loading more…";
       fetch("/api/explore/stories?" + new URLSearchParams({ page: page }).toString())
         .then((r) => r.json())
         .then((data) => {
