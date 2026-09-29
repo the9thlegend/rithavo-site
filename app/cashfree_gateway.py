@@ -10,19 +10,28 @@ Razorpay is checked FIRST and is completely unmodified by this file;
 Cashfree only ever becomes active in an environment where Razorpay's
 own three env vars are absent.
 
-API contract (verified against Cashfree's current live documentation,
-not an assumed/outdated pattern, September 2026):
+API contract (re-verified against Cashfree's current live
+documentation, Cashfree Activation Readiness phase, September 2026):
   - Create Order:  POST {base}/orders          -> payment_session_id
   - Get Order:     GET  {base}/orders/{order_id} -> order_status
       ("PAID" is the only status this module treats as fulfillable;
       ACTIVE/EXPIRED/TERMINATED/TERMINATION_REQUESTED are all "not yet
-      paid" or "will never be paid" — never treated as success)
+      paid" or "will never be paid" — never treated as success; all
+      five values confirmed unchanged against current docs)
   - Headers: x-client-id, x-client-secret, x-api-version
   - Webhook signature: base64(HMAC-SHA256(timestamp + raw_body,
     secret)), verified against the x-webhook-signature header using
     the x-webhook-timestamp header's own value — the RAW request body,
     never a re-parsed/re-serialized dict (same requirement as
-    Razorpay's own verify_webhook_signature).
+    Razorpay's own verify_webhook_signature). Confirmed unchanged
+    against current docs, header names and formula both exact.
+  - Webhook delivery itself (not this module's concern, an account-
+    level setting) is configured either in the Cashfree Merchant
+    Dashboard or per-order via order_meta.notify_url; this
+    integration relies on the dashboard-level setting (simpler, one
+    config rather than one per order) — the actual webhook URL to
+    register there, once a real account exists, is
+    https://rithavo.com/api/payments/cashfree/webhook.
 
 Credentials — CASHFREE_APP_ID / CASHFREE_SECRET_KEY / CASHFREE_ENVIRONMENT
 / CASHFREE_WEBHOOK_SECRET — are read from the environment only, never
@@ -63,10 +72,13 @@ from app.payment_gateway import PaymentGateway
 
 _SANDBOX_BASE_URL = "https://sandbox.cashfree.com/pg"
 _PRODUCTION_BASE_URL = "https://api.cashfree.com/pg"
-# Pinned, not "latest" — verified against Cashfree's live documentation
-# at implementation time (September 2026). Bump deliberately, not
-# implicitly, if Cashfree deprecates this version.
-_API_VERSION = "2025-01-01"
+# Pinned, not "latest" — Cashfree Activation Readiness phase: re-checked
+# against Cashfree's current live documentation and bumped from
+# "2025-01-01" (this module's original pin, now explicitly documented
+# by Cashfree as "the previous version") to "2026-01-01" (the current
+# version as of this recheck). Bump deliberately, not implicitly, the
+# next time Cashfree deprecates this one.
+_API_VERSION = "2026-01-01"
 _REQUEST_TIMEOUT_SECONDS = 15.0
 
 _PAID_STATUS = "PAID"
