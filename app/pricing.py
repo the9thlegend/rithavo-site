@@ -36,3 +36,12 @@ CAREER_INTELLIGENCE_PRICE_INR = 799
 # Diagnosis entitlements never read either constant.
 CAREER_INTELLIGENCE_VALIDITY_DAYS = 30
 CAREER_INTELLIGENCE_MAX_EVALUATIONS = 3
+
+# Cashfree Transaction Hardening phase: the previously-approved
+# "up to 10 revisions per qualifying AD entitlement" rule had no actual
+# enforcement anywhere in the code (POST /diagnosis/{id}/resume counted
+# existing resumes only to number the next one, never to cap it) — this
+# is the one place that cap now lives, matching CAREER_INTELLIGENCE_
+# MAX_EVALUATIONS's own precedent of a single named constant rather
+# than a magic number at the call site.
+APPLICATION_DIAGNOSIS_MAX_REVISIONS = 10

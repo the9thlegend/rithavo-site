@@ -1377,6 +1377,36 @@ class Database:
                 (gateway_reference, _now(), purchase_id),
             )
 
+    # Cashfree Transaction Hardening phase: a purchase whose Cashfree
+    # order was created but never completed sits in PENDING forever --
+    # no scheduled cleanup exists anywhere in this repo (unlike the
+    # sibling app's hourly Explore-ingestion cron) and none is added
+    # here, because none is warranted: confirmation always independently
+    # re-verifies with the gateway itself (see confirm_ci_purchase/
+    # confirm_ad_purchase's own callers), so a PENDING row's age can
+    # never affect whether it's allowed to grant an entitlement, and an
+    # abandoned row never blocks a fresh retry (each "Buy" click starts
+    # a new purchase unless the caller supplies the same idempotency_key
+    # -- see begin_ci_purchase/begin_ad_purchase). PENDING_STALE_AFTER_HOURS
+    # exists purely so "still probably mid-checkout" can be told apart
+    # from "abandoned" for reporting -- is_purchase_pending_stale never
+    # mutates anything and is never consulted by the confirm/webhook
+    # paths.
+    PENDING_STALE_AFTER_HOURS = 24
+
+    def is_purchase_pending_stale(self, purchase, now: datetime = None) -> bool:
+        """True only for a CREATED/PENDING purchase whose created_at is
+        older than PENDING_STALE_AFTER_HOURS. Any other status (already
+        SUCCEEDED, FAILED, REFUNDED) is never 'stale' -- staleness is a
+        property of an unresolved attempt, not of history."""
+        if purchase["payment_status"] not in ("CREATED", "PENDING"):
+            return False
+        now = now or datetime.now(timezone.utc)
+        created = datetime.fromisoformat(purchase["created_at"])
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return (now - created) > timedelta(hours=self.PENDING_STALE_AFTER_HOURS)
+
     def set_purchase_customer_phone(self, purchase_id: int, customer_phone: str) -> None:
         """Cashfree customer-phone phase — stored at the purchase/
         payment level only (never users/career_profiles/Profile 2.0),
@@ -1573,17 +1603,24 @@ class Database:
         drops out of count_qualifying_ad_purchases immediately, since that
         count only ever looks at payment_status = 'SUCCEEDED'.
 
-        user_id (Phase 2A, optional/defense-in-depth): no customer-facing
-        HTTP route calls this yet — refunds are an internal/admin
-        operation today — but a future admin surface must not be able to
-        refund another user's purchase by ID substitution any more than
-        any other resource here can. Passing the acting request's own
-        user_id enforces that ownership check now, before such a route
-        exists, rather than leaving it to be remembered later. Omit (as
-        every current, internal caller does) only when the caller has
-        already independently established the authority to act on any
-        user's purchase (e.g. a verified operator-only tool)."""
+        user_id (Phase 2A, optional/defense-in-depth): still no
+        CUSTOMER-facing HTTP route calls this — the one caller added in
+        the Cashfree Transaction Hardening phase is a Super-Admin-only
+        route (POST /admin/dashboard/purchases/{id}/refund) that has
+        already independently verified operator authority via
+        require_super_admin before ever reaching here, so it correctly
+        omits user_id, exactly like every other existing internal
+        caller. A hypothetical future ordinary-member-facing route
+        would need to pass its own session's user_id here.
+
+        Advisory-locked (Cashfree Transaction Hardening phase) the same
+        way confirm/begin already are: two duplicate refund requests
+        for the same purchase_id now serialize, so the second one always
+        sees the first's already-committed REFUNDED status and cleanly
+        raises 'cannot refund a purchase in status REFUNDED' instead of
+        racing to double-revoke the same entitlement."""
         with self.connect() as conn:
+            self._advisory_lock(conn, f"refund_purchase:{purchase_id}")
             if user_id is not None:
                 purchase = conn.execute(
                     "SELECT * FROM purchases WHERE id = ? AND user_id = ?", (purchase_id, user_id)

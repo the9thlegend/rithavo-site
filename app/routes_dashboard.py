@@ -16,7 +16,7 @@ completion, registration date) is never exposed through any other,
 non-admin route.
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from .analytics import since_for_range
 from .cashfree_gateway import get_cashfree_gateway_if_configured
@@ -163,6 +163,51 @@ def dashboard_members(request: Request, limit: int = 200):
             "profile_completeness_pct": r["completeness_pct"],
         })
     return {"members": members, "count": len(members)}
+
+
+@router.post("/purchases/{purchase_id}/refund")
+def refund_purchase(request: Request, purchase_id: int):
+    """Cashfree Transaction Hardening phase — the minimum production-
+    safe refund capability: a Super-Admin-only route (never a customer-
+    facing or public endpoint) that invokes the existing, already-
+    approved, already-tested internal refund lifecycle
+    (Database.refund_ad_purchase, product-agnostic despite its name —
+    it already branches correctly for both career_intelligence and
+    APPLICATION_DIAGNOSTIC entitlements, unchanged here) with no
+    ownership restriction (require_super_admin below has already
+    independently established the caller's authority over any
+    purchase, so user_id is correctly omitted -- see that method's own
+    docstring).
+
+    What this route does NOT do, deliberately: it does not call any
+    Cashfree refund API. No such method exists in app/cashfree_gateway.py
+    today, and this phase was explicitly barred from configuring
+    Cashfree credentials or exercising real Cashfree API calls -- so
+    there is nothing here that could safely be built and verified
+    without them. This route only performs the certain, atomic, purely-
+    internal state change (purchase -> REFUNDED, entitlement -> REVOKED
+    per the existing, unchanged policy) that is safe to do unconditionally
+    -- it never depends on, and is never gated by, any external
+    confirmation that could itself fail or lie, which is exactly what
+    guarantees it can never incorrectly revoke access based on a refund
+    Cashfree never actually confirmed. The response says plainly that
+    the money side is not yet automated. Until a real Cashfree refund
+    integration is built and tested against real credentials, the
+    operator must separately process the actual money return through
+    Cashfree's own merchant dashboard."""
+    require_super_admin(request)
+    db = request.app.state.db
+    try:
+        result = db.refund_ad_purchase(purchase_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {
+        **result,
+        "cashfree_refund_initiated": False,
+        "note": "Purchase and entitlement state updated. The actual money return must still be "
+                "processed manually through Cashfree's own dashboard -- no automated Cashfree "
+                "refund API call has been made.",
+    }
 
 
 def _now_iso() -> str:

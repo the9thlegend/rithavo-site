@@ -40,7 +40,7 @@ from app.email_sender import get_email_sender
 from app.payment_gateway import get_gateway
 from app.photo_access import fetch_selected_photo, issue_photo_access_token
 from app.profile_proxy import proxy_profile_edit
-from app.pricing import CAREER_INTELLIGENCE_PRICE_INR
+from app.pricing import APPLICATION_DIAGNOSIS_MAX_REVISIONS, CAREER_INTELLIGENCE_PRICE_INR
 from app.razorpay_gateway import RazorpayVerificationError
 from app.rate_limit import RateLimiter
 from app.resume_export import build_tailored_resume, render_tailored_resume_docx, TailoredResume
@@ -627,6 +627,35 @@ def _validate_customer_phone_for_gateway(gateway, customer_phone):
     return phone
 
 
+def _reject_if_gateway_unsafe_for_purchase(gateway) -> None:
+    """Cashfree Transaction Hardening phase — production gateway safety.
+    Reached only once launch is already unlocked (both purchase routes
+    check is_purchase_locked() first and return before this point while
+    locked), so the one remaining risk this guards against is narrow
+    but real: launch unlocked + no real gateway configured would
+    otherwise silently route a genuine visitor's "purchase" through
+    TestPaymentGateway (payment_gateway.get_gateway()'s own fallback,
+    see its docstring) — a no-network, no-money simulator meant only
+    for local dev and automated tests, not something a real customer
+    should ever be able to "complete a payment" through.
+
+    config.DATABASE_URL is this codebase's own existing, already-relied-
+    upon signal for "this is a real, shared-Postgres deployment" —
+    config.py's SESSION_COOKIE_HTTPS_ONLY already keys off the exact
+    same variable for an analogous prod/non-prod distinction. It is
+    never set for local dev or the automated test suite (both use a
+    throwaway SQLite file instead), and is always set in any real
+    Vercel deployment of this service (RITHAVO_WEB_DATABASE_URL,
+    confirmed present in production). Fails closed — a clean 503,
+    nothing created — rather than ever letting TestPaymentGateway stand
+    in for a real payment once launch has actually happened."""
+    if gateway.name == "test" and config.DATABASE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="Purchases are temporarily unavailable — please try again shortly.",
+        )
+
+
 # ---- Career Intelligence: purchase (Phase 2B-2) ----
 
 @app.get("/career-intelligence/price")
@@ -674,6 +703,7 @@ def create_ci_purchase(
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
+    _reject_if_gateway_unsafe_for_purchase(gateway)
     validated_phone = _validate_customer_phone_for_gateway(gateway, customer_phone)
     try:
         result = db.begin_ci_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
@@ -684,9 +714,27 @@ def create_ci_purchase(
     user = db.get_user_by_id(session_user_id)
     if validated_phone:
         db.set_purchase_customer_phone(result["purchase_id"], validated_phone)
-    intent = gateway.create_payment_intent(
-        result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
-    )
+    try:
+        intent = gateway.create_payment_intent(
+            result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
+        )
+    except Exception:
+        # Cashfree Transaction Hardening phase: any failure creating the
+        # gateway order (network error, non-2xx response, etc.) must not
+        # leave this purchase orphaned in CREATED forever, must never
+        # create an entitlement, and must never echo the underlying
+        # exception (which could carry gateway-internal detail) back to
+        # the customer. fail_ad_purchase is product-agnostic despite its
+        # name (see its own docstring) and only transitions a purchase
+        # still in CREATED/PENDING -- a safe no-op if this is somehow
+        # reached twice for the same row.
+        logger.warning(
+            "purchase_gateway_order_failed purchase_id=%s gateway=%s", result["purchase_id"], gateway.name,
+        )
+        db.fail_ad_purchase(result["purchase_id"])
+        raise HTTPException(
+            status_code=502, detail="We couldn't start your payment right now — please try again shortly.",
+        )
     db.mark_purchase_pending(result["purchase_id"], intent.get("gateway_reference"))
     return {**result, **intent, "payment_status": "PENDING"}
 
@@ -854,6 +902,7 @@ def create_ad_purchase(
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
+    _reject_if_gateway_unsafe_for_purchase(gateway)
     validated_phone = _validate_customer_phone_for_gateway(gateway, customer_phone)
     result = db.begin_ad_purchase(session_user_id, gateway=gateway.name, idempotency_key=idempotency_key)
     if result.get("replayed") and result["payment_status"] != "CREATED":
@@ -865,9 +914,21 @@ def create_ad_purchase(
     user = db.get_user_by_id(session_user_id)
     if validated_phone:
         db.set_purchase_customer_phone(result["purchase_id"], validated_phone)
-    intent = gateway.create_payment_intent(
-        result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
-    )
+    try:
+        intent = gateway.create_payment_intent(
+            result["purchase_id"], result["amount_inr"], user["email"], customer_phone=validated_phone,
+        )
+    except Exception:
+        # See create_ci_purchase's identical try/except for the full
+        # rationale — same shared gateway-agnostic call, same failure
+        # mode, same fix.
+        logger.warning(
+            "purchase_gateway_order_failed purchase_id=%s gateway=%s", result["purchase_id"], gateway.name,
+        )
+        db.fail_ad_purchase(result["purchase_id"])
+        raise HTTPException(
+            status_code=502, detail="We couldn't start your payment right now — please try again shortly.",
+        )
     db.mark_purchase_pending(result["purchase_id"], intent.get("gateway_reference"))
     return {**result, **intent, "payment_status": "PENDING"}
 
@@ -1279,6 +1340,12 @@ def create_diagnosis_resume(request: Request, diagnostic_id: int):
         diagnosis["target_jd_text"], report.matched_keywords,
     )
     existing_count = len(db.list_resumes_for_diagnosis(diagnostic_id))
+    if existing_count >= APPLICATION_DIAGNOSIS_MAX_REVISIONS:
+        raise HTTPException(
+            status_code=403,
+            detail=f"This Application Diagnosis has reached its limit of "
+                    f"{APPLICATION_DIAGNOSIS_MAX_REVISIONS} tailored resume revisions.",
+        )
     version = existing_count + 1
     resume_id = db.create_resume_for_diagnosis(
         session_user_id, diagnostic_id, resume.to_dict(),
