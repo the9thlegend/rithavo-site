@@ -63,25 +63,33 @@ def dashboard_summary(request: Request, range: str = "7d"):
     range_key = _range_key(range)
     since = since_for_range(range_key)
 
-    total_members = db.count_all_users()
-    new_today = db.count_users_since(since_for_range("today"))
-    new_week = db.count_users_since(since_for_range("7d"))
-    new_month = db.count_users_since(since_for_range("30d"))
+    # One connection, one round of queries -- see
+    # Database.get_dashboard_summary_data's own docstring for why this
+    # replaced ~13 separate self.connect() calls here.
+    data = db.get_dashboard_summary_data(
+        since_today=since_for_range("today"), since_week=since_for_range("7d"),
+        since_month=since_for_range("30d"), since_range=since, top_pages_limit=5,
+    )
 
-    total_visitors = db.count_distinct_sessions("page_view", since=since)
-    page_views = db.count_analytics_events("page_view", since=since)
-    top_pages = db.list_top_pages(since=since, limit=5)
+    total_members = data["total_members"]
+    new_today = data["new_today"]
+    new_week = data["new_week"]
+    new_month = data["new_month"]
+
+    total_visitors = data["total_visitors"]
+    page_views = data["page_views"]
+    top_pages = data["top_pages"]
     most_visited = top_pages[0]["path"] if top_pages else None
-    new_vs_returning = db.count_new_vs_returning_sessions(since)
+    new_vs_returning = {"new": data["new_sessions"], "returning": data["returning_sessions"]}
 
-    ci_interest = db.count_analytics_events("ci_interest", since=since)
-    ad_interest = db.count_analytics_events("ad_interest", since=since)
+    ci_interest = data["ci_interest"]
+    ad_interest = data["ad_interest"]
 
-    registrations_in_range = db.count_users_since(since)
+    registrations_in_range = data["registrations_in_range"]
 
-    profiles_started = db.count_profiles_started()
-    profiles_completed = db.count_profiles_completed()
-    avg_completeness = db.average_profile_completeness()
+    profiles_started = data["profiles_started"]
+    profiles_completed = data["profiles_completed"]
+    avg_completeness = data["average_completeness"]
 
     launch_locked = is_purchase_locked()
 

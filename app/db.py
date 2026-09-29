@@ -843,6 +843,102 @@ class Database:
             row = conn.execute("SELECT avg(completeness_pct) AS avg_pct FROM career_profiles").fetchone()
             return row["avg_pct"]
 
+    def get_dashboard_summary_data(self, since_today: str, since_week: str, since_month: str,
+                                     since_range: str, top_pages_limit: int = 5) -> dict:
+        """Everything dashboard_summary() needs, in ONE connection
+        checkout instead of the ~13 separate ones the individual
+        count_*/list_* methods above would otherwise require. Each
+        `with self.connect()` block costs a real round trip to commit,
+        even for a pure read (see Database.connect()) -- against the
+        production Postgres backend (network-distant from this
+        service's own region), that overhead alone was measured at
+        ~8 seconds for the naive per-method version during Phase G
+        production verification of this dashboard. Every value
+        returned here is exactly what the individual methods above
+        would have computed for the same inputs; those methods are
+        kept for their own independent correctness and any future
+        ad-hoc use, just no longer called from this hot path."""
+        with self.connect() as conn:
+            users_row = conn.execute(
+                "SELECT count(*) AS total_members, "
+                "sum(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS new_today, "
+                "sum(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS new_week, "
+                "sum(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS new_month, "
+                "sum(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS registrations_in_range "
+                "FROM users",
+                (since_today, since_week, since_month, since_range),
+            ).fetchone()
+
+            event_rows = conn.execute(
+                "SELECT event_type, count(*) AS cnt, count(DISTINCT session_id) AS distinct_sessions "
+                "FROM analytics_events WHERE created_at >= ? GROUP BY event_type",
+                (since_range,),
+            ).fetchall()
+            events_by_type = {r["event_type"]: r for r in event_rows}
+
+            top_pages = conn.execute(
+                "SELECT path, count(*) AS views FROM analytics_events "
+                "WHERE event_type = 'page_view' AND path IS NOT NULL AND created_at >= ? "
+                "GROUP BY path ORDER BY views DESC LIMIT ?",
+                (since_range, top_pages_limit),
+            ).fetchall()
+
+            # Same "new vs returning" definition as count_new_vs_returning_sessions:
+            # a session is "new" if its all-time-earliest page_view falls
+            # inside the window, "returning" if it was already seen before
+            # the window started -- computed here from one grouped query
+            # instead of two separate connect() calls.
+            session_rows = conn.execute(
+                "SELECT session_id, min(created_at) AS first_seen, "
+                "max(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS active_in_window "
+                "FROM analytics_events WHERE event_type = 'page_view' GROUP BY session_id",
+                (since_range,),
+            ).fetchall()
+
+            profile_row = conn.execute(
+                "SELECT count(*) AS profiles_started, "
+                "sum(CASE WHEN completeness_pct >= 100 THEN 1 ELSE 0 END) AS profiles_completed, "
+                "avg(completeness_pct) AS avg_completeness FROM career_profiles"
+            ).fetchone()
+
+        def _event_count(event_type):
+            row = events_by_type.get(event_type)
+            return row["cnt"] if row else 0
+
+        new_in_window = 0
+        returning_in_window = 0
+        for r in session_rows:
+            active = r["active_in_window"]
+            # SQLite's MAX(CASE...) on an all-zero group returns 0 (int);
+            # Postgres' psycopg2 returns it the same way -- both are
+            # falsy-safe to compare against truthy 1 directly.
+            if not active:
+                continue
+            if (r["first_seen"] or "") >= since_range:
+                new_in_window += 1
+            else:
+                returning_in_window += 1
+
+        page_view_row = events_by_type.get("page_view")
+
+        return {
+            "total_members": users_row["total_members"] or 0,
+            "new_today": users_row["new_today"] or 0,
+            "new_week": users_row["new_week"] or 0,
+            "new_month": users_row["new_month"] or 0,
+            "registrations_in_range": users_row["registrations_in_range"] or 0,
+            "total_visitors": page_view_row["distinct_sessions"] if page_view_row else 0,
+            "page_views": page_view_row["cnt"] if page_view_row else 0,
+            "top_pages": list(top_pages),
+            "new_sessions": new_in_window,
+            "returning_sessions": returning_in_window,
+            "ci_interest": _event_count("ci_interest"),
+            "ad_interest": _event_count("ad_interest"),
+            "profiles_started": profile_row["profiles_started"] or 0,
+            "profiles_completed": profile_row["profiles_completed"] or 0,
+            "average_completeness": profile_row["avg_completeness"],
+        }
+
     # ---- shared profile (read-only from this service through Phase
     #      2B-1.7A — the P0 onboarding work below is the first time this
     #      service creates/updates a career_profiles row itself, for a
