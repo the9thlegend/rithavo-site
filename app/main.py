@@ -335,7 +335,7 @@ def auth_password_reset(request: Request, token: str = Body(..., embed=True), pa
 #      raises on a malformed/unrecognized event_type; a broken or
 #      malicious beacon must not surface as an error to the visitor. ----
 
-@app.post("/api/analytics/event")
+@app.post("/analytics/event")
 def analytics_event(request: Request, response: Response, event_type: str = Body(..., embed=True), path: str = Body(None, embed=True)):
     if not validate_event_type(event_type):
         return {"status": "ignored"}

@@ -1,6 +1,6 @@
 """
 Pre-Launch Registration / Live Admin Command Center phase — the public,
-unauthenticated client-side analytics beacon (POST /api/analytics/event)
+unauthenticated client-side analytics beacon (POST /analytics/event)
 and the two server-recorded events (registration_completed, login) that
 ride the existing auth routes instead of trusting a client beacon for
 them. Covers exactly this new surface -- the existing auth flows
@@ -11,6 +11,22 @@ covered by test_magic_link_error_ux.py / test_password_auth.py.
 from .conftest import login_via_magic_link
 
 
+def test_beacon_route_is_registered_without_a_hardcoded_api_prefix():
+    """Regression guard: api/index.py (the Vercel entrypoint) strips a
+    leading "/api" from the incoming path before handing off to this
+    app, so every route in app/main.py is intentionally registered
+    WITHOUT that prefix (see api/index.py's own module docstring) --
+    the client calls "/api/analytics/event" at the edge, and that must
+    map to this app's "/analytics/event", never "/api/analytics/event"
+    a second time. This exact mismatch shipped to production once
+    already (caught during Phase G verification) and silently 404'd
+    every beacon call, so it gets a standing test."""
+    from app.main import app as fastapi_app
+    paths = {getattr(route, "path", None) for route in fastapi_app.routes}
+    assert "/analytics/event" in paths
+    assert "/api/analytics/event" not in paths
+
+
 def _event_count(db, event_type):
     with db.connect() as conn:
         return conn.execute(
@@ -19,12 +35,12 @@ def _event_count(db, event_type):
 
 
 # =====================================================================
-# POST /api/analytics/event
+# POST /analytics/event
 # =====================================================================
 
 def test_beacon_accepts_a_valid_event_type(app_and_client, db):
     _, client = app_and_client
-    resp = client.post("/api/analytics/event", json={"event_type": "page_view", "path": "/"})
+    resp = client.post("/analytics/event", json={"event_type": "page_view", "path": "/"})
     assert resp.status_code == 200
     assert _event_count(db, "page_view") == 1
 
@@ -33,7 +49,7 @@ def test_beacon_silently_ignores_an_unrecognized_event_type(app_and_client, db):
     """Never surfaces as an error to the visitor -- and never lands in
     the table, since that would defeat the closed-vocabulary design."""
     _, client = app_and_client
-    resp = client.post("/api/analytics/event", json={"event_type": "purchase_completed", "path": "/"})
+    resp = client.post("/analytics/event", json={"event_type": "purchase_completed", "path": "/"})
     assert resp.status_code == 200
     with db.connect() as conn:
         total = conn.execute("SELECT count(*) AS c FROM analytics_events").fetchone()["c"]
@@ -42,7 +58,7 @@ def test_beacon_silently_ignores_an_unrecognized_event_type(app_and_client, db):
 
 def test_beacon_sets_a_first_party_session_cookie_on_first_call(app_and_client):
     _, client = app_and_client
-    resp = client.post("/api/analytics/event", json={"event_type": "page_view", "path": "/"})
+    resp = client.post("/analytics/event", json={"event_type": "page_view", "path": "/"})
     assert "rv_sid" in resp.cookies
 
 
@@ -52,7 +68,7 @@ def test_beacon_never_trusts_a_client_supplied_session_or_user_id(app_and_client
     the route reads, so it can't be smuggled in this way."""
     _, client = app_and_client
     resp = client.post(
-        "/api/analytics/event",
+        "/analytics/event",
         json={"event_type": "page_view", "path": "/", "session_id": "attacker-chosen", "user_id": 999999},
     )
     assert resp.status_code == 200
@@ -67,7 +83,7 @@ def test_beacon_never_trusts_a_client_supplied_session_or_user_id(app_and_client
 def test_beacon_attaches_the_real_user_id_once_authenticated(app_and_client, db):
     app, client = app_and_client
     user_id = login_via_magic_link(client, app, "beacon-user@example.com")
-    client.post("/api/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
+    client.post("/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
     with db.connect() as conn:
         row = conn.execute(
             "SELECT user_id FROM analytics_events WHERE event_type = 'ci_interest'"

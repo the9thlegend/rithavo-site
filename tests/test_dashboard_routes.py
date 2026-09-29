@@ -135,9 +135,9 @@ def test_page_views_and_most_visited_page_are_computed_correctly(app_and_client,
     app, client = app_and_client
     _make_super_admin(app, db)
 
-    client.post("/api/analytics/event", json={"event_type": "page_view", "path": "/"})
-    client.post("/api/analytics/event", json={"event_type": "page_view", "path": "/"})
-    client.post("/api/analytics/event", json={"event_type": "page_view", "path": "/career/"})
+    client.post("/analytics/event", json={"event_type": "page_view", "path": "/"})
+    client.post("/analytics/event", json={"event_type": "page_view", "path": "/"})
+    client.post("/analytics/event", json={"event_type": "page_view", "path": "/career/"})
 
     login_via_magic_link(client, app, "dash-admin@example.com")
     resp = client.get("/admin/dashboard/summary?range=all")
@@ -150,9 +150,9 @@ def test_ci_and_ad_interest_counts_are_separate(app_and_client, db):
     app, client = app_and_client
     _make_super_admin(app, db)
 
-    client.post("/api/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
-    client.post("/api/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
-    client.post("/api/analytics/event", json={"event_type": "ad_interest", "path": "/career/application-diagnostic/"})
+    client.post("/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
+    client.post("/analytics/event", json={"event_type": "ci_interest", "path": "/career/career-intelligence/"})
+    client.post("/analytics/event", json={"event_type": "ad_interest", "path": "/career/application-diagnostic/"})
 
     login_via_magic_link(client, app, "dash-admin@example.com")
     resp = client.get("/admin/dashboard/summary?range=all")
