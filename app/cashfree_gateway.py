@@ -25,13 +25,16 @@ documentation, Cashfree Activation Readiness phase, September 2026):
     never a re-parsed/re-serialized dict (same requirement as
     Razorpay's own verify_webhook_signature). Confirmed unchanged
     against current docs, header names and formula both exact.
-  - Webhook delivery itself (not this module's concern, an account-
-    level setting) is configured either in the Cashfree Merchant
-    Dashboard or per-order via order_meta.notify_url; this
-    integration relies on the dashboard-level setting (simpler, one
-    config rather than one per order) — the actual webhook URL to
-    register there, once a real account exists, is
-    https://rithavo.com/api/payments/cashfree/webhook.
+  - Webhook delivery: Cashfree webhook phase — every order created
+    here now explicitly sets order_meta.notify_url to this service's
+    own webhook endpoint (https://rithavo.com/api/payments/cashfree/
+    webhook, see _NOTIFY_URL below), per Cashfree's own documented
+    requirement that notify_url be set at order-creation time to
+    reliably receive webhooks for that order. The Cashfree Merchant
+    Dashboard's own account-level webhook URL (Developers > Webhooks)
+    is a separate, independent setting this module doesn't configure
+    or depend on — registering the same URL there too is a dashboard-
+    side step, not something this code does.
 
 Credentials — CASHFREE_APP_ID / CASHFREE_SECRET_KEY / CASHFREE_ENVIRONMENT
 / CASHFREE_WEBHOOK_SECRET — are read from the environment only, never
@@ -82,6 +85,19 @@ _API_VERSION = "2026-01-01"
 _REQUEST_TIMEOUT_SECONDS = 15.0
 
 _PAID_STATUS = "PAID"
+
+# Cashfree webhook phase: the one, permanent, canonical customer-facing
+# domain (never app.rithavo.com, per this whole codebase's own
+# architecture rule) -- set explicitly per order via order_meta.notify_url
+# rather than relying solely on the Cashfree Dashboard's own
+# account-level webhook URL, per Cashfree's documented requirement that
+# notify_url be configured at order-creation time to reliably receive
+# webhooks. Hardcoded, not environment-derived: this gateway adapter has
+# no access to the inbound request (unlike the magic-link email, which
+# builds its own link from request.base_url), and rithavo.com is not a
+# value that would ever legitimately differ across this service's own
+# deployments.
+_NOTIFY_URL = "https://rithavo.com/api/payments/cashfree/webhook"
 
 
 class CashfreeVerificationError(Exception):
@@ -143,6 +159,9 @@ class CashfreeGateway(PaymentGateway):
                 "customer_id": f"rithavo_user_{purchase_id}",
                 "customer_email": user_email,
                 "customer_phone": customer_phone,
+            },
+            "order_meta": {
+                "notify_url": _NOTIFY_URL,
             },
         }
         try:
