@@ -12,6 +12,8 @@
     },
     { "src": "/api/(.*)", "dest": "api/index.py" },
     { "src": "/profile/edit(/.*)?", "dest": "api/index.py" },
+    { "src": "/(?:design-lab|ritanya-handoff|tests|app|\\.claude)(?:/.*)?", "status": 404 },
+    { "src": "/(?:.*/)?[^/]*\\.(?:py|pyc|md|toml|cfg|ini|sql|db|sqlite|txt|json)", "status": 404 },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
