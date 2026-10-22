@@ -36,7 +36,8 @@ def is_denied(path: str) -> bool:
 def test_deny_rules_sit_between_the_function_routes_and_the_catch_all():
     srcs = [r["src"] for r in ROUTES]
     deny = [i for i, r in enumerate(ROUTES) if r.get("status") == 404]
-    assert len(deny) == 2
+    assert len(deny) == 3
+    assert all("dest" not in ROUTES[i] and "continue" not in ROUTES[i] for i in deny)
     assert srcs.index("/api/(.*)") < min(deny)
     assert srcs.index("/profile/edit(/.*)?") < min(deny)
     assert max(deny) < srcs.index("/(.*)", 1)
@@ -55,6 +56,7 @@ def test_internal_directories_and_files_are_denied():
         "/requirements.txt", "/vercel.json",
         "/RITANYA.md", "/DESIGN.md", "/RITANYA-PRODUCTION-MASTER-SPEC.md",
         "/storage/web_platform.db", "/anything/nested/secret.sql",
+        "/.env", "/.env.production", "/.vercelignore", "/.gitignore",
     ]
     assert [p for p in internal if not is_denied(p)] == []
 
@@ -67,6 +69,9 @@ def test_public_pages_and_assets_are_not_denied():
         "/career/career-intelligence/demo/rithavo-demo-recommended-resume.docx",
         "/application-diagnosis/", "/career-intelligence/", "/mentorship/", "/privacy/", "/terms/",
         "/favicon.ico",
+        # ordinary site files that must stay possible later
+        "/robots.txt", "/sitemap.xml", "/manifest.json", "/.well-known/security.txt",
+        "/.well-known/assetlinks.json", "/assets/data/example.json",
     ]
     assert [p for p in public if is_denied(p)] == []
 
@@ -93,7 +98,10 @@ def test_every_public_file_in_the_repo_is_still_served():
 def test_vercelignore_never_lists_what_the_function_or_build_needs():
     lines = [l.strip() for l in (ROOT / ".vercelignore").read_text(encoding="utf-8").splitlines()
              if l.strip() and not l.lstrip().startswith("#")]
-    for needed in ("app/", "app", "api/", "api", "config.py", "requirements.txt", "vercel.json", "*", "*.py", "*.html"):
-        assert needed not in lines, needed
-    for internal in ("design-lab/", "ritanya-handoff/", "tests/", ".claude/"):
+    needed_by_the_function = ("app", "api", "config.py", "requirements.txt", "vercel.json", "assets", "career")
+    for line in lines:
+        bare = line.strip("/")
+        assert bare not in needed_by_the_function, line
+        assert not line.startswith(("*", "!")), line  # no blanket or negated patterns
+    for internal in ("/design-lab/", "/ritanya-handoff/", "/tests/", "/.claude/"):
         assert internal in lines, internal

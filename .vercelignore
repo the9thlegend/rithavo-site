@@ -1,19 +1,19 @@
 # Internal material that must never be part of a customer-facing deployment.
-# Defence in depth only: the routing rules in vercel.json (404 for these paths)
-# are the control that is checked against a real deployment.
+# Defence in depth only: the 404 routes in vercel.json are the control that is
+# checked against a real deployment. Patterns are anchored to the project root.
 #
 # Do NOT list app/, api/, config.py, requirements.txt or vercel.json here: the
 # Python function and the build need them.
-design-lab/
-ritanya-handoff/
-tests/
-.claude/
-dev_server.py
-run_dev_server.py
-run_local_with_razorpay.py
-register_test_webhook.py
-tokens.css
-RITANYA*.md
-DESIGN*.md
-assets/hero/Image to use.png
-assets/hero/Reference Image.png
+/design-lab/
+/ritanya-handoff/
+/tests/
+/.claude/
+/dev_server.py
+/run_dev_server.py
+/run_local_with_razorpay.py
+/register_test_webhook.py
+/tokens.css
+/RITANYA*.md
+/DESIGN*.md
+/assets/hero/Image to use.png
+/assets/hero/Reference Image.png
