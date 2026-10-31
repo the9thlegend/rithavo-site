@@ -18,11 +18,29 @@ confused with each other even if both are ever set in the same shell.
 
 import os
 import secrets
+import tempfile
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
-DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", "./storage/web_platform.db"))
-DATABASE_URL = os.environ.get("RITHAVO_WEB_DATABASE_URL")  # shared Postgres, prod only
+
+# Preview / Development isolation. Vercel sets VERCEL_ENV to "production",
+# "preview" or "development" for every deployment. A Preview deployment must
+# NEVER open the production database: before this guard, Preview functions
+# read the same RITHAVO_WEB_DATABASE_URL name and ran init_schema() against
+# the live Supabase project. Here a non-production Vercel deployment ignores
+# RITHAVO_WEB_DATABASE_URL entirely and uses either an explicitly separate
+# RITHAVO_PREVIEW_DATABASE_URL (opt-in) or a throwaway SQLite file in the
+# temp directory (/tmp on Vercel, the only writable path). Only an exact
+# "preview"/"development" value isolates, so production and local runs
+# (VERCEL_ENV unset or "production") behave exactly as before.
+ISOLATED_DEPLOYMENT = os.environ.get("VERCEL_ENV") in ("preview", "development")
+
+if ISOLATED_DEPLOYMENT:
+    DATABASE_URL = os.environ.get("RITHAVO_PREVIEW_DATABASE_URL")  # never the production URL
+    DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", str(Path(tempfile.gettempdir()) / "rithavo_preview.db")))
+else:
+    DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", "./storage/web_platform.db"))
+    DATABASE_URL = os.environ.get("RITHAVO_WEB_DATABASE_URL")  # shared Postgres, prod only
 
 # Phase 1 correction (Phase 0.75 finding): the shared Supabase pooler does
 # NOT enforce TLS server-side — it will accept sslmode=disable just as
@@ -89,7 +107,7 @@ CARD_APP_BASE_URL = os.environ.get("RITHAVO_CARD_APP_URL", "https://app.rithavo.
 # pointing this service at production and never wrongly forces Secure
 # during local http://127.0.0.1 development or the SQLite-backed test
 # suite (both would silently drop the cookie, breaking every session).
-SESSION_COOKIE_HTTPS_ONLY = bool(DATABASE_URL)
+SESSION_COOKIE_HTTPS_ONLY = bool(DATABASE_URL) or ISOLATED_DEPLOYMENT  # previews are served over HTTPS
 
 # Home/Explore/Admin Integration Phase — rithavo.com is the one
 # canonical customer-facing surface; app.rithavo.com is now an
