@@ -76,11 +76,11 @@ def test_dry_run_reports_and_changes_nothing(pending, monkeypatch):
 def test_apply_confirms_a_paid_order_exactly_once(pending, monkeypatch):
     app, client, db, customer_id, purchase_id, order_id = pending
     _order_status(monkeypatch, {order_id: "PAID"})
-    first = client.post("/admin/payments/cashfree/reconcile?apply=true").json()
+    first = client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()
     assert first["counts"] == {"confirmed": 1}
     assert db.get_purchase(purchase_id)["payment_status"] == "SUCCEEDED"
     assert _entitlements(db, customer_id) == 1
-    second = client.post("/admin/payments/cashfree/reconcile?apply=true").json()
+    second = client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()
     assert second["checked"] == 0                      # no longer unresolved
     assert _entitlements(db, customer_id) == 1
 
@@ -88,7 +88,7 @@ def test_apply_confirms_a_paid_order_exactly_once(pending, monkeypatch):
 def test_a_late_webhook_after_reconciliation_does_not_double_grant(pending, monkeypatch):
     app, client, db, customer_id, purchase_id, order_id = pending
     _order_status(monkeypatch, {order_id: "PAID"})
-    client.post("/admin/payments/cashfree/reconcile?apply=true")
+    client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply")
     from .test_cashfree_webhook import _signed_webhook_request
     resp = _signed_webhook_request(client, _success_payload(order_id))
     assert resp.status_code == 200 and resp.json().get("already_confirmed") is True
@@ -99,7 +99,7 @@ def test_unpaid_and_unknown_statuses_are_left_alone(pending, monkeypatch):
     app, client, db, customer_id, purchase_id, order_id = pending
     for status in ("ACTIVE", "SOMETHING_NEW"):
         _order_status(monkeypatch, {order_id: status})
-        report = client.post("/admin/payments/cashfree/reconcile?apply=true").json()
+        report = client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()
         assert report["counts"] == {"left_unchanged": 1}
         assert db.get_purchase(purchase_id)["payment_status"] == "PENDING"
 
@@ -109,7 +109,7 @@ def test_expired_order_is_marked_failed_only_when_applied(pending, monkeypatch):
     _order_status(monkeypatch, {order_id: "EXPIRED"})
     assert client.post("/admin/payments/cashfree/reconcile").json()["counts"] == {"would_mark_failed": 1}
     assert db.get_purchase(purchase_id)["payment_status"] == "PENDING"
-    assert client.post("/admin/payments/cashfree/reconcile?apply=true").json()["counts"] == {"marked_failed": 1}
+    assert client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()["counts"] == {"marked_failed": 1}
     assert db.get_purchase(purchase_id)["payment_status"] == "FAILED"
     assert _entitlements(db, customer_id) == 0
 
@@ -119,14 +119,14 @@ def test_a_failed_purchase_that_later_turns_out_paid_is_still_honoured(pending, 
     db.fail_ad_purchase(purchase_id)                 # e.g. an early "payment failed" webhook on the same order
     assert db.get_purchase(purchase_id)["payment_status"] == "FAILED"
     _order_status(monkeypatch, {order_id: "PAID"})
-    assert client.post("/admin/payments/cashfree/reconcile?apply=true").json()["counts"] == {"confirmed": 1}
+    assert client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()["counts"] == {"confirmed": 1}
     assert _entitlements(db, customer_id) == 1
 
 
 def test_gateway_errors_change_nothing(pending, monkeypatch):
     app, client, db, customer_id, purchase_id, order_id = pending
     _order_status(monkeypatch, fail=True)
-    report = client.post("/admin/payments/cashfree/reconcile?apply=true").json()
+    report = client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()
     assert report["counts"] == {"check_failed": 1}
     assert db.get_purchase(purchase_id)["payment_status"] == "PENDING"
 
@@ -144,7 +144,7 @@ def test_other_gateways_orders_are_never_checked(pending, monkeypatch):
     with db.connect() as conn:
         conn.execute("UPDATE purchases SET gateway_reference = ? WHERE id = ?", ("order_razorpay_style", purchase_id))
     _order_status(monkeypatch, default="PAID")
-    assert client.post("/admin/payments/cashfree/reconcile?apply=true").json()["checked"] == 0
+    assert client.post("/admin/payments/cashfree/reconcile?apply=true&confirm=apply").json()["checked"] == 0
 
 
 # ---- webhook: malformed but correctly signed bodies ----

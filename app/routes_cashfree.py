@@ -180,22 +180,31 @@ async def cashfree_webhook(request: Request):
 
     if event_type in _CASHFREE_FAILURE_EVENTS:
         db.fail_ad_purchase(purchase["id"])  # product-agnostic despite the name — see its own docstring
+        # fail_ad_purchase only moves CREATED/PENDING, so a late or replayed failure event for
+        # a purchase that is already paid (or refunded) changes nothing; say so truthfully.
+        if db.get_purchase(purchase["id"])["payment_status"] != "FAILED":
+            logger.info("cashfree_webhook failure_ignored purchase_id=%s", purchase["id"])
+            return {"status": "ignored", "reason": "state_conflict"}
         return {"status": "failed", "purchase_id": purchase["id"]}
 
     return {"status": "ignored", "event": event_type}
 
 
 @router.post("/admin/payments/cashfree/reconcile")
-def reconcile_cashfree(request: Request, apply: bool = False, limit: int = 50):
-    """Super Admin only. Asks Cashfree for the status of every PENDING/FAILED
-    purchase that has a Cashfree order, so a payment whose webhook was missed
-    and whose buyer never returned is still honoured. DRY RUN by default:
-    pass apply=true to confirm PAID orders (the same idempotent confirm the
-    webhook and the return page use) and to mark EXPIRED/TERMINATED PENDING
-    orders FAILED. The report contains purchase ids and statuses only, no
-    emails, phone numbers or payment details."""
-    require_super_admin(request)
+def reconcile_cashfree(request: Request, apply: bool = False, confirm: str = "", limit: int = 25, before_id: int = None):
+    """Super Admin only. Asks Cashfree for the status of PENDING/FAILED Cashfree
+    purchases, so a payment whose webhook was missed and whose buyer never
+    returned is still honoured. DRY RUN by default. Acting needs BOTH
+    apply=true and confirm=apply (a typo in one cannot change anything).
+    Bounded: `limit` orders per call (max 100), newest first; use the returned
+    next_before_id as before_id for the next page. The report holds purchase
+    ids and statuses only, no emails, phone numbers or payment details."""
+    admin_id = require_super_admin(request)
     gateway = request.app.state.payment_gateway
     if getattr(gateway, "name", None) != "cashfree":
         raise HTTPException(status_code=404, detail="Not found.")
-    return reconcile_cashfree_purchases(request.app.state.db, gateway, apply=apply, limit=max(1, min(limit, 200)))
+    if apply and confirm != "apply":
+        raise HTTPException(status_code=400, detail="To change anything pass apply=true and confirm=apply.")
+    return reconcile_cashfree_purchases(
+        request.app.state.db, gateway, apply=apply and confirm == "apply", limit=limit, before_id=before_id, actor=admin_id,
+    )
