@@ -35,7 +35,9 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 from .cashfree_gateway import CashfreeVerificationError
+from .reconcile import reconcile_cashfree_purchases
 from .security import owned_purchase, require_user
+from .super_admin import require_super_admin
 
 router = APIRouter()
 
@@ -137,7 +139,19 @@ async def cashfree_webhook(request: Request):
         logger.warning("cashfree_webhook invalid_signature")
         raise HTTPException(status_code=400, detail="Invalid signature.")
 
-    payload = json.loads(raw_body)
+    # The signature above proves Cashfree sent these exact bytes, but a body
+    # that is not a JSON object must still be a clean 400, never a 500.
+    try:
+        payload = json.loads(raw_body)
+    except ValueError:
+        logger.warning("cashfree_webhook malformed_json")
+        raise HTTPException(status_code=400, detail="Invalid payload.")
+    if not isinstance(payload, dict) or not isinstance(payload.get("data") or {}, dict)             or not isinstance((payload.get("data") or {}).get("order") or {}, dict):
+        logger.warning("cashfree_webhook unexpected_shape")
+        raise HTTPException(status_code=400, detail="Invalid payload.")
+    # Not enforced as a hard gate (an unknown version must not make Cashfree
+    # retry forever), but visible in the logs so a format change is noticed.
+    logger.info("cashfree_webhook version=%s", request.headers.get("x-webhook-version", "-")[:20])
     event_type = payload.get("type", "")
     data = payload.get("data") or {}
     order_id = (data.get("order") or {}).get("order_id")
@@ -169,3 +183,19 @@ async def cashfree_webhook(request: Request):
         return {"status": "failed", "purchase_id": purchase["id"]}
 
     return {"status": "ignored", "event": event_type}
+
+
+@router.post("/admin/payments/cashfree/reconcile")
+def reconcile_cashfree(request: Request, apply: bool = False, limit: int = 50):
+    """Super Admin only. Asks Cashfree for the status of every PENDING/FAILED
+    purchase that has a Cashfree order, so a payment whose webhook was missed
+    and whose buyer never returned is still honoured. DRY RUN by default:
+    pass apply=true to confirm PAID orders (the same idempotent confirm the
+    webhook and the return page use) and to mark EXPIRED/TERMINATED PENDING
+    orders FAILED. The report contains purchase ids and statuses only, no
+    emails, phone numbers or payment details."""
+    require_super_admin(request)
+    gateway = request.app.state.payment_gateway
+    if getattr(gateway, "name", None) != "cashfree":
+        raise HTTPException(status_code=404, detail="Not found.")
+    return reconcile_cashfree_purchases(request.app.state.db, gateway, apply=apply, limit=max(1, min(limit, 200)))

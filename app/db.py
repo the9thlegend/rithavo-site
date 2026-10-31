@@ -1437,6 +1437,18 @@ class Database:
                 "SELECT * FROM purchases WHERE gateway_reference = ?", (gateway_reference,)
             ).fetchone()
 
+    def list_unresolved_cashfree_purchases(self, limit: int = 50) -> list:
+        """Reconciliation input: purchases a Cashfree order was created for
+        (our own order ids always start "rithavo_"; Razorpay's never do)
+        that are not SUCCEEDED yet -- PENDING, or FAILED (which stays
+        confirmable, see _confirm_purchase). Newest first, bounded. Read-only."""
+        with self.connect() as conn:
+            return conn.execute(
+                "SELECT * FROM purchases WHERE payment_status IN ('PENDING', 'FAILED') "
+                "AND gateway_reference IS NOT NULL AND substr(gateway_reference, 1, 8) = 'rithavo_' "
+                "ORDER BY id DESC LIMIT ?", (int(limit),),
+            ).fetchall()
+
     def list_purchases_for_user(self, user_id: int) -> list:
         with self.connect() as conn:
             return conn.execute(
