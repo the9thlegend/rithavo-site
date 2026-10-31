@@ -1,10 +1,13 @@
 """
 Deployment exposure guard (local simulation).
 
-vercel.json answers 404 for internal paths before the catch-all route can
-serve them as static files. These tests evaluate the route patterns locally
-with Python's `re`; they prove the rules are written and ordered as intended,
-NOT how Vercel behaves. Real behaviour is checked against a Preview deployment.
+vercel.json sends internal paths to a destination that does not exist, before
+the catch-all route can serve them as static files. (A status-only
+`"status": 404` route was tried first: on a real Preview it set the 404 status
+but still returned the file's contents, so it is NOT used.) These tests
+evaluate the route patterns locally with Python's `re`; they prove the rules
+are written and ordered as intended, NOT how Vercel behaves. Real behaviour is
+checked against a Preview deployment.
 """
 
 import json
@@ -14,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ROUTES = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))["routes"]
 
+BLOCK = "/__blocked__"  # must never exist as a file
 INTERNAL_DIRS = ("design-lab", "ritanya-handoff", "tests", "app", ".claude")
 PUBLIC_SUFFIXES = {".html", ".css", ".js", ".png", ".docx"}
 
@@ -30,14 +34,16 @@ def first_match(path: str):
 
 def is_denied(path: str) -> bool:
     route = first_match(path)
-    return bool(route) and route.get("status") == 404 and "dest" not in route
+    return bool(route) and route.get("dest") == BLOCK
 
 
 def test_deny_rules_sit_between_the_function_routes_and_the_catch_all():
     srcs = [r["src"] for r in ROUTES]
-    deny = [i for i, r in enumerate(ROUTES) if r.get("status") == 404]
+    deny = [i for i, r in enumerate(ROUTES) if r.get("dest") == BLOCK]
     assert len(deny) == 3
-    assert all("dest" not in ROUTES[i] and "continue" not in ROUTES[i] for i in deny)
+    assert all("status" not in ROUTES[i] and "continue" not in ROUTES[i] for i in deny)
+    assert not (ROOT / BLOCK.lstrip("/")).exists()
+    assert not any(r.get("status") == 404 and "dest" not in r for r in ROUTES)
     assert srcs.index("/api/(.*)") < min(deny)
     assert srcs.index("/profile/edit(/.*)?") < min(deny)
     assert max(deny) < srcs.index("/(.*)", 1)
