@@ -42,6 +42,20 @@ else:
     DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", "./storage/web_platform.db"))
     DATABASE_URL = os.environ.get("RITHAVO_WEB_DATABASE_URL")  # shared Postgres, prod only
 
+if ISOLATED_DEPLOYMENT and DATABASE_URL:
+    # Fail closed if the "separate" Preview database is really the production one (same server,
+    # port, database and user; a shared pooler host differs by user, so a different Supabase
+    # project is accepted).
+    from urllib.parse import urlparse as _urlparse
+
+    def _target(url):
+        parsed = _urlparse(url)
+        return (parsed.hostname, parsed.port, (parsed.path or "").lstrip("/"), parsed.username)
+
+    _production_url = os.environ.get("RITHAVO_WEB_DATABASE_URL")
+    if _production_url and _target(_production_url) == _target(DATABASE_URL):
+        raise RuntimeError("RITHAVO_PREVIEW_DATABASE_URL must not point at the production database")
+
 # Phase 1 correction (Phase 0.75 finding): the shared Supabase pooler does
 # NOT enforce TLS server-side — it will accept sslmode=disable just as
 # happily as sslmode=require. psycopg2's own default (sslmode=prefer)
