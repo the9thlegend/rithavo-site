@@ -1,15 +1,21 @@
 """
 Deployment exposure guard (local simulation).
 
-vercel.json sends internal paths to the Python function (which answers 404 for
-any path it has no route for) before the catch-all route can serve them as
-static files. Two other shapes were tried first and FAILED on a real Preview,
-so they are not used: a status-only `"status": 404` route (sets the status but
-still returns the file's contents) and a `dest` that does not exist (the file
-is still served). These tests
-evaluate the route patterns locally with Python's `re`; they prove the rules
-are written and ordered as intended, NOT how Vercel behaves. Real behaviour is
-checked against a Preview deployment.
+vercel.json serves only an allowlist of public paths as static files: URLs
+with no dot in them (pages / directories), a fixed set of asset extensions,
+and a few named root files. Everything else, including the internal
+directories, is handed to the Python function, which answers 404 for any path
+it has no route for.
+
+Shapes that were tried first and FAILED on real Preview deployments, so they
+are not used:
+  * a status-only `"status": 404` route (sets the status, still returns the file);
+  * a `dest` that does not exist (the file is still served);
+  * a deny-list by extension (`/config.py/` with a trailing slash still served the file).
+
+These tests evaluate the route patterns locally with Python's `re`; they prove
+the rules are written and ordered as intended, NOT how Vercel behaves. Real
+behaviour is checked against a Preview deployment.
 """
 
 import json
@@ -19,7 +25,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ROUTES = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))["routes"]
 
-FUNCTION_SRCS = {"/api/(.*)", "/profile/edit(/.*)?"}  # real function routes, not guards
+FUNCTION = "api/index.py"
+STATIC = "/$1"
+FUNCTION_SRCS = {"/api/(.*)", "/profile/edit(/.*)?"}  # the real function routes
 INTERNAL_DIRS = ("design-lab", "ritanya-handoff", "tests", "app", ".claude")
 PUBLIC_SUFFIXES = {".html", ".css", ".js", ".png", ".docx"}
 
@@ -34,72 +42,81 @@ def first_match(path: str):
     return None
 
 
-def is_denied(path: str) -> bool:
+def served_as_file(path: str) -> bool:
     route = first_match(path)
-    return bool(route) and route.get("dest") == "api/index.py" and route["src"] not in FUNCTION_SRCS
+    return bool(route) and route.get("dest") == STATIC
 
 
-def test_deny_rules_sit_between_the_function_routes_and_the_catch_all():
+def goes_to_function(path: str) -> bool:
+    route = first_match(path)
+    return bool(route) and route.get("dest") == FUNCTION
+
+
+def test_rule_shape_and_order():
     srcs = [r["src"] for r in ROUTES]
-    deny = [i for i, r in enumerate(ROUTES) if r.get("dest") == "api/index.py" and r["src"] not in FUNCTION_SRCS]
-    assert len(deny) == 3
-    assert all("status" not in ROUTES[i] and "continue" not in ROUTES[i] for i in deny)
     assert not any(r.get("status") == 404 and "dest" not in r for r in ROUTES)  # status-only 404 leaks bodies
-    assert srcs.index("/api/(.*)") < min(deny)
-    assert srcs.index("/profile/edit(/.*)?") < min(deny)
-    assert max(deny) < srcs.index("/(.*)", 1)
+    assert all("continue" not in r for r in ROUTES)
+    assert srcs[1:3] == ["/api/(.*)", "/profile/edit(/.*)?"]
+    assert ROUTES[-1] == {"src": "/(.*)", "dest": FUNCTION}  # anything not allowlisted ends at the function
+    internal_rule = next(i for i, r in enumerate(ROUTES) if "design-lab" in r["src"])
+    first_static = next(i for i, r in enumerate(ROUTES) if r.get("dest") == STATIC)
+    assert 2 < internal_rule < first_static  # the internal-directory rule is evaluated before any static rule
 
 
-def test_internal_directories_and_files_are_denied():
+def test_internal_paths_and_bypass_variants_never_reach_the_file_system():
     internal = [
-        "/design-lab/ritanya/guide-assistant.html",
-        "/design-lab/ritanya/portrait/ritanya-hero.webp",
-        "/design-lab/", "/design-lab",
-        "/ritanya-handoff/00-G0-PROVENANCE-AND-RIGHTS.md",
-        "/tests/conftest.py", "/tests/test_ritanya_chat.py",
-        "/app/main.py", "/app/ritanya_chat.py", "/app",
-        "/.claude/launch.json",
+        "/design-lab/ritanya/guide-assistant.html", "/design-lab/ritanya/portrait/ritanya-hero.webp",
+        "/design-lab/", "/design-lab", "/ritanya-handoff/00-G0-PROVENANCE-AND-RIGHTS.md",
+        "/tests/conftest.py", "/app/main.py", "/app/ritanya_chat.py", "/app", "/.claude/launch.json",
         "/config.py", "/dev_server.py", "/run_dev_server.py", "/register_test_webhook.py",
-        "/requirements.txt", "/vercel.json",
-        "/RITANYA.md", "/DESIGN.md", "/RITANYA-PRODUCTION-MASTER-SPEC.md",
-        "/storage/web_platform.db", "/anything/nested/secret.sql",
-        "/.env", "/.env.production", "/.vercelignore", "/.gitignore",
+        "/requirements.txt", "/vercel.json", "/RITANYA.md", "/DESIGN.md", "/RITANYA-PRODUCTION-MASTER-SPEC.md",
+        "/storage/web_platform.db", "/anything/nested/secret.sql", "/.env", "/.env.production",
+        "/.vercelignore", "/.gitignore",
+        # variants seen or likely in the wild
+        "/config.py/", "/config.py//", "/requirements.txt/", "/vercel.json/", "/.env/", "/CONFIG.PY", "/Config.PY/",
+        "/config.py/x", "/notes.md/", "/x.py.txt", "/app/../config.py", "//app/main.py", "/%61pp/main.py",
+        "/%2e%2e/config.py", "/./config.py", "/a/./b/../config.py", "/config.py%20", "/config.py;x",
     ]
-    assert [p for p in internal if not is_denied(p)] == []
+    assert [p for p in internal if served_as_file(p)] == []
+    assert [p for p in internal if not goes_to_function(p)] == []
 
 
-def test_public_pages_and_assets_are_not_denied():
+def test_public_pages_and_assets_are_served():
     public = [
-        "/", "/career/", "/career/index.html", "/about/", "/home/", "/profile/", "/sign-in/",
+        "/", "/career", "/career/", "/career/index.html", "/about/", "/home/", "/profile/", "/sign-in/",
         "/styles.css", "/script.js", "/app-shell.js", "/app-shell.css", "/explore-feed.js",
-        "/assets/hero/hero-final.png", "/CNAME",
+        "/assets/hero/hero-final.png", "/CNAME", "/index.html",
         "/career/career-intelligence/demo/rithavo-demo-recommended-resume.docx",
-        "/application-diagnosis/", "/career-intelligence/", "/mentorship/", "/privacy/", "/terms/",
-        "/favicon.ico",
-        # ordinary site files that must stay possible later
-        "/robots.txt", "/sitemap.xml", "/manifest.json", "/.well-known/security.txt",
-        "/.well-known/assetlinks.json", "/assets/data/example.json",
+        "/career/career-intelligence/demo/", "/application-diagnosis/", "/career-intelligence/",
+        "/mentorship/", "/privacy/", "/terms/", "/reset-password/", "/onboarding/",
+        "/favicon.ico", "/robots.txt", "/sitemap.xml", "/img/logo.svg", "/fonts/x.woff2",
     ]
-    assert [p for p in public if is_denied(p)] == []
+    assert [p for p in public if not served_as_file(p)] == []
+
+
+def test_unlisted_file_types_are_not_served():
+    for path in ("/manifest.json", "/data.json", "/notes.txt", "/archive.zip", "/x.map", "/.well-known/security.txt"):
+        assert goes_to_function(path), path
 
 
 def test_function_routes_are_never_shadowed():
     assert first_match("/api/health")["src"] == "/api/(.*)"
     assert first_match("/profile/edit")["src"] == "/profile/edit(/.*)?"
     for path in ("/api/health", "/api/ritanya/chat", "/api/auth/start", "/api/analytics/event",
-                 "/profile/edit", "/profile/edit/anything"):
-        assert first_match(path)["dest"] == "api/index.py", path
+                 "/profile/edit", "/profile/edit/anything", "/api/diagnosis/price"):
+        assert first_match(path)["dest"] == FUNCTION, path
+        assert first_match(path)["src"] in FUNCTION_SRCS, path
 
 
 def test_every_public_file_in_the_repo_is_still_served():
-    """Walk the checkout: every site file outside the internal directories must reach the catch-all."""
+    """Walk the checkout: every site file outside the internal directories must be served."""
     blocked = []
     for p in ROOT.rglob("*"):
         rel = p.relative_to(ROOT)
         if not p.is_file() or rel.parts[0] in INTERNAL_DIRS or rel.parts[0] in {".git", "storage", "__pycache__", ".vercel", "node_modules"}:
             continue
         if p.suffix.lower() in PUBLIC_SUFFIXES or p.name == "CNAME":
-            if is_denied("/" + rel.as_posix()):
+            if not served_as_file("/" + rel.as_posix()):
                 blocked.append(rel.as_posix())
     assert blocked == []
 
@@ -119,8 +136,9 @@ def test_vercelignore_never_lists_what_the_function_or_build_needs():
 def test_the_function_has_no_route_for_any_denied_path(app_and_client):
     """Denied paths are handed to the function; it must answer 404 and never a file or page."""
     _, client = app_and_client
-    for path in ("/config.py", "/app/main.py", "/app", "/tests/conftest.py", "/requirements.txt", "/vercel.json",
-                 "/design-lab/", "/ritanya-handoff/x.md", "/.claude/launch.json", "/.env", "/dev_server.py"):
+    for path in ("/config.py", "/config.py/", "/app/main.py", "/app", "/tests/conftest.py", "/requirements.txt",
+                 "/vercel.json", "/design-lab/", "/ritanya-handoff/x.md", "/.claude/launch.json", "/.env",
+                 "/dev_server.py", "/manifest.json", "/notes.txt"):
         response = client.get(path)
         assert response.status_code == 404, path
         assert "import " not in response.text and "RITHAVO_" not in response.text, path
