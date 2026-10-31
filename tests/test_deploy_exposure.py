@@ -1,10 +1,12 @@
 """
 Deployment exposure guard (local simulation).
 
-vercel.json sends internal paths to a destination that does not exist, before
-the catch-all route can serve them as static files. (A status-only
-`"status": 404` route was tried first: on a real Preview it set the 404 status
-but still returned the file's contents, so it is NOT used.) These tests
+vercel.json sends internal paths to the Python function (which answers 404 for
+any path it has no route for) before the catch-all route can serve them as
+static files. Two other shapes were tried first and FAILED on a real Preview,
+so they are not used: a status-only `"status": 404` route (sets the status but
+still returns the file's contents) and a `dest` that does not exist (the file
+is still served). These tests
 evaluate the route patterns locally with Python's `re`; they prove the rules
 are written and ordered as intended, NOT how Vercel behaves. Real behaviour is
 checked against a Preview deployment.
@@ -17,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ROUTES = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))["routes"]
 
-BLOCK = "/__blocked__"  # must never exist as a file
+FUNCTION_SRCS = {"/api/(.*)", "/profile/edit(/.*)?"}  # real function routes, not guards
 INTERNAL_DIRS = ("design-lab", "ritanya-handoff", "tests", "app", ".claude")
 PUBLIC_SUFFIXES = {".html", ".css", ".js", ".png", ".docx"}
 
@@ -34,16 +36,15 @@ def first_match(path: str):
 
 def is_denied(path: str) -> bool:
     route = first_match(path)
-    return bool(route) and route.get("dest") == BLOCK
+    return bool(route) and route.get("dest") == "api/index.py" and route["src"] not in FUNCTION_SRCS
 
 
 def test_deny_rules_sit_between_the_function_routes_and_the_catch_all():
     srcs = [r["src"] for r in ROUTES]
-    deny = [i for i, r in enumerate(ROUTES) if r.get("dest") == BLOCK]
+    deny = [i for i, r in enumerate(ROUTES) if r.get("dest") == "api/index.py" and r["src"] not in FUNCTION_SRCS]
     assert len(deny) == 3
     assert all("status" not in ROUTES[i] and "continue" not in ROUTES[i] for i in deny)
-    assert not (ROOT / BLOCK.lstrip("/")).exists()
-    assert not any(r.get("status") == 404 and "dest" not in r for r in ROUTES)
+    assert not any(r.get("status") == 404 and "dest" not in r for r in ROUTES)  # status-only 404 leaks bodies
     assert srcs.index("/api/(.*)") < min(deny)
     assert srcs.index("/profile/edit(/.*)?") < min(deny)
     assert max(deny) < srcs.index("/(.*)", 1)
@@ -83,6 +84,8 @@ def test_public_pages_and_assets_are_not_denied():
 
 
 def test_function_routes_are_never_shadowed():
+    assert first_match("/api/health")["src"] == "/api/(.*)"
+    assert first_match("/profile/edit")["src"] == "/profile/edit(/.*)?"
     for path in ("/api/health", "/api/ritanya/chat", "/api/auth/start", "/api/analytics/event",
                  "/profile/edit", "/profile/edit/anything"):
         assert first_match(path)["dest"] == "api/index.py", path
@@ -111,3 +114,13 @@ def test_vercelignore_never_lists_what_the_function_or_build_needs():
         assert not line.startswith(("*", "!")), line  # no blanket or negated patterns
     for internal in ("/design-lab/", "/ritanya-handoff/", "/tests/", "/.claude/"):
         assert internal in lines, internal
+
+
+def test_the_function_has_no_route_for_any_denied_path(app_and_client):
+    """Denied paths are handed to the function; it must answer 404 and never a file or page."""
+    _, client = app_and_client
+    for path in ("/config.py", "/app/main.py", "/app", "/tests/conftest.py", "/requirements.txt", "/vercel.json",
+                 "/design-lab/", "/ritanya-handoff/x.md", "/.claude/launch.json", "/.env", "/dev_server.py"):
+        response = client.get(path)
+        assert response.status_code == 404, path
+        assert "import " not in response.text and "RITHAVO_" not in response.text, path

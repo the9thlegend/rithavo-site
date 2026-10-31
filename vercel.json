@@ -12,9 +12,9 @@
     },
     { "src": "/api/(.*)", "dest": "api/index.py" },
     { "src": "/profile/edit(/.*)?", "dest": "api/index.py" },
-    { "src": "/(?:design-lab|ritanya-handoff|tests|app|\\.claude)(?:/.*)?", "dest": "/__blocked__" },
-    { "src": "/(?:requirements\\.txt|vercel\\.json|\\.vercelignore|\\.gitignore|\\.env(?:\\..*)?)", "dest": "/__blocked__" },
-    { "src": "/(?:.*/)?[^/]*\\.(?:py|pyc|md|toml|cfg|ini|sql|db|sqlite)", "dest": "/__blocked__" },
+    { "src": "/(?:design-lab|ritanya-handoff|tests|app|\\.claude)(?:/.*)?", "dest": "api/index.py" },
+    { "src": "/(?:requirements\\.txt|vercel\\.json|\\.vercelignore|\\.gitignore|\\.env(?:\\..*)?)", "dest": "api/index.py" },
+    { "src": "/(?:.*/)?[^/]*\\.(?:py|pyc|md|toml|cfg|ini|sql|db|sqlite)", "dest": "api/index.py" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
