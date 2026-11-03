@@ -41,12 +41,17 @@ def mounted_client(monkeypatch, mode="deterministic", paused=None):
 
 # ------------------------------------------------------------------ the flag
 
-def test_flag_off_registers_no_route_so_no_launcher_can_appear(monkeypatch):
+def test_flag_off_has_no_chat_route_and_status_says_disabled_from_the_edge_cache(monkeypatch):
     for mode in (None, "off", "", "true", "DETERMINISTIC-ish"):
         registered, client = mounted_client(monkeypatch, mode)
         assert registered is False
-        assert client.get("/ritanya/status").status_code == 404
+        # no chat route at all: nothing can be asked, nothing is processed
         assert client.post("/ritanya/chat", json={"message": "hi"}).status_code == 404
+        # the page's one question per tab gets a cacheable "disabled" (no function run per new tab), never a launcher
+        r = client.get("/ritanya/status")
+        assert r.status_code == 200 and r.json() == {"enabled": False}
+        assert "s-maxage=300" in r.headers["cache-control"] and "public" in r.headers["cache-control"] and "no-store" not in r.headers["cache-control"]
+        assert r.headers["x-content-type-options"] == "nosniff" and "set-cookie" not in r.headers
 
 
 def test_flag_on_serves_status_with_reviewed_text_only(monkeypatch):
@@ -68,12 +73,18 @@ def test_flag_on_serves_status_with_reviewed_text_only(monkeypatch):
         assert action["canonical"] == "https://rithavo.com" + action["href"]
 
 
-def test_kill_switch_hides_the_launcher_immediately(monkeypatch):
+def test_kill_switch_hides_the_launcher_and_stops_chat(monkeypatch):
     registered, client = mounted_client(monkeypatch, paused="true")
     r = client.get("/ritanya/status")
     assert r.status_code == 200 and r.json() == {"enabled": False}
-    assert "no-store" in r.headers["cache-control"]
+    assert "s-maxage" in r.headers["cache-control"]          # cacheable: the state changes only with a new deployment
     assert client.post("/ritanya/chat", json={"message": "hi"}).status_code == 503
+
+
+def test_enabled_status_keeps_its_short_cache(monkeypatch):
+    registered, client = mounted_client(monkeypatch)
+    cc = client.get("/ritanya/status").headers["cache-control"]
+    assert "s-maxage=60" in cc and "max-age=60" in cc
 
 
 # ------------------------------------------------------------------ starters

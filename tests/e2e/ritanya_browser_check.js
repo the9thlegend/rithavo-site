@@ -53,13 +53,13 @@ async function main() {
   const requests = [];
   const collect = () => events.filter((e) => e.sessionId === sessionId && e.method === "Network.requestWillBeSent").map((e) => e.params.request);
 
-  // ---------------------------------------------------------------- OFF: nothing is shown and no route exists
+  // ---------------------------------------------------------------- OFF: nothing is shown and there is no chat route
   if (MODE === "off") {
     await goto(BASE + "/career/");
     check("flag off: no launcher is rendered on a public page", await evalJs(`!document.querySelector('.rtn-launcher') && !document.querySelector('.rtn-root')`));
-    const st = await evalJs(`fetch('/api/ritanya/status',{credentials:'omit'}).then(r=>r.status)`);
+    const st = await evalJs(`fetch('/api/ritanya/status',{credentials:'omit'}).then(async r=>({s:r.status,cc:r.headers.get('cache-control'),j:await r.json()}))`);
     const chat = await evalJs(`fetch('/api/ritanya/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'hi'}),credentials:'omit'}).then(r=>r.status)`);
-    check("flag off: /status and /chat do not exist (404)", st === 404 && chat === 404, `${st}/${chat}`);
+    check("flag off: status answers {enabled:false} with an edge-cacheable header, and the chat route does not exist (404)", st.s === 200 && st.j.enabled === false && /s-maxage=300/.test(st.cc || "") && chat === 404, `${st.s} ${st.cc} / chat ${chat}`);
     await goto(BASE + "/home/");
     check("flag off: no launcher on an app page either", await evalJs(`!document.querySelector('.rtn-launcher')`));
     ws.close(); chrome.kill();

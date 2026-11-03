@@ -11,9 +11,12 @@ What it is not: it does not assess anyone, score anything, recommend a career,
 read an account, or generate text. Personal-assessment requests are refused
 and pointed at the products that actually produce those results.
 
-Production state: DISABLED. mount() registers nothing unless
-RITHAVO_RITANYA_MODE=deterministic is set in the environment. Nothing in the
-repository sets it.
+Production state: DISABLED. mount() registers the chat route only if
+RITHAVO_RITANYA_MODE=deterministic is set in the environment; nothing in the
+repository sets it. The tiny status route is always present: disabled (or paused) it
+answers {"enabled": false} with a cache header, so the page's one question per tab is
+answered by the edge cache instead of waking a function (an absent route returned an
+uncacheable 404, i.e. one function run per new tab for every visitor).
 
 Design decisions (each one tested in tests/test_ritanya_chat.py):
 
@@ -66,7 +69,8 @@ ALLOWED_KEYS = frozenset({"message", "last_topic", "unknown_streak"})
 
 SCOPE = "approved-product-information"
 
-router = APIRouter(prefix="/ritanya")
+router = APIRouter(prefix="/ritanya")           # chat: registered only when the assistant is enabled
+status_router = APIRouter(prefix="/ritanya")    # status: always registered (see mount)
 
 
 # ------------------------------------------------------------------ configuration
@@ -408,13 +412,20 @@ async def chat(request: Request):
         return JSONResponse({"error": "unavailable", "message": K.UNAVAILABLE, "request_id": request_id}, status_code=503, headers=_HEADERS)
 
 
-@router.get("/status")
+_STATUS_CACHE = "public, max-age=60, s-maxage=60"
+_STATUS_OFF_CACHE = "public, max-age=60, s-maxage=300"
+
+
+@status_router.get("/status")
 async def status(request: Request):
     """Tells the page whether to show the launcher at all, and gives it the reviewed text it displays before any
-    message is sent. Registered only when the assistant is enabled, so with the flag off this route does not exist
-    and the page shows no launcher. No input, no account data, identical for everyone."""
-    if _paused():
-        return JSONResponse({"enabled": False}, headers=_HEADERS)
+    message is sent. No input, no account data, identical for everyone.
+
+    Off or paused: {"enabled": false}, cacheable at the edge. That is safe because the assistant's state only changes
+    with an environment change, which only reaches a NEW deployment, and Vercel's cache is per deployment: a cached
+    "off" cannot outlive a switch-on, nor a cached "on" a pause (the chat route also answers 503 when paused)."""
+    if _mode() != "deterministic" or _paused():
+        return JSONResponse({"enabled": False}, headers={"Cache-Control": _STATUS_OFF_CACHE, "X-Content-Type-Options": "nosniff"})
     body = {
         "enabled": True, "live_ai": False, "scope": SCOPE,
         "greeting": K.GREETING, "disclosure": K.DISCLOSURE,
@@ -423,13 +434,14 @@ async def status(request: Request):
         "fallback_actions": [_action(a) for a in K.FALLBACK_ACTIONS],
         "messages": {"busy": K.BUSY, "unavailable": K.UNAVAILABLE},
     }
-    # Short public cache so a page view does not cost a function call; short enough that the kill switch bites quickly.
-    return JSONResponse(body, headers={"Cache-Control": "public, max-age=60, s-maxage=60", "X-Content-Type-Options": "nosniff"})
+    # Short public cache so a page view does not cost a function call.
+    return JSONResponse(body, headers={"Cache-Control": _STATUS_CACHE, "X-Content-Type-Options": "nosniff"})
 
 
 def mount(app) -> bool:
-    """Registers the route only when explicitly enabled. Returns whether it did.
-    Production default: RITHAVO_RITANYA_MODE is unset, so nothing is registered."""
+    """Registers the status route always and the chat route only when explicitly enabled. Returns whether chat is enabled.
+    Production default: RITHAVO_RITANYA_MODE is unset, so there is no chat route and status says {"enabled": false}."""
+    app.include_router(status_router)
     if _mode() != "deterministic":
         return False
     app.include_router(router)
