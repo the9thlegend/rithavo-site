@@ -173,23 +173,22 @@ async function main() {
   check("and when the server says on again, the guide comes back", await waitFor(`!!document.querySelector('.rtn-launcher')`, 8000));
   // a transient failure while open must NOT remove a working guide
   await openPanel(); await ask("What is Rithavo?");
-  await evalJs(`(()=>{const v=JSON.parse(sessionStorage.getItem('rv_ritanya_status'));v.t=Date.now()-600000;sessionStorage.setItem('rv_ritanya_status',JSON.stringify(v))})()`);
+  await evalJs(`(()=>{const v=JSON.parse(sessionStorage.getItem('rv_ritanya_status'));v.t=Date.now()-180000;sessionStorage.setItem('rv_ritanya_status',JSON.stringify(v))})()`);   // stale (3 min) but inside the 5-minute grace period
   mocks = [{ match: (u) => /\/api\/ritanya\/status/.test(u), fail: true }];
   const still = await ask("What is Career Intelligence?");
   mocks = [];
-  check("if the server cannot be reached for the re-check, the guide keeps working", /four kinds|Stay, New Role/.test(still.text) && (await evalJs(`!!document.querySelector('.rtn-launcher, .rtn-root')`)));
+  check("a brief interruption (inside the grace period) keeps a working guide working; the full outage matrix is in ritanya_killswitch_check.js", /four kinds|Stay, New Role/.test(still.text) && (await evalJs(`!!document.querySelector('.rtn-launcher, .rtn-root')`)));
 
   // ===================================================================== engine file fails to load
   mocks = [{ match: (u) => /\/assets\/ritanya\/engine\.js/.test(u), status: 500, body: "nope", type: "text/plain" }];
   await send("Network.setBypassServiceWorker", { bypass: true });      // the worker would (correctly) serve the cached engine; this step tests the network failing
   await evalJs(`sessionStorage.clear()`);
   await goto(BASE + "/contact/");
-  await waitFor(`!!document.querySelector('.rtn-launcher')`, 8000);
-  await openPanel(); await resetConvo();
-  const failed = await ask("What is Rithavo?");
+  await sleep(2500);
+  const failed = await evalJs(`({launcher:!!document.querySelector('.rtn-launcher'),root:!!document.querySelector('.rtn-root'),spacer:!!document.querySelector('.rtn-spacer'),on:document.body.classList.contains('rtn-on'),nav:document.querySelectorAll('nav a[href]').length})`);
   mocks = [];
   await send("Network.setBypassServiceWorker", { bypass: false });
-  check("if the engine file cannot load, the panel still opens and says it can't answer, with links", /can't answer right now/.test(failed.text) && failed.actions.length === 3 && failed.actions.every((a) => a.href.startsWith("/")), failed.text.slice(0, 60));
+  check("if the engine file cannot load, no guide is mounted at all (no launcher, no half-working panel); the page's own navigation is untouched", !failed.launcher && !failed.root && !failed.spacer && !failed.on && failed.nav > 0, JSON.stringify(failed));
 
   // ===================================================================== installed app on a phone, accessibility
   await evalJs(`sessionStorage.clear()`);

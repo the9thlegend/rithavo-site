@@ -9,7 +9,10 @@
      or set. The conversation lives in this tab's sessionStorage and is cleared by "New conversation" or by closing the tab.
    - Server text is shown with textContent only, never as HTML.
    - Every link is a same-origin relative path, validated here again before it is used.
-   - With the assistant switched off on the server, /status does not exist and nothing is shown at all.
+   - With the assistant switched off on the server, /status answers {"enabled": false} (or does not exist) and nothing is shown.
+   - Kill switch: the page re-asks /status every RECHECK_MS. "off" or "paused" removes the guide at once; if the server cannot be
+     asked, the last known "on" is used for at most GRACE_MS, then the guide is removed and the conversation cleared.
+   - A browser engine that cannot be loaded or run is never mounted (no launcher, no half-working panel).
    - The portrait stays off (AVATAR_SRC = null) until its rights are cleared; the Rithavo mark is the avatar. */
 (function () {
   "use strict";
@@ -26,6 +29,10 @@
   // How long an "on" or "off" answer from the server is trusted before the page asks again. This is the kill switch for the
   // browser engine: once the server says the guide is off (or paused), every open page removes it within this long.
   var RECHECK_MS = 120000;
+  // How long the LAST successful "on" may keep the guide working while the server cannot be asked at all (offline, a hiccup, a
+  // blocked request). A brief interruption is tolerated; once this has passed with no successful answer, the guide is removed and
+  // the conversation cleared. A successful "off" or "paused" answer does not wait for this: it removes the guide at once.
+  var GRACE_MS = 300000;
 
   // Set to a same-origin path such as "/assets/ritanya/portrait/avatar.webp" ONLY after the portrait's provenance and
   // usage rights are confirmed by the founder. Until then the Rithavo mark is used.
@@ -93,16 +100,24 @@
     if (!raw) return null;
     try {
       var v = JSON.parse(raw);
-      if (v && typeof v.t === "number") return { fresh: Date.now() - v.t < RECHECK_MS, cfg: v.cfg && v.cfg.enabled === true ? v.cfg : null };
+      if (v && typeof v.t === "number") {
+        var age = Date.now() - v.t;
+        if (!(age >= 0)) age = Infinity;               // a clock that moved backwards cannot extend the grace period
+        // t is the time of the last SUCCESSFUL answer (on or off); a failed attempt never refreshes it
+        return { age: age, fresh: age < RECHECK_MS, cfg: v.cfg && v.cfg.enabled === true ? v.cfg : null };
+      }
     } catch (e) { /* an older format or garbage: ask again */ }
     return null;
   }
   function writeStatus(cfg) { store(KEY_STATUS, JSON.stringify({ t: Date.now(), cfg: cfg || null })); }
-  /* done(cfg): the config when on, null when the server says off or paused, undefined when it could not be asked (offline, a server hiccup) */
+  var expiryTimer = null;
+  function cancelExpiry() { if (expiryTimer) { clearTimeout(expiryTimer); expiryTimer = null; } }
+  /* done(cfg): the config when on, null when the server says off or paused (or the route is gone), undefined when it could not be
+     asked or answered unusably (offline, a blocked request, a server error, a non-JSON page such as a sign-in portal) */
   function askStatus(done) {
     fetchJson(STATUS_URL, { method: "GET" }, 5000).then(function (r) {
-      if (r.status === 200 && r.data && r.data.enabled === true) { writeStatus(r.data); done(r.data); }
-      else if ((r.status === 200 && r.data && r.data.enabled === false) || r.status === 404) { writeStatus(null); done(null); }
+      if (r.status === 200 && r.data && r.data.enabled === true) { writeStatus(r.data); cancelExpiry(); done(r.data); }
+      else if ((r.status === 200 && r.data && r.data.enabled === false) || r.status === 404) { writeStatus(null); cancelExpiry(); done(null); }
       else done(undefined);
     }).catch(function () { done(undefined); });
   }
@@ -110,25 +125,74 @@
     if (hiddenHere()) return;
     var saved = readStatus();
     if (saved && saved.fresh) { if (saved.cfg) start(saved.cfg); return; }
-    askStatus(function (cfg) { if (cfg) start(cfg); });
+    askStatus(function (cfg) {
+      if (cfg) { start(cfg); return; }
+      // Could not be asked: a brief interruption may use the last known "on"; after the grace period nothing is shown.
+      if (cfg === undefined && saved && saved.cfg && saved.age <= GRACE_MS) start(saved.cfg);
+    });
+  }
+
+  /* After the guide was removed because the server could not be reached for the whole grace period, it comes back (fresh, with an
+     empty conversation) the first time the server can be asked again and says it is on. It never returns after "off" or "paused". */
+  var recovery = null;
+  function watchForRecovery() {
+    if (recovery) return;
+    var asking = false;
+    function again() {
+      if (doc.hidden || asking) return;
+      asking = true;
+      askStatus(function (cfg) {
+        asking = false;
+        if (cfg === undefined) return;               // still unreachable: wait for the next online / visible event
+        stop();
+        if (cfg) start(cfg);
+      });
+    }
+    function stop() { window.removeEventListener("online", again); doc.removeEventListener("visibilitychange", again); recovery = null; }
+    window.addEventListener("online", again);
+    doc.addEventListener("visibilitychange", again);
+    recovery = stop;
   }
 
   /* ------------------------------------------------------------------ the guide */
+  var mounted = false;                                // true from start() until the guide is removed or found unusable
   function start(config) {
+    if (mounted) return;
+    mounted = true;
+    var after = function () {
+      loadEngine(config, function (usable) {
+        // A guide whose engine cannot run is never mounted at all: no launcher, no half-working panel. The site's own pages stay.
+        if (usable) build(config); else mounted = false;
+      });
+    };
     // Load the stylesheet first so the launcher never flashes unstyled. If it fails to load, show nothing.
+    var existing = doc.querySelector('link[href="/assets/ritanya/ritanya.css"]');
+    if (existing) { after(); return; }                // already loaded earlier on this page (the guide came back after an outage)
     var sheet = doc.createElement("link");
     sheet.rel = "stylesheet"; sheet.href = "/assets/ritanya/ritanya.css";
-    sheet.onload = function () { loadEngine(config, function () { build(config); }); };
+    sheet.onload = after;
+    sheet.onerror = function () { mounted = false; };
     doc.head.appendChild(sheet);
   }
   /* The browser engine is one static file from this site (no request is made for a message). It is requested with its version, so a
-     new release is fetched even if an older copy is cached; if it cannot load, the panel still opens and says it can't answer. */
+     new release is fetched even if an older copy is cached. next(true) when the guide may be built; next(false) when the engine
+     could not be loaded or parsed (an old browser, a blocked file, a damaged copy), checked by asking it one fixed question. */
+  function engineUsable() {
+    try {
+      var r = window.RitanyaEngine && window.RitanyaEngine.respond("What is Rithavo?", null, 0);
+      return !!(r && r.ok && r.result && typeof r.result.reply === "string");
+    } catch (e) { return false; }
+  }
   function loadEngine(config, next) {
-    if (config.engine !== "browser" || window.RitanyaEngine) { next(); return; }
+    if (config.engine !== "browser") { next(true); return; }
+    if (engineUsable()) { next(true); return; }
+    var settled = false;
+    function settle() { if (settled) return; settled = true; clearTimeout(timer); next(engineUsable()); }
+    var timer = setTimeout(settle, TIMEOUT_MS);
     var version = typeof config.engine_version === "string" && /^[0-9a-f]{1,16}$/.test(config.engine_version) ? config.engine_version : "0";
     var s = doc.createElement("script");
     s.src = ENGINE_URL + "?v=" + version; s.async = true;
-    s.onload = next; s.onerror = next;
+    s.onload = settle; s.onerror = settle;
     doc.head.appendChild(s);
   }
 
@@ -325,18 +389,36 @@
         finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
       });
     }
-    /* The kill switch. A recent "on" is trusted; otherwise the server is asked again (edge-cached, so cheap). If it says off or paused,
-       the whole guide is removed and what the visitor typed is cleared. If it cannot be asked (offline), the guide keeps working. */
+    /* The kill switch. A recent "on" is trusted; otherwise the server is asked again (edge-cached, so cheap).
+       - "off" or "paused": the whole guide is removed at once and what the visitor typed is cleared.
+       - "on": carry on (and the grace clock restarts, because the answer is stored with its time).
+       - could not be asked: the last known "on" keeps the guide working for GRACE_MS after that answer. When that has run out
+         without one successful answer, the guide is removed and the conversation cleared, exactly as for "off". */
+    var dead = false;
     function recheck(done) {
+      if (dead) { done(false); return; }
       var saved = readStatus();
       if (saved && saved.fresh && saved.cfg) { done(true); return; }
       askStatus(function (cfg) {
-        if (cfg === undefined) { done(true); return; }
+        if (dead) { done(false); return; }
         if (cfg === null) { teardown(); done(false); return; }
-        done(true);
+        if (cfg) { done(true); return; }
+        var last = readStatus();
+        if (last && last.cfg && last.age <= GRACE_MS) { armExpiry(last.age); done(true); return; }
+        expire(); done(false);
       });
     }
+    // So an idle page whose server stays unreachable is also removed when the grace period ends, not only when someone touches it.
+    function armExpiry(age) {
+      cancelExpiry();
+      expiryTimer = setTimeout(function () { expiryTimer = null; recheck(function () {}); }, Math.max(1000, GRACE_MS - age) + 1000);
+    }
+    function expire() { teardown(); store(KEY_STATUS, null); watchForRecovery(); }
+    function onVisible() { if (!doc.hidden) recheck(function () {}); }
     function teardown() {
+      dead = true; mounted = false;
+      cancelExpiry();
+      doc.removeEventListener("visibilitychange", onVisible);
       store(KEY_CONVERSATION, null);
       [launcher, root, spacer].forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); });
       doc.documentElement.classList.remove("rtn-lock");
@@ -384,7 +466,9 @@
     // Following a link inside the app ends the conversation view, not the conversation itself (it is kept for this tab).
     log.addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("a.rtn-action"); if (a) { persist(); } });
     doc.body.classList.add("rtn-on");
-    doc.addEventListener("visibilitychange", function () { if (!doc.hidden) recheck(function () {}); });
+    doc.addEventListener("visibilitychange", onVisible);
+    var now = readStatus();                          // started from a stale "on" during an interruption: the grace clock is already running
+    if (now && now.cfg && !now.fresh) armExpiry(now.age);
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot); else boot();

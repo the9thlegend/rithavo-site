@@ -26,11 +26,30 @@ unknown flags over a corpus of about 19,000 cases (every topic, every follow-up,
 validation edge cases, seeded fuzz), and `tests/e2e/ritanya_engine_check.js` repeats the key cases inside a real browser.
 
 ## The kill switch
-The status route (`/api/ritanya/status`) always exists and is edge-cached. Off or paused it answers `{"enabled": false}`. The page asks the
-server again whenever its last answer is older than 2 minutes (when the panel opens, when the tab becomes visible again, before each
-message). If the answer is "off" the whole guide is removed from the page and what the visitor typed is cleared; if the server cannot be
-reached the guide keeps working. So after a redeploy with the guide paused or off, every open page drops it within about 2 minutes plus the
-edge cache (60 s), and no page loads it afterwards.
+The status route (`/api/ritanya/status`) always exists and is edge-cached. Off or paused it answers `{"enabled": false}`. The server is
+authoritative; the page follows this policy (`RECHECK_MS` = 2 minutes, `GRACE_MS` = 5 minutes in `assets/ritanya/ritanya.js`):
+
+| Situation | What the page does |
+|---|---|
+| Last successful answer is under 2 minutes old | trusts it; no request |
+| Older, and the server answers **on** | carries on; the clock restarts |
+| Older, and the server answers **off** / **paused** (or the route is gone, 404) | removes the whole guide **at once** and clears the conversation, however recent the last "on" was |
+| Older, and the server **cannot be asked** (offline, refused, timeout after 5 s, a 5xx, a non-JSON page such as a sign-in portal) | keeps working on the last known "on" **until 5 minutes after the last successful answer**; a failed attempt never restarts that clock |
+| 5 minutes pass with no successful answer | removes the guide, clears the conversation and the stored status; also happens by itself on an idle page (a timer armed while the server is unreachable) |
+| After such an outage removal, the server later answers **on** (the browser comes back online, or the tab becomes visible) | the guide returns on the same page, with a new empty conversation |
+| After removal, the server answers **off** | it does not return |
+
+The page asks when the panel opens, when the tab becomes visible, before each message, and (only during an outage) when the grace period
+is about to end. So after a redeploy with the guide paused or off, every open page drops it within about 2 minutes of its next use plus
+the edge cache (60 s; 5 minutes for the cached "off"), and no page loads it afterwards. `tests/e2e/ritanya_killswitch_check.js` runs this
+whole table in real Chrome against a deployed Preview.
+
+## Older browsers
+`engine.js` and `ritanya.js` use no regex look-behind and nothing newer than 2017 (a script containing look-behind is not parsed at all
+by a browser older than about 2023, so the whole engine would fail). `tests/test_ritanya_engine_compat.py` enforces this and proves the
+text normalisation is identical to the look-behind form it replaced over about 111,000 enumerated strings. If the engine cannot be
+loaded or run for any reason (blocked, parse error, damaged copy, no answer within 10 s), **the guide is not mounted at all**: no launcher,
+no half-working panel. The site's own navigation is the fallback.
 
 ## What ships
 
