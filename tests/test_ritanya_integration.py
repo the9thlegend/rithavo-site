@@ -21,7 +21,7 @@ from app import ritanya_knowledge as K
 ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "assets" / "ritanya" / "ritanya.js").read_text(encoding="utf-8")
 CSS = (ROOT / "assets" / "ritanya" / "ritanya.css").read_text(encoding="utf-8")
-EXCLUDED_PAGES = {"sign-in", "sign-up", "reset-password", "onboarding", "admin"}
+EXCLUDED_PAGES = {"sign-in", "sign-up", "reset-password", "onboarding", "admin", "offline"}   # offline: the PWA offline page (a different branch)
 TAG = '<script src="/assets/ritanya/ritanya.js" defer></script>'
 
 
