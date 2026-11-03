@@ -113,6 +113,12 @@ PHOTO_ACCESS_SECRET = os.environ.get("RITHAVO_PHOTO_ACCESS_SECRET")
 # locally-running sibling instance.
 CARD_APP_BASE_URL = os.environ.get("RITHAVO_CARD_APP_URL", "https://app.rithavo.com")
 
+# One-domain rule: the Rithavo Card is served from another host (app.rithavo.com), so the cross-host handoff
+# (POST /card/continue, which hands the browser a token and that host's address) is OFF unless this is set. Off,
+# no customer-facing page or response sends anyone to another Rithavo host. Setting it does not bring the Card to
+# rithavo.com; it only re-enables the old handoff.
+CARD_HANDOFF_ENABLED = os.environ.get("RITHAVO_CARD_HANDOFF_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+
 # Phase 2B-1.5 finding (production smoke test): the session cookie was
 # missing the Secure flag — harmless for local HTTP dev, a real gap once
 # this serves real HTTPS traffic. Tied to DATABASE_URL (the same signal

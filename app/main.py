@@ -464,6 +464,9 @@ def card_continue(request: Request):
     profile — there is nothing to hand off otherwise."""
     db = request.app.state.db
     session_user_id = require_user(request)
+    if not config.CARD_HANDOFF_ENABLED:
+        # One-domain rule: the Card is not available on rithavo.com, so nothing is minted and nobody is sent elsewhere.
+        raise HTTPException(status_code=404, detail="The Rithavo Card is not available on rithavo.com.")
     if not config.CARD_HANDOFF_SECRET:
         # Phase P0.2A: fail closed, never silently sign with a fallback.
         raise HTTPException(status_code=503, detail="Card handoff is not available right now.")

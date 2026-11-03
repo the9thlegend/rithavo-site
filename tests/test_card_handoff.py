@@ -26,6 +26,9 @@ def _card_handoff_secret(monkeypatch):
     deployment would via its own RITHAVO_CARD_HANDOFF_SECRET env var.
     The one test that needs it actually unset overrides this itself."""
     monkeypatch.setattr(config, "CARD_HANDOFF_SECRET", TEST_SECRET)
+    # The cross-host handoff is OFF by default (one-domain rule); this file tests the handoff itself, so it opts in.
+    # tests/test_card_handoff_disabled.py covers the default.
+    monkeypatch.setattr(config, "CARD_HANDOFF_ENABLED", True)
 
 
 def _decode_token(token: str, secret: str = TEST_SECRET) -> dict:

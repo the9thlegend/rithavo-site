@@ -46,10 +46,8 @@
 
   const hasProfile = profile && profile.career_profile;
 
-  // Phase P0.2: read-only, and only ever asked for once a Profile
-  // exists — never used to decide whether to create anything, only
-  // which CTA wording to show. Non-fatal: if this fails, the CTA
-  // simply defaults to "Generate," the same as a brand-new Card.
+  // Read-only, and only asked for once a Profile exists: it only chooses which on-domain status wording to show
+  // (the Card is not available on rithavo.com; nothing here sends anyone to another host). Non-fatal.
   let hasCard = false;
   if (hasProfile) {
     try {
@@ -109,30 +107,21 @@
     `}
 
     ${hasProfile ? `
-      <div class="card card-hover pwa-hide-in-app" style="margin-bottom:28px;">
+      <div class="card" style="margin-bottom:28px;" id="card-status">
         <div class="card-body" style="flex-direction:row; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap;">
           <div>
-            <span class="tag">Your Rithavo Card</span>
-            <h3 style="margin:6px 0 6px;">${hasCard ? "Your profile, ready to share" : "Your profile is ready"}</h3>
-            <p style="margin:0; max-width:52ch;" id="card-cta-copy">
-              Your Rithavo Profile is the foundation — your Rithavo Card is the polished, shareable
-              version of it.
+            <span class="tag">Rithavo Card</span>
+            <h3 style="margin:6px 0 6px;">${hasCard ? "You have a Rithavo Card from an earlier step" : "Your Rithavo Profile is ready"}</h3>
+            <p style="margin:0; max-width:52ch;" id="card-status-copy">
+              The Rithavo Card isn't available on rithavo.com${hasCard ? ", so it can't be viewed or shared from here" : ""}.
+              Your Rithavo Profile is the foundation for it, and you can keep your Profile up to date here.
             </p>
           </div>
           <div class="row gap-12" style="flex-wrap:wrap;">
-            ${hasCard ? `
-              <button type="button" class="btn btn-primary card-handoff-btn" id="card-view-btn" style="white-space:nowrap;">View Your Rithavo Card</button>
-              <button type="button" class="btn btn-ghost card-handoff-btn" id="card-share-btn" style="white-space:nowrap;">Manage Card Sharing</button>
-            ` : `
-              <button type="button" class="btn btn-primary card-handoff-btn" id="card-continue-btn" style="white-space:nowrap;">Generate Your Rithavo Card</button>
-            `}
+            <a class="btn btn-primary" href="/profile/" style="white-space:nowrap;">Open your Profile</a>
           </div>
         </div>
-        <div id="card-cta-error"></div>
       </div>
-      <form id="card-handoff-form" method="POST" style="display:none;" class="pwa-hide-in-app">
-        <input type="hidden" name="token">
-      </form>
     ` : ""}
 
     <div class="home-shell">
@@ -178,33 +167,6 @@
       // Non-fatal — keep the initial-letter avatar.
     }
   })();
-
-  // Phase P0.2: Profile -> Rithavo Card handoff (unchanged).
-  document.querySelectorAll(".card-handoff-btn").forEach((cardBtn) => {
-    cardBtn.addEventListener("click", async () => {
-      // One-domain rule: inside the installed app the Card is not offered (it is served from another host today).
-      if (window.RithavoPWA && window.RithavoPWA.isStandalone()) return;
-      const errorBox = document.getElementById("card-cta-error");
-      errorBox.innerHTML = "";
-      cardBtn.disabled = true;
-      const originalLabel = cardBtn.textContent;
-      cardBtn.textContent = "One moment…";
-      try {
-        const { handoff_url, token } = await RithavoApp.apiJson("/card/continue", {
-          method: "POST", body: JSON.stringify({}),
-        });
-        const form = document.getElementById("card-handoff-form");
-        form.action = handoff_url;
-        form.querySelector('input[name="token"]').value = token;
-        form.submit();
-        // Deliberately no re-enable here — the page is navigating away.
-      } catch (e) {
-        cardBtn.disabled = false;
-        cardBtn.textContent = originalLabel;
-        RithavoApp.banner(errorBox, "error", "Couldn't start that just now — please try again.");
-      }
-    });
-  });
 })();
 </script>
 <script src="/pwa.js" defer></script>

@@ -83,12 +83,13 @@ def test_every_page_has_the_pwa_head_tags_and_script():
     assert "viewport-fit=cover" in offline and 'href="/pwa.css"' in offline
 
 
-def test_card_entry_is_hidden_inside_the_installed_app():
+def test_the_home_page_offers_no_card_handoff_in_the_browser_or_the_installed_app():
     home = (ROOT / "home/index.html").read_text(encoding="utf-8")
-    assert 'class="card card-hover pwa-hide-in-app"' in home
+    for needle in ("card-handoff", "card-continue", "card-view-btn", "card-share-btn", "/card/continue", "handoff_url", "form.submit", "app.rithavo"):
+        assert needle not in home, needle
+    assert 'href="/profile/"' in home and "isn't available on rithavo.com" in home   # accurate on-domain status, Profile link kept
     css = (ROOT / "pwa.css").read_text(encoding="utf-8")
-    assert "@media (display-mode: standalone) { .pwa-hide-in-app { display: none !important; } }" in css
-    assert ".is-pwa .pwa-hide-in-app" in css
+    assert "@media (display-mode: standalone) { .pwa-hide-in-app { display: none !important; } }" in css   # kept for any future app-only hiding
 
 
 def test_sign_out_clears_the_apps_caches():
