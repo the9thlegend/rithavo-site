@@ -15,7 +15,7 @@
     { "src": "/(.*%.*)", "dest": "api/index.py" },
     { "src": "/(?:design-lab|ritanya-handoff|tests|app|\\.claude)(?:/.*)?", "dest": "api/index.py" },
     { "src": "/((?:[^./]+/)*[^./]*)", "dest": "/$1" },
-    { "src": "/((?:[^./]+/)*[^./][^/]*\\.(?:html|css|js|png|docx|ico|svg|webp|jpg|jpeg|gif|woff|woff2))", "dest": "/$1" },
+    { "src": "/((?:[^./]+/)*[^./][^/]*\\.(?:html|css|js|png|docx|ico|svg|webp|jpg|jpeg|gif|woff|woff2|webmanifest))", "dest": "/$1" },
     { "src": "/(CNAME|robots\\.txt|sitemap\\.xml|favicon\\.ico)", "dest": "/$1" },
     { "src": "/(.*)", "dest": "api/index.py" }
   ]

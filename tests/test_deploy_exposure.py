@@ -29,7 +29,7 @@ FUNCTION = "api/index.py"
 STATIC = "/$1"
 FUNCTION_SRCS = {"/api/(.*)", "/profile/edit(/.*)?"}  # the real function routes
 INTERNAL_DIRS = ("design-lab", "ritanya-handoff", "tests", "app", ".claude")
-PUBLIC_SUFFIXES = {".html", ".css", ".js", ".png", ".docx"}
+PUBLIC_SUFFIXES = {".html", ".css", ".js", ".png", ".docx", ".webmanifest"}
 
 
 def first_match(path: str):
@@ -143,6 +143,18 @@ def test_the_function_has_no_route_for_any_denied_path(app_and_client):
         assert response.status_code == 404, path
         assert "import " not in response.text and "RITHAVO_" not in response.text, path
 
+
+def test_pwa_files_are_served_as_static_files():
+    for path in ("/manifest.webmanifest", "/sw.js", "/pwa.js", "/pwa.css", "/offline/", "/offline",
+                 "/assets/pwa/icon-192.png", "/assets/pwa/icon-512.png", "/assets/pwa/icon-maskable-512.png",
+                 "/assets/pwa/apple-touch-icon.png"):
+        assert served_as_file(path), path
+
+
+def test_only_the_manifest_extension_was_added_to_the_allowlist():
+    for path in ("/manifest.json", "/sw.js.map", "/pwa.py", "/tools/make_pwa_icons.py", "/manifest.webmanifest.bak",
+                 "/x.webmanifest.py", "/notes.webmanifest/x"):
+        assert not served_as_file(path), path
 
 def _deployed_source_files():
     """Files that are part of the deployment and must never be readable as static files."""

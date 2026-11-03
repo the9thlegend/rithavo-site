@@ -98,6 +98,8 @@ const RithavoApp = (() => {
 
   async function signOut() {
     try { await apiFetch("/auth/logout", { method: "POST" }); } catch (e) { /* best-effort */ }
+    // PWA: nothing this app cached may outlive the session (see sw.js)
+    try { if (window.RithavoPWA) await window.RithavoPWA.clearPrivateState(); } catch (e) { /* best-effort */ }
     window.location.href = "/";
   }
 
