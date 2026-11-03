@@ -29,11 +29,19 @@
     return text.replace(/\s+/g, " ").trim();
   }
 
-  // _norm: lower-case, the company's own address becomes the company, anything but a-z 0-9 @ rupee whitespace and dots is a space
+  // _norm: lower-case, the company's own address becomes the company, anything but a-z 0-9 @ rupee whitespace and dots is a space.
+  // The Python reference uses regex look-behind; this file deliberately does not (older browsers fail to parse a whole script that
+  // contains it). The two replace callbacks below look at the character before a match in the ORIGINAL string, which is exactly what
+  // look-behind does, and tests/test_ritanya_engine_parity.py compares them case by case.
+  var ALNUM = /[a-z0-9]/;
   function norm(message) {
-    var text = message.toLowerCase().replace(/(?<![a-z0-9.\-])rithavo\.com/g, "rithavo");
+    var text = message.toLowerCase().replace(/rithavo\.com/g, function (m, at, whole) {
+      return at > 0 && /[a-z0-9.\-]/.test(whole.charAt(at - 1)) ? m : "rithavo";
+    });
     text = text.replace(/[^a-z0-9@₹\s.]/gu, " ");
-    text = text.replace(/(?<![a-z0-9])\.|\.(?![a-z0-9])/g, " ");
+    text = text.replace(/\./g, function (m, at, whole) {
+      return ALNUM.test(whole.charAt(at - 1)) && ALNUM.test(whole.charAt(at + 1)) ? m : " ";
+    });
     return text.replace(/\s+/g, " ").trim();
   }
 
