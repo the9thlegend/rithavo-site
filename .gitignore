@@ -10,4 +10,13 @@ storage/
 
 # Env / secrets — never commit
 .env
+*.local
 .env.*
+
+# Ritanya: SHEET-DERIVED MATERIAL IS INTERNAL ONLY. Never commit, push, deploy or share.
+# The reference sheet was generated from a child reference photograph (RITANYA-PRODUCTION-MASTER-SPEC.md section 21;
+# ritanya-handoff/00-G0-PROVENANCE-AND-RIGHTS.md). These folders hold images derived from it.
+# Do not use `git add .` or `git add -A` in this repository until the G1 deletion (see ritanya-handoff/00-G0-PROVENANCE-AND-RIGHTS.md section 3).
+design-lab/ritanya/ref/
+design-lab/ritanya/approved-eyes/
+design-lab/ritanya/layout-validation/
