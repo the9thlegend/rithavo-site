@@ -39,12 +39,12 @@ async function main() {
   let bw; for (let i = 0; i < 60 && !bw; i++) { try { bw = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()).webSocketDebuggerUrl; } catch (e) { /* not up */ } if (!bw) await sleep(250); }
   if (!bw) throw new Error("Chrome did not start");
   const ws = new WebSocket(bw); await new Promise((r) => (ws.onopen = r));
-  let id = 0; const pending = new Map(); const events = []; const hosts = new Set(); let cookieHeader = "", sess, mock = null;
+  let id = 0; const pending = new Map(); const events = []; const hosts = new Set(); let cookieHeader = "", sess, mock = null, collecting = false;
   const sendTo = (s, method, params = {}) => new Promise((res, rej) => { const i = ++id; pending.set(i, (d) => (d.error ? rej(new Error(method + ": " + d.error.message)) : res(d.result))); ws.send(JSON.stringify({ id: i, method, params, ...(s ? { sessionId: s } : {}) })); });
   ws.onmessage = (m) => {
     const d = JSON.parse(m.data);
     if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); return; }
-    if (d.method === "Network.requestWillBeSent") { try { hosts.add(new URL(d.params.request.url).host); } catch (e) { /* data: etc. */ } }
+    if (d.method === "Network.requestWillBeSent" && collecting) { try { hosts.add(new URL(d.params.request.url).host); } catch (e) { /* data: etc. */ } }
     if (d.method === "Fetch.requestPaused" && d.sessionId) {
       const { requestId, request } = d.params; const u = new URL(request.url);
       if (mock && u.pathname === "/api/ritanya/chat" && request.method === "POST") {   // injected failure for the error-handling checks
@@ -80,6 +80,9 @@ async function main() {
   await goto(INPUT);
   if (HAS_SHARE) { const { cookies } = await send("Network.getCookies", { urls: [BASE + "/"] }); cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join("; "); }
   await send("Fetch.enable", { patterns: [{ urlPattern: BASE + "/*" }] });
+  // Hosts are counted only from here on. The opening share-link navigation on a protected Preview makes Vercel's own
+  // authentication challenge (vercel.com/sso-api) for requests that carry no cookie; that is the protection layer, not the site.
+  collecting = true;
 
   const api = (p, init) => evalJs(`fetch(${JSON.stringify(p)}, Object.assign({credentials:'omit',cache:'no-store'}, ${JSON.stringify(init || {})})).then(async r=>({s:r.status,h:Object.fromEntries(r.headers.entries()),t:await r.text()}))`);
 
