@@ -98,6 +98,18 @@ def test_sign_out_clears_the_apps_caches():
 
 # ------------------------------------------------------------------ service worker policy (node)
 
+def test_every_page_that_loads_the_signed_in_shell_is_network_only_in_the_worker():
+    sw = (ROOT / "sw.js").read_text(encoding="utf-8")
+    listed = set(re.findall(r'"(/[a-z-]+)"', re.search(r"PRIVATE_PAGE_PREFIXES = \[(.*?)\];", sw, re.S).group(1)))
+    # /admin is not listed: the worker never touches it at all (NEVER_HANDLE_PREFIXES)
+    never = {"/admin"}
+    shell_pages = {"/" + p.relative_to(ROOT).parts[0] for p in ROOT.rglob("index.html")
+                   if len(p.relative_to(ROOT).parts) == 2 and "app-shell.js" in p.read_text(encoding="utf-8")}
+    assert shell_pages, "no app-shell pages found"
+    assert shell_pages - never <= listed, sorted(shell_pages - never - listed)
+    assert listed <= shell_pages, sorted(listed - shell_pages)   # nothing public listed by mistake
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 def test_service_worker_policy_in_node():
     result = subprocess.run(["node", "--test", str(ROOT / "tests" / "sw_policy.test.js")], capture_output=True, text=True, timeout=120)

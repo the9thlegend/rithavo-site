@@ -5,15 +5,17 @@
    What it caches
    - A small public app shell: the stylesheet, scripts, icons and the offline page. These files are the same for
      every visitor and contain no personal data.
-   - Page navigations (the static HTML of pages like /home/ and /career/) as they are visited, so a page can be
-     shown if the network drops. The HTML is static; every piece of personal data is fetched afterwards from
-     /api/*, which is never cached.
+   - Public page navigations (the static HTML of pages like /, /career/, /systems/) as they are visited, so a
+     page can be shown if the network drops. Nothing on those pages is personal.
 
    What it NEVER caches or intercepts (network only, passed straight through)
    - Anything that is not a GET request.
    - Anything on another origin (Google Fonts, the payment providers' scripts).
    - /api/* (all authenticated data, sign-in, resume downloads, payments, the Ritanya endpoint),
      /profile/edit* (server-rendered pages containing the person's profile) and /admin/.
+   - Signed-in app pages (/home/, /account/, /profile/, /resumes/ and the other pages that load app-shell.js):
+     always fetched from the network and never stored. Offline they show the offline page rather than a copy that
+     could only sit on "Loading...".
    - Any response that is not a plain 200 from this origin, was redirected, or says Cache-Control no-store/private,
      or sets a cookie.
 
@@ -21,7 +23,7 @@
    old versions are deleted when a new worker activates. A new worker waits until the person accepts the
    "update available" prompt (SKIP_WAITING) so a page is never swapped under someone mid-task. */
 
-const VERSION = "v1";
+const VERSION = "v2";   // v2: signed-in app pages are no longer cached; v1 caches are deleted on activate
 const SHELL_CACHE = "rithavo-shell-" + VERSION;
 const PAGES_CACHE = "rithavo-pages-" + VERSION;
 const ASSETS_CACHE = "rithavo-assets-" + VERSION;
@@ -48,6 +50,12 @@ const NEVER_HANDLE_PREFIXES = [
   "/api", "/profile/edit", "/profile/photo", "/admin", "/auth", "/payments", "/card", "/resume",
   "/diagnosis", "/career-intelligence/resume", "/onboarding/resume", "/sw.js",
 ];
+// Pages that need a signed-in session. Keep in step with the pages that load app-shell.js
+// (tests/test_pwa.py fails if one is missing here).
+const PRIVATE_PAGE_PREFIXES = [
+  "/home", "/account", "/profile", "/resumes", "/history", "/mentorship",
+  "/career-intelligence", "/application-diagnosis", "/onboarding",
+];
 const ASSET_EXTENSION = /\.(?:css|js|png|jpe?g|gif|svg|webp|ico|woff2?)$/i;
 
 function normalisePath(pathname) {
@@ -62,7 +70,8 @@ function normalisePath(pathname) {
 }
 
 /* Decides what to do with a request. Pure function so it can be tested without a browser.
-   Returns one of: "pass" (do not intercept), "navigation", "asset". */
+   Returns one of: "pass" (do not intercept), "navigation" (public page), "private-navigation" (signed-in page,
+   network only), "asset". */
 function classify(method, urlString, mode, selfOrigin) {
   if (method !== "GET") return "pass";
   let url;
@@ -73,7 +82,10 @@ function classify(method, urlString, mode, selfOrigin) {
   for (const prefix of NEVER_HANDLE_PREFIXES) {
     if (path === prefix || path.startsWith(prefix + "/") || path.startsWith(prefix + ".")) return "pass";
   }
-  if (mode === "navigate") return "navigation";
+  if (mode === "navigate") {
+    const isPrivate = PRIVATE_PAGE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + "/"));
+    return isPrivate ? "private-navigation" : "navigation";
+  }
   if (ASSET_EXTENSION.test(path)) return "asset";
   return "pass";
 }
@@ -103,6 +115,21 @@ function withTimeout(promise, ms) {
   });
 }
 
+async function offlineResponse() {
+  const offline = await caches.match(OFFLINE_URL, { cacheName: SHELL_CACHE });
+  if (offline) return offline;
+  return new Response("You are offline.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}
+
+// Signed-in pages: straight to the network, nothing stored; only a failed connection falls back to the offline page.
+async function handlePrivateNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch (e) {
+    return offlineResponse();
+  }
+}
+
 async function handleNavigation(request) {
   try {
     const response = await withTimeout(fetch(request), NAVIGATION_TIMEOUT_MS);
@@ -115,9 +142,7 @@ async function handleNavigation(request) {
   } catch (e) {
     const cached = await caches.match(request, { cacheName: PAGES_CACHE });
     if (cached) return cached;
-    const offline = await caches.match(OFFLINE_URL, { cacheName: SHELL_CACHE });
-    if (offline) return offline;
-    return new Response("You are offline.", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    return offlineResponse();
   }
 }
 
@@ -160,6 +185,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   const kind = classify(request.method, request.url, request.mode, self.location.origin);
   if (kind === "navigation") event.respondWith(handleNavigation(request));
+  else if (kind === "private-navigation") event.respondWith(handlePrivateNavigation(request));
   else if (kind === "asset") event.respondWith(handleAsset(request, event));
   // "pass": no respondWith, the browser handles the request exactly as if there were no worker.
 });
@@ -179,4 +205,4 @@ self.addEventListener("message", (event) => {
 });
 
 // Exposed for the automated policy tests (tests/sw_policy.test.js); harmless in a browser.
-self.__rithavoSW = { classify, cacheable, SHELL_URLS, NEVER_HANDLE_PREFIXES, VERSION };
+self.__rithavoSW = { classify, cacheable, SHELL_URLS, NEVER_HANDLE_PREFIXES, PRIVATE_PAGE_PREFIXES, VERSION };

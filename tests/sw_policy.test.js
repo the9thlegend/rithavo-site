@@ -53,7 +53,7 @@ test("other origins are never handled (fonts, payment SDKs, anything)", () => {
 });
 
 test("page navigations and public assets are handled", () => {
-  for (const p of ["/", "/home/", "/career/", "/systems/", "/growth/", "/account/", "/offline/"]) assert.equal(cls("GET", p, "navigate"), "navigation", p);
+  for (const p of ["/", "/career/", "/systems/", "/growth/", "/about/", "/privacy/", "/sign-in/", "/offline/"]) assert.equal(cls("GET", p, "navigate"), "navigation", p);
   for (const p of ["/styles.css", "/app-shell.js", "/pwa.js", "/assets/pwa/icon-192.png", "/assets/hero/hero-final.png"]) assert.equal(cls("GET", p), "asset", p);
   assert.equal(cls("GET", "/some-data-file"), "pass");   // a non-navigation, non-asset request is left alone
 });
@@ -83,4 +83,52 @@ test("the precache list holds only public shell files on this origin", () => {
     assert.notEqual(cls("GET", u, "navigate"), "pass", "precached but never served by the worker: " + u);
     for (const prefix of sw.NEVER_HANDLE_PREFIXES) assert.ok(!(u === prefix || u.startsWith(prefix + "/")), u);
   }
+});
+
+test("signed-in app pages are network-only: classified apart from public pages, in any spelling", () => {
+  for (const p of ["/home/", "/home", "/account/", "/profile/", "/resumes/", "/history/", "/mentorship/", "/career-intelligence/",
+                   "/application-diagnosis/", "/onboarding/", "/HOME/", "//home/", "/%68ome/", "/%2568ome/", "/ho%6De/"]) {
+    assert.equal(cls("GET", p, "navigate"), "private-navigation", p);
+  }
+  // the public marketing pages that merely share a name stay ordinary cacheable navigations
+  for (const p of ["/career/", "/career/career-intelligence/", "/career/career-intelligence/demo/", "/career/application-diagnostic/", "/homepage/"]) {
+    assert.equal(cls("GET", p, "navigate"), "navigation", p);
+  }
+});
+
+test("a signed-in page is fetched from the network and never written to any cache", async () => {
+  const writes = [];
+  const store = { put: async (...a) => { writes.push(a); }, keys: async () => [], delete: async () => true };
+  const fetchLog = [];
+  const sb = {
+    self: { addEventListener: (t, f) => { listeners2[t] = f; }, location: { origin: ORIGIN }, clients: { claim() {} }, skipWaiting() {} },
+    caches: { open: async () => store, match: async () => new Response("OFFLINE PAGE", { status: 200 }), keys: async () => [] },
+    fetch: async (r) => {
+      fetchLog.push(r.url);
+      if (!sb.online) throw new TypeError("Failed to fetch");
+      const res = new Response("<html>page</html>", { status: 200, headers: { "content-type": "text/html" } });
+      Object.defineProperty(res, "type", { value: "basic" });   // what a real same-origin response reports
+      return res;
+    },
+    online: true, URL, Request, Response, console, setTimeout, clearTimeout,
+  };
+  const listeners2 = {};
+  vm.createContext(sb);
+  vm.runInContext(source, sb);
+  const run = async (url) => {
+    let responded;
+    listeners2.fetch({ request: { method: "GET", url, mode: "navigate" }, respondWith: (p) => { responded = p; }, waitUntil() {} });
+    return responded ? await responded : null;
+  };
+  const online = await run(ORIGIN + "/account/");
+  assert.equal(await online.text(), "<html>page</html>");
+  assert.deepEqual(writes, [], "online response was cached");
+  sb.online = false;
+  const offline = await run(ORIGIN + "/account/");
+  assert.equal(await offline.text(), "OFFLINE PAGE", "offline should serve the offline page, never a stored copy of the app page");
+  assert.deepEqual(writes, []);
+  // control: a public page IS stored when online
+  sb.online = true;
+  await run(ORIGIN + "/career/");
+  assert.equal(writes.length, 1);
 });
