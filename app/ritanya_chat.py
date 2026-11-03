@@ -267,6 +267,15 @@ _PERSONAL = [_rx(p) for p in (
     r"\b(find|get|give|show|list|pick)\b.{0,15}\b(me|my)\b.{0,15}\b(jobs?|roles?|opportunit\w+|openings?|vacanc\w+|companies)",
 )]
 
+# A request to read out the visitor's OWN details. The assistant has no access to any account, so it says so plainly (rather
+# than answering with an unrelated topic). Read-only verbs only, and never "how do I ..." questions, which are product help.
+_ACCOUNT_DATA = _rx(
+    r"^(?!.*\bhow (do|can|should|would|could) (i|we)\b)"
+    r".*(\b(what is|what s|whats|what are|show|tell|give|display|list|read|see|view|look up|lookup|find|check|access|retrieve|open)\b.{0,15}\bmy\b.{0,10}"
+    r"\b(name|e ?mail( address)?|phone( number)?|address|password|account( details| info| information)?|login|orders?|purchases?|invoices?|payments?|data|details|information|profile|resume|cv|history|results?|reports?|subscription)\b"
+    r"|\b(who am i|what do you know about me|do you (know|remember|have) (me|my)|can you (see|access|read|view|find) (my|me|who i))\b)"
+)
+
 # Ordered: first match wins. Specific before general.
 _TOPIC_RULES = [(topic, _rx(pattern)) for topic, pattern in (
     ("contact", r"refund|billing|invoice|order status|customer support|\bsupport\b|contact|email|reach (you|rithavo|out)|hello@|talk to (a |an )?(human|person|someone|team)|speak to"),
@@ -328,6 +337,9 @@ def answer(message: str, last_topic=None, unknown_streak: int = 0) -> dict:
     if any(rx.search(text) for rx in _PERSONAL):
         return _response(K.REFUSE_PERSONAL, topic="career_intelligence", actions=K.REFUSE_PERSONAL_ACTIONS,
                          suggestions=K.REFUSE_PERSONAL_SUGGESTIONS, refused=True, intent="personal_refused")
+    # 2b. A request to read out the visitor's own details: the assistant cannot see any account.
+    if _ACCOUNT_DATA.search(text):
+        return _response(K.NO_ACCOUNT_ACCESS, actions=K.NO_ACCOUNT_ACCESS_ACTIONS, suggestions=K.START_SUGGESTIONS, refused=True, intent="account_access_refused")
     # 3. Pleasantries.
     if _GREETING.match(text):
         return _response(K.GREETING, suggestions=K.START_SUGGESTIONS, intent="greeting")

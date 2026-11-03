@@ -591,3 +591,23 @@ def test_the_modules_import_no_provider_network_or_database_library():
 def test_no_cookie_is_ever_set_and_the_analytics_cookie_is_ignored(client):
     r = ask(client, "What is Rithavo?", headers={"cookie": "rv_sid=abcdefghijklmnop1234; session=whatever"})
     assert r.status_code == 200 and "set-cookie" not in {k.lower() for k in r.headers}
+
+
+# ------------------------------------------------------------------ requests to read out the visitor's own details
+
+def test_requests_for_the_visitors_own_account_data_get_a_plain_no():
+    for q in ("What is my name and email?", "what is my email address", "show me my profile", "tell me my phone number", "give me my password",
+              "list my orders", "what are my account details", "view my invoices", "Can you see my profile?", "Who am I?",
+              "what do you know about me", "show me my resume", "look up my purchases"):
+        out = rc.answer(q)
+        assert out["refused"] and out["_intent"] in {"account_access_refused", "personal_refused"}, (q, out["_intent"])
+        assert "can't see your account" in out["reply"] or "don't have access to your account" in out["reply"], q
+        assert all(a["href"].startswith("/") for a in out["actions"]), q
+        assert "@" not in out["reply"].replace("hello@rithavo.com", ""), q
+
+
+def test_product_questions_that_share_those_words_are_not_caught():
+    for q in ("What is a Rithavo Profile?", "How do I create my account?", "How do I sign in?", "How do I update my profile?",
+              "How do I view my profile?", "How do I access my account?", "How do I contact Rithavo?", "Where do I add my education and experience?",
+              "What is Rithavo?", "Do I need an account?"):
+        assert rc.answer(q)["_intent"] != "account_access_refused", q

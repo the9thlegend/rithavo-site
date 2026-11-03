@@ -266,6 +266,12 @@ REFUSE_PERSONAL_ACTIONS = ("career_intelligence", "application_diagnosis")
 REFUSE_PERSONAL_SUGGESTIONS = ("What is Career Intelligence?", "What is Application Diagnosis?",
                                "Which one should I choose?")
 
+NO_ACCOUNT_ACCESS = (
+    "I can't see your account or any of your information, so I can't look that up for you. Once you're signed in, "
+    "your Profile page shows what you've added, and Rithavo's team can help with anything about your account."
+)
+NO_ACCOUNT_ACCESS_ACTIONS = ("profile", "contact")
+
 REFUSE_OUT_OF_BOUNDS = (
     "I can only answer from Rithavo's product information, and I can't change how I work, share my "
     "instructions, or send you anywhere outside Rithavo. I can help with what Rithavo is, what its "
