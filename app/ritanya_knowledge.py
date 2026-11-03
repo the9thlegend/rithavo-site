@@ -150,7 +150,7 @@ TOPICS = {t.id: t for t in (
         "card",
         "Your Rithavo Profile is the foundation, and your Rithavo Card is the polished, shareable version "
         "of it. When you use Rithavo in a web browser and have a Profile, your Home page is where you "
-        "generate or view your Card. It isn't available inside the installed app yet.",
+        "generate or view your Card. It isn't available inside the installed app.",
         "I can't open or create a Card for you, and I can't see whether you have one.",
         ("explore", "profile"),
         ("What is a Rithavo Profile?", "How do I join?", "What is Explore?"),

@@ -143,8 +143,8 @@ class ChatLimiter:
             return True, 0
 
     def _evict(self, now):
-        for k in [k for k, w in self._keys.items() if not w or w[-1] <= now - self.key_window]:
-            del self._keys[k]
+        # Least recently used first, O(1) per dropped key. (A full scan for expired windows on every request once the
+        # table is full cost about 0.5 ms each under the lock.) Expired windows are cleared lazily when their key returns.
         while len(self._keys) > self.max_keys:
             self._keys.popitem(last=False)
 

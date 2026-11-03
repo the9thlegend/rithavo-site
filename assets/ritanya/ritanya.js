@@ -30,6 +30,12 @@
   var doc = document;
   var memory = {};                       // used only if sessionStorage is unavailable
 
+  // Inside the installed app the Rithavo Card is not offered (it is not an experience on rithavo.com), so the guide does not
+  // offer it as a question either.
+  function inApp() {
+    return doc.documentElement.classList.contains("is-pwa") || window.navigator.standalone === true ||
+      !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  }
   function pathKey() { return window.location.pathname.replace(/\/+$/, "").toLowerCase(); }
   function hiddenHere() {
     var p = pathKey();
@@ -210,7 +216,7 @@
         if (message.suggestions && message.suggestions.length) {
           var chips = el("div", "rtn-chips", row);
           message.suggestions.slice(0, 4).forEach(function (s) {
-            if (typeof s !== "string" || s.length > 80) return;
+            if (typeof s !== "string" || s.length > 80 || (inApp() && /\bcard\b/i.test(s))) return;
             var chip = el("button", "rtn-chip", chips, s);
             chip.type = "button";
             chip.addEventListener("click", function () { ask(s); });
