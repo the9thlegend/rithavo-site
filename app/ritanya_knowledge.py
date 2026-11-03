@@ -13,10 +13,9 @@ asserts):
   * Nothing here describes a personalised result: no score, no fit, no
     recommendation about a person. Ritanya points to the products that
     produce those; she does not produce them.
-  * Availability is never asserted. The public pages disagree (the home,
-    Career and Contact pages say "available at launch"; the About page says
-    "live now"), so every answer defers to the product pages for what is
-    open today.
+  * Availability is never asserted. The public pages now agree ("available
+    for purchase at launch"; the About page's former "live now" was corrected),
+    and every answer still defers to the product pages for what is open today.
 """
 
 from typing import NamedTuple
@@ -205,7 +204,7 @@ TOPICS = {t.id: t for t in (
         "You can join now to get Explore and to build your Rithavo Profile ahead of launch.",
         ("career", "sign_up"),
         ("How do I join?", "What is Explore?", "What is a Rithavo Profile?"),
-        "index.html; career/index.html; contact/index.html (the About page's \"live now\" wording differs)",
+        "index.html; career/index.html; contact/index.html; about/index.html",
     ),
     Topic(
         "join",

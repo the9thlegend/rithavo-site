@@ -245,9 +245,7 @@ async function main() {
   await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: standaloneShim.identifier });
   check("installed-app mode: no visible Card control, no link or form to another host, on " + CARD_PAGES.length + " pages", cardFindings.length === 0, cardFindings.join(" | "));
   // Known, pre-existing wording on main (contact page names the sibling host as plain text; fixed on launch/privacy-and-wording, not merged here).
-  const unexpected = textMentions.filter((m) => !m.startsWith("/contact/"));
-  check("no page other than the known /contact/ wording names another host in visible text", unexpected.length === 0, unexpected.join(" | "));
-  if (textMentions.length) console.log("KNOWN (not a link, not fixed in this branch): " + textMentions.join(" | "));
+  check("no page names another host in visible text", textMentions.length === 0, textMentions.join(" | "));
 
   // ---------------------------------------------------------------- sign out clears caches; cross-user isolation
   await goto(BASE + "/account/");

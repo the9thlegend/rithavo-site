@@ -202,9 +202,7 @@ async function main() {
   }
   await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: crawl.identifier });
   check("installed-app mode, " + PUBLIC.length + " public pages: no link, form or script points at another host (Card or otherwise)", findings.length === 0, findings.join(" | "));
-  const unexpected = textMentions.filter((p) => p !== "/contact/");
-  check("only the known /contact/ wording names another host in visible text", unexpected.length === 0, unexpected.join(","));
-  if (textMentions.length) console.log("KNOWN (plain text, not a link; fixed on launch/privacy-and-wording, not part of this branch): " + textMentions.join(", "));
+  check("no page names another host in visible text", textMentions.length === 0, textMentions.join(","));
 
   // ---------------------------------------------------------------- routing allowlist still holds on this deployment (status and size only)
   const probe = await evalJs(`(async()=>{const out={};for(const p of ['/config%2Epy','/app%2Fmain%2Epy','/requirements%2Etxt','/vercel%2Ejson','/tests%2Ftest_pwa%2Epy','/sw.js%2Emap','/manifest.json','/pwa.py','/tools/make_pwa_icons.py','/config.py','/design-lab/']){const r=await fetch(p,{cache:'no-store',redirect:'manual'});out[p]=r.status+'/'+(await r.arrayBuffer()).byteLength}return out})()`);
