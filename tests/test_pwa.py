@@ -122,8 +122,8 @@ def test_service_worker_policy_in_node():
 # Rithavo address must be rithavo.com itself. Adding a host here is a deliberate, reviewed decision.
 ALLOWED_THIRD_PARTY_HOSTS = {"fonts.googleapis.com", "fonts.gstatic.com", "checkout.razorpay.com", "sdk.cashfree.com", "www.w3.org"}
 FORBIDDEN_RITHAVO = re.compile(r"\b(?:[a-z0-9-]+\.rithavo\.com|rithavo\.app|rithavo\.applications\.com|rithavo\.in|rithavo\.co)\b", re.I)
-# Visible wording that still names the sibling's host; the line is already corrected on launch/privacy-and-wording.
-KNOWN_VISIBLE_MENTION = {"contact/index.html"}
+# Pages allowed to name the sibling host in visible text: none (the contact page's mention was removed).
+KNOWN_VISIBLE_MENTION = set()
 
 
 def _strip_comments(text):
