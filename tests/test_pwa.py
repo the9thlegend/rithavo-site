@@ -138,7 +138,7 @@ def test_no_served_file_points_a_customer_at_another_host():
     for rel in served_files({".html", ".js", ".css", ".webmanifest"}):
         raw = (ROOT / rel).read_text(encoding="utf-8", errors="ignore")
         for host in re.findall(r"(?:https?:)?//([a-z0-9.-]+\.[a-z]{2,})", raw, re.I):
-            if host.lower() not in ALLOWED_THIRD_PARTY_HOSTS:
+            if host.lower() not in ALLOWED_THIRD_PARTY_HOSTS and host.lower() != "rithavo.com":   # the site's own canonical host is not a third party
                 offenders.append((rel.as_posix(), host))
         if rel.as_posix() not in KNOWN_VISIBLE_MENTION and FORBIDDEN_RITHAVO.search(_strip_comments(raw)):
             offenders.append((rel.as_posix(), "rithavo subdomain/domain"))

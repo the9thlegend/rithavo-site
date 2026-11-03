@@ -99,6 +99,9 @@
   /* ----------------------------------------------------------- sign-out hygiene */
   function clearPrivateState() {
     var jobs = [];
+    try {   // anything the Ritanya guide kept for this tab (rv_ritanya_*) can hold what the person typed: it ends with the session
+      Object.keys(window.sessionStorage).filter(function (k) { return k.indexOf("rv_ritanya_") === 0; }).forEach(function (k) { window.sessionStorage.removeItem(k); });
+    } catch (e) { /* storage unavailable: nothing to clear */ }
     if (window.caches && caches.keys) {
       jobs.push(caches.keys().then(function (names) {
         // the shell cache is public and identical for everyone, so it stays; pages and assets visited signed in are removed

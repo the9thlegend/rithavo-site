@@ -55,7 +55,7 @@ from app.analytics import (
     ALLOWED_EVENT_TYPES, device_category_from_user_agent, get_or_create_session_id, SESSION_COOKIE_NAME,
     validate_event_type,
 )
-from app import routes_admin, routes_cashfree, routes_dashboard, routes_explore, routes_mentor
+from app import ritanya_chat, routes_admin, routes_cashfree, routes_dashboard, routes_explore, routes_mentor
 
 logger = logging.getLogger("rithavo_web.diagnosis")
 
@@ -79,6 +79,8 @@ app.include_router(routes_admin.router)
 app.include_router(routes_dashboard.router)
 app.include_router(routes_mentor.router)
 app.include_router(routes_cashfree.router)
+# Ritanya Phase A (deterministic, no provider): registers NOTHING unless RITHAVO_RITANYA_MODE=deterministic is set.
+ritanya_chat.mount(app)
 
 
 def _row_to_dict(row):
