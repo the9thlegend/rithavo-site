@@ -104,6 +104,7 @@ class ChatLimiter:
         self._keys = OrderedDict()   # key -> deque of timestamps
         self._global = deque()
         self._lock = threading.Lock()
+        self._last_purge = clock()
 
     @classmethod
     def from_env(cls):
@@ -124,6 +125,8 @@ class ChatLimiter:
         """Returns (allowed, retry_after_seconds)."""
         with self._lock:
             now = self.clock()
+            if now - self._last_purge >= self.key_window:
+                self._purge_expired(now)
             self._trim(self._global, now, self.global_window)
             if len(self._global) >= self.global_limit:
                 return False, max(1, int(self._global[0] + self.global_window - now) + 1)
@@ -141,6 +144,13 @@ class ChatLimiter:
             if len(self._keys) > self.max_keys:
                 self._evict(now)
             return True, 0
+
+    def _purge_expired(self, now):
+        # A client address is kept only while it still counts toward a limit: once per window, every address whose window
+        # has fully expired is forgotten (so "held briefly in memory" is true, not just "until the instance is recycled").
+        self._last_purge = now
+        for k in [k for k, w in self._keys.items() if not w or w[-1] <= now - self.key_window]:
+            del self._keys[k]
 
     def _evict(self, now):
         # Least recently used first, O(1) per dropped key. (A full scan for expired windows on every request once the

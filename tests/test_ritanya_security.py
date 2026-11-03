@@ -108,6 +108,22 @@ def test_flood_of_distinct_keys_stays_bounded_and_cheap():
     assert elapsed < 3, f"60,000 requests took {elapsed:.1f}s: eviction is doing too much work per request"
 
 
+def test_an_address_is_forgotten_once_its_window_has_expired():
+    # The privacy page can only say an address is "held briefly in memory" if this is true.
+    now = [0.0]
+    lim = rc.ChatLimiter(key_limit=20, key_window=300, global_limit=600, global_window=300, max_keys=5000, clock=lambda: now[0])
+    lim.allow("203.0.113.5")
+    now[0] = 200
+    lim.allow("someone-else")
+    assert "203.0.113.5" in lim._keys                    # still inside its window: it must be counted
+    now[0] = 301
+    lim.allow("someone-else")                            # unrelated traffic is enough to trigger the purge
+    assert "203.0.113.5" not in lim._keys
+    now[0] = 86400
+    lim.allow("a-third")
+    assert set(lim._keys) == {"a-third"}                 # a day later nothing from before is held
+
+
 def test_least_recently_used_key_is_the_one_dropped():
     now = [0.0]
     lim = rc.ChatLimiter(key_limit=5, key_window=300, global_limit=1000, global_window=300, max_keys=3, clock=lambda: now[0])
