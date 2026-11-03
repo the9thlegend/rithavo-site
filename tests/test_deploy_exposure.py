@@ -56,7 +56,7 @@ def test_rule_shape_and_order():
     srcs = [r["src"] for r in ROUTES]
     assert not any(r.get("status") == 404 and "dest" not in r for r in ROUTES)  # status-only 404 leaks bodies
     assert all("continue" not in r for r in ROUTES)
-    assert srcs[1:3] == ["/api/(.*)", "/profile/edit(/.*)?"]
+    assert srcs[1:4] == ["/api/(.*)", "/profile/edit(/.*)?", "/(.*%.*)"]  # the percent-encoding rule sits right after the function routes
     assert ROUTES[-1] == {"src": "/(.*)", "dest": FUNCTION}  # anything not allowlisted ends at the function
     internal_rule = next(i for i, r in enumerate(ROUTES) if "design-lab" in r["src"])
     first_static = next(i for i, r in enumerate(ROUTES) if r.get("dest") == STATIC)
@@ -155,3 +155,36 @@ def test_only_the_manifest_extension_was_added_to_the_allowlist():
     for path in ("/manifest.json", "/sw.js.map", "/pwa.py", "/tools/make_pwa_icons.py", "/manifest.webmanifest.bak",
                  "/x.webmanifest.py", "/notes.webmanifest/x"):
         assert not served_as_file(path), path
+
+def _deployed_source_files():
+    """Files that are part of the deployment and must never be readable as static files."""
+    names = ["config.py", "requirements.txt", "vercel.json", "api/index.py", ".vercelignore"]
+    names += [p.relative_to(ROOT).as_posix() for p in (ROOT / "app").glob("*.py")]
+    return names
+
+
+def test_percent_encoded_dots_and_slashes_never_reach_the_file_system():
+    """Regression: on 2026-11-03 /config%2Epy and /app%2Fmain%2Epy returned the backend source with 200. The
+    dot-free allowlist rule matched them (a literal '.' is absent) and the host decoded %2E when it looked the
+    file up. Every encoded spelling of every deployed source file must go to the function, which answers 404."""
+    spellings = []
+    for name in _deployed_source_files():
+        for dot in ("%2E", "%2e", "%252E"):
+            for slash in ("/", "%2F", "%2f", "%252F"):
+                spellings.append("/" + name.replace(".", dot).replace("/", slash))
+    spellings += ["/config%2Epy/", "/%2e%2e/config.py", "/assets/%2e%2e/config.py", "/assets%2F..%2Fconfig%2Epy",
+                  "/index%2Ehtml", "/styles%2Ecss"]
+    assert [p for p in spellings if served_as_file(p)] == []
+    assert [p for p in spellings if not goes_to_function(p)] == []
+
+
+def test_no_public_file_needs_a_percent_sign_in_its_url():
+    """The percent-encoding rule is safe only if no real public URL contains '%'."""
+    offenders = []
+    for p in ROOT.rglob("*"):
+        rel = p.relative_to(ROOT)
+        if not p.is_file() or rel.parts[0] in INTERNAL_DIRS or rel.parts[0] in {".git", "storage", "__pycache__", ".vercel", "node_modules"}:
+            continue
+        if "%" in rel.as_posix() and p.suffix.lower() in PUBLIC_SUFFIXES:
+            offenders.append(rel.as_posix())
+    assert offenders == []
