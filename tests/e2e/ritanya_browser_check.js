@@ -98,7 +98,7 @@ async function main() {
   r = await ask("When can I buy it?");
   check("availability is not asserted (deferred to the product pages)", /available for purchase at launch/.test(r.text) && !/available now|live now/i.test(r.text));
   r = await ask("What is a Rithavo Card?");
-  check("the Card answer does not promise the Card inside the installed app", /installed app/.test(r.text) && r.links.every((h) => !h.startsWith("/card")));
+  check("the Card answer says the Card isn't available on rithavo.com and links nowhere near a card site", /isn't available on rithavo\.com/.test(r.text) && r.links.every((h) => !h.startsWith("/card")));
   await shot("desktop-conversation");
 
   // privacy: no cookie sent, no cookie set, only same-origin + font hosts contacted

@@ -180,7 +180,7 @@ async function main() {
   const who = await ask("What can you do?");
   check("it says what it is: not a live AI, no account access, no personal advice", /not a live AI/.test(who.text) && /can't see your account/.test(who.text));
   const card = await ask("What is a Rithavo Card?");
-  check("Card answer: web browser only, 'isn't available inside the installed app', no promise ('yet') and no link to a card site", /isn't available inside the installed app\./.test(card.text) && !/\byet\b/i.test(card.text) && card.actions.every((a) => !/card/i.test(a.href)), JSON.stringify(card.actions.map((a) => a.href)));
+  check("Card answer: says the Card isn't available on rithavo.com, no promise ('yet') and no link to a card site", /isn't available on rithavo\.com/.test(card.text) && !/\byet\b/i.test(card.text) && card.actions.every((a) => !/card/i.test(a.href)), JSON.stringify(card.actions.map((a) => a.href)));
 
   // ===================================================================== every destination resolves on this origin
   const dest = await evalJs(`Promise.all(${JSON.stringify(DESTINATIONS)}.map(p=>fetch(p,{redirect:'follow'}).then(r=>({p,s:r.status,same:new URL(r.url).origin===location.origin})).catch(e=>({p,s:0,same:false}))))`);
@@ -231,7 +231,7 @@ async function main() {
   check("installed app on a phone: the launcher sits above the bottom navigation (no overlap), no sideways scroll", lay.lBottom <= lay.nTop && !lay.overflowX, JSON.stringify(lay));
   await openPanel(); await resetConvo();
   const prof = await ask("What is a Rithavo Profile?");
-  check("installed app: the profile answer offers no 'Rithavo Card' question (the Card is not offered in the app)", !prof.chips.some((c) => /card/i.test(c)) && prof.chips.length >= 1, JSON.stringify(prof.chips));
+  check("installed app: the profile answer is the same as in the browser (no special case) and offers follow-up questions", /Profile/.test(prof.text) && prof.chips.length >= 1, JSON.stringify(prof.chips));
   const sheet = await evalJs(`(()=>{const p=document.querySelector('.rtn-panel').getBoundingClientRect(),i=document.querySelector('.rtn-input');return{w:Math.round(p.width),bottom:Math.round(innerHeight-p.bottom),font:getComputedStyle(i).fontSize,modal:document.querySelector('.rtn-panel').getAttribute('aria-modal')}})()`);
   check("phone: the panel is a full-width bottom sheet, modal, with a 16px input (no iOS zoom)", sheet.w === 390 && sheet.font === "16px" && sheet.modal === "true", JSON.stringify(sheet));
   await shot("preview-ritanya-installed-mobile");

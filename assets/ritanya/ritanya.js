@@ -22,6 +22,10 @@
   var MAX_CHARS = 400;
   var MAX_SAVED_MESSAGES = 60;
   var HIDDEN_ON = ["/sign-in", "/sign-up", "/reset-password", "/onboarding", "/admin", "/offline"];
+  var ENGINE_URL = "/assets/ritanya/engine.js";
+  // How long an "on" or "off" answer from the server is trusted before the page asks again. This is the kill switch for the
+  // browser engine: once the server says the guide is off (or paused), every open page removes it within this long.
+  var RECHECK_MS = 120000;
 
   // Set to a same-origin path such as "/assets/ritanya/portrait/avatar.webp" ONLY after the portrait's provenance and
   // usage rights are confirmed by the founder. Until then the Rithavo mark is used.
@@ -30,12 +34,6 @@
   var doc = document;
   var memory = {};                       // used only if sessionStorage is unavailable
 
-  // Inside the installed app the Rithavo Card is not offered (it is not an experience on rithavo.com), so the guide does not
-  // offer it as a question either.
-  function inApp() {
-    return doc.documentElement.classList.contains("is-pwa") || window.navigator.standalone === true ||
-      !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-  }
   function pathKey() { return window.location.pathname.replace(/\/+$/, "").toLowerCase(); }
   function hiddenHere() {
     var p = pathKey();
@@ -90,17 +88,29 @@
   }
 
   /* ------------------------------------------------------------------ boot: show nothing unless the server says it is on */
+  function readStatus() {
+    var raw = load(KEY_STATUS);
+    if (!raw) return null;
+    try {
+      var v = JSON.parse(raw);
+      if (v && typeof v.t === "number") return { fresh: Date.now() - v.t < RECHECK_MS, cfg: v.cfg && v.cfg.enabled === true ? v.cfg : null };
+    } catch (e) { /* an older format or garbage: ask again */ }
+    return null;
+  }
+  function writeStatus(cfg) { store(KEY_STATUS, JSON.stringify({ t: Date.now(), cfg: cfg || null })); }
+  /* done(cfg): the config when on, null when the server says off or paused, undefined when it could not be asked (offline, a server hiccup) */
+  function askStatus(done) {
+    fetchJson(STATUS_URL, { method: "GET" }, 5000).then(function (r) {
+      if (r.status === 200 && r.data && r.data.enabled === true) { writeStatus(r.data); done(r.data); }
+      else if ((r.status === 200 && r.data && r.data.enabled === false) || r.status === 404) { writeStatus(null); done(null); }
+      else done(undefined);
+    }).catch(function () { done(undefined); });
+  }
   function boot() {
     if (hiddenHere()) return;
-    var cached = load(KEY_STATUS);
-    if (cached === "off") return;
-    if (cached) {
-      try { var cfg = JSON.parse(cached); if (cfg && cfg.enabled === true) { start(cfg); return; } } catch (e) { /* ask again */ }
-    }
-    fetchJson(STATUS_URL, { method: "GET" }, 5000).then(function (r) {
-      if (r.status === 200 && r.data && r.data.enabled === true) { store(KEY_STATUS, JSON.stringify(r.data)); start(r.data); }
-      else store(KEY_STATUS, "off");
-    }).catch(function () { /* offline or blocked: show nothing, try again on the next page */ });
+    var saved = readStatus();
+    if (saved && saved.fresh) { if (saved.cfg) start(saved.cfg); return; }
+    askStatus(function (cfg) { if (cfg) start(cfg); });
   }
 
   /* ------------------------------------------------------------------ the guide */
@@ -108,8 +118,18 @@
     // Load the stylesheet first so the launcher never flashes unstyled. If it fails to load, show nothing.
     var sheet = doc.createElement("link");
     sheet.rel = "stylesheet"; sheet.href = "/assets/ritanya/ritanya.css";
-    sheet.onload = function () { build(config); };
+    sheet.onload = function () { loadEngine(config, function () { build(config); }); };
     doc.head.appendChild(sheet);
+  }
+  /* The browser engine is one static file from this site (no request is made for a message). It is requested with its version, so a
+     new release is fetched even if an older copy is cached; if it cannot load, the panel still opens and says it can't answer. */
+  function loadEngine(config, next) {
+    if (config.engine !== "browser" || window.RitanyaEngine) { next(); return; }
+    var version = typeof config.engine_version === "string" && /^[0-9a-f]{1,16}$/.test(config.engine_version) ? config.engine_version : "0";
+    var s = doc.createElement("script");
+    s.src = ENGINE_URL + "?v=" + version; s.async = true;
+    s.onload = next; s.onerror = next;
+    doc.head.appendChild(s);
   }
 
   function build(config) {
@@ -140,7 +160,8 @@
     launcher.setAttribute("aria-label", "Ask Ritanya, Rithavo's guide");
     avatar(launcher, "rtn-avatar-launcher");
     el("span", "rtn-launcher-label", launcher, "Ask Ritanya");
-    el("div", "rtn-spacer", doc.body).setAttribute("aria-hidden", "true");   // keeps the page's last lines clear of the launcher
+    var spacer = el("div", "rtn-spacer", doc.body);
+    spacer.setAttribute("aria-hidden", "true");   // keeps the page's last lines clear of the launcher
 
     /* ---- panel ---- */
     var root = el("div", "rtn-root", doc.body);
@@ -216,7 +237,7 @@
         if (message.suggestions && message.suggestions.length) {
           var chips = el("div", "rtn-chips", row);
           message.suggestions.slice(0, 4).forEach(function (s) {
-            if (typeof s !== "string" || s.length > 80 || (inApp() && /\bcard\b/i.test(s))) return;
+            if (typeof s !== "string" || s.length > 80) return;
             var chip = el("button", "rtn-chip", chips, s);
             chip.type = "button";
             chip.addEventListener("click", function () { ask(s); });
@@ -259,6 +280,7 @@
       state.messages.push(mine); render(mine, true); scrollDown();
       input.value = "";
       setPending(true);
+      if (config.engine === "browser") { answerLocally(text); return; }
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         finishWith(fallbackReply("You're offline, so I can't answer right now. Your conversation is kept. These pages work once you reconnect."));
         return;
@@ -284,6 +306,42 @@
     function finishWith(reply) {
       state.messages.push(reply); render(reply, true); persist(); setPending(false); scrollDown();
     }
+    /* Browser engine: the answer is computed here from the reviewed information; no request is made and nothing leaves the page. */
+    function answerLocally(text) {
+      recheck(function (on) {
+        if (!on) return;                                           // switched off while open: the guide is already gone
+        var engine = window.RitanyaEngine, out = null;
+        try {
+          out = engine && engine.respond(text, state.lastTopic, state.unknownStreak);
+          if (engine && out && !out.ok) out = engine.respond(text, null, 0);   // a damaged saved topic must not block every message
+        } catch (e) { out = null; }
+        if (!out || !out.ok || !out.result || typeof out.result.reply !== "string") {
+          finishWith(fallbackReply((config.messages && config.messages.unavailable) || "I can't answer right now. Your conversation is kept. The links below still work."));
+          return;
+        }
+        var d = out.result;
+        if (typeof d.topic === "string") state.lastTopic = d.topic;
+        state.unknownStreak = d.unknown ? Math.min(10, state.unknownStreak + 1) : 0;
+        finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
+      });
+    }
+    /* The kill switch. A recent "on" is trusted; otherwise the server is asked again (edge-cached, so cheap). If it says off or paused,
+       the whole guide is removed and what the visitor typed is cleared. If it cannot be asked (offline), the guide keeps working. */
+    function recheck(done) {
+      var saved = readStatus();
+      if (saved && saved.fresh && saved.cfg) { done(true); return; }
+      askStatus(function (cfg) {
+        if (cfg === undefined) { done(true); return; }
+        if (cfg === null) { teardown(); done(false); return; }
+        done(true);
+      });
+    }
+    function teardown() {
+      store(KEY_CONVERSATION, null);
+      [launcher, root, spacer].forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); });
+      doc.documentElement.classList.remove("rtn-lock");
+      doc.body.classList.remove("rtn-on");
+    }
     form.addEventListener("submit", function (e) { e.preventDefault(); ask(input.value); });
 
     resetBtn.addEventListener("click", function () {
@@ -301,6 +359,7 @@
       doc.documentElement.classList.toggle("rtn-lock", isSheet());
       launcher.classList.add("rtn-launcher-hidden");
       setTimeout(function () { input.focus(); }, 30);
+      recheck(function () { /* if it is off now, teardown() has already removed everything */ });
     }
     function close() {
       if (root.hidden) return;
@@ -325,6 +384,7 @@
     // Following a link inside the app ends the conversation view, not the conversation itself (it is kept for this tab).
     log.addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("a.rtn-action"); if (a) { persist(); } });
     doc.body.classList.add("rtn-on");
+    doc.addEventListener("visibilitychange", function () { if (!doc.hidden) recheck(function () {}); });
   }
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot); else boot();

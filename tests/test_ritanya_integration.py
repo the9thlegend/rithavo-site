@@ -9,6 +9,7 @@ Ritanya production-integration gates (no browser; the browser journeys are in te
   * prices stay off and availability is never asserted.
 """
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -128,9 +129,11 @@ def test_prices_stay_disabled_and_availability_is_never_asserted():
     assert "available for purchase at launch" in K.AVAILABILITY_NOTE
 
 
-def test_card_answer_does_not_promise_the_card_inside_the_installed_app():
+def test_card_answer_says_the_card_is_not_available_and_promises_nothing():
     reply = K.TOPICS["card"].reply
-    assert "web browser" in reply and "installed app" in reply
+    assert "isn't available on rithavo.com" in reply
+    assert not re.search(r"\byet\b|coming|soon|will be|generate|view your", reply, re.I)
+    assert "isn't available on rithavo.com" in K.TOPICS["profile"].more
     assert not any(d.path.startswith("/card") for d in K.DESTINATIONS.values())
 
 
@@ -193,3 +196,44 @@ def test_script_tag_sits_right_after_body_open_and_never_before_head_content():
         text = page.read_text(encoding="utf-8")
         if TAG in text:
             assert re.search(r"<body>\s*" + re.escape(TAG), text), page
+
+
+# ------------------------------------------------------------------ the browser engine mode
+
+def test_browser_mode_has_no_chat_route_and_tells_the_page_to_use_the_engine(monkeypatch):
+    registered, client = mounted_client(monkeypatch, "browser")
+    assert registered is False                                    # chat is not registered: nothing can be sent to a server
+    assert client.post("/ritanya/chat", json={"message": "hi"}).status_code == 404
+    assert not hasattr(client.app.state, "ritanya_limiter")       # no limiter, no client address ever handled
+    r = client.get("/ritanya/status")
+    body = r.json()
+    assert r.status_code == 200 and body["enabled"] is True and body["engine"] == "browser" and body["live_ai"] is False
+    assert body["disclosure"] == K.DISCLOSURE_BROWSER and "not sent to Rithavo or anyone else" in body["disclosure"]
+    assert body["recheck_seconds"] == 120 and body["greeting"] == K.GREETING
+    assert re.fullmatch(r"[0-9a-f]{12}", body["engine_version"])
+    assert body["engine_version"] == hashlib.sha256(rc.ENGINE_FILE.read_bytes()).hexdigest()[:12]
+    assert "max-age=60" in r.headers["cache-control"] and "set-cookie" not in r.headers
+
+
+def test_browser_mode_kill_switch_turns_the_guide_off_for_every_page(monkeypatch):
+    registered, client = mounted_client(monkeypatch, "browser", paused="true")
+    r = client.get("/ritanya/status")
+    assert r.json() == {"enabled": False} and "s-maxage=300" in r.headers["cache-control"]
+    assert client.post("/ritanya/chat", json={"message": "hi"}).status_code == 404
+
+
+def test_server_mode_status_declares_the_server_engine_and_no_engine_version(monkeypatch):
+    registered, client = mounted_client(monkeypatch, "deterministic")
+    body = client.get("/ritanya/status").json()
+    assert body["engine"] == "server" and "engine_version" not in body and body["disclosure"] == K.DISCLOSURE
+
+
+def test_the_page_and_the_server_agree_on_how_long_an_answer_is_trusted():
+    ms = int(re.search(r"var RECHECK_MS = (\d+);", JS).group(1))
+    assert ms == rc.RECHECK_SECONDS * 1000
+
+
+def test_the_client_removes_the_whole_guide_when_the_server_says_it_is_off():
+    assert re.search(r"if \(cfg === null\) \{ teardown\(\); done\(false\); return; \}", JS)
+    assert "store(KEY_CONVERSATION, null);" in JS[JS.index("function teardown()"):JS.index("function teardown()") + 400]
+    assert 'visibilitychange' in JS and "recheck(function () {" in JS

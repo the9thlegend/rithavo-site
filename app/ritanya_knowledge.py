@@ -140,16 +140,15 @@ TOPICS = {t.id: t for t in (
         "Your Rithavo Profile is built from your education and experience. Application Diagnosis and "
         "Career Intelligence both use it, so adding it is the way to get started. You can do that on the "
         "Profile page once you've signed in.",
-        "Your Rithavo Card is the polished, shareable version of your Profile.",
+        "The Rithavo Card, a shareable version of a Profile, isn't available on rithavo.com.",
         ("profile", "sign_up"),
         ("What is a Rithavo Card?", "What is Career Intelligence?", "How do I join?"),
         "home/index.html (profile banner and Card copy)",
     ),
     Topic(
         "card",
-        "Your Rithavo Profile is the foundation, and your Rithavo Card is the polished, shareable version "
-        "of it. When you use Rithavo in a web browser and have a Profile, your Home page is where you "
-        "generate or view your Card. It isn't available inside the installed app.",
+        "The Rithavo Card isn't available on rithavo.com. Your Rithavo Profile is the foundation for it, "
+        "and you can add to your Profile and keep it up to date here once you've signed in.",
         "I can't open or create a Card for you, and I can't see whether you have one.",
         ("explore", "profile"),
         ("What is a Rithavo Profile?", "How do I join?", "What is Explore?"),
@@ -308,10 +307,13 @@ FALLBACK_ACTIONS = ("career", "contact", "about")
 
 
 # One line the panel always shows, so nobody mistakes the assistant for live AI.
+# (The browser-engine variant adds one true sentence: in that mode nothing a visitor types is sent anywhere.)
 DISCLOSURE = (
     "I answer from Rithavo's approved product information. I'm not a live AI, I can't see your account, "
     "and I can't give personal career advice."
 )
+
+DISCLOSURE_BROWSER = DISCLOSURE + " Your messages are answered in your browser and are not sent to Rithavo or anyone else."
 
 # Starter questions by page, so the guide is useful where the person is. Every phrase here is asked of the
 # real matcher in tests/test_ritanya_chat.py and must produce a reviewed topic answer, never "I don't know".

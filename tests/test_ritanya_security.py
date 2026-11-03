@@ -205,7 +205,8 @@ def test_the_answer_never_depends_on_who_is_asking(monkeypatch):
 
 def test_the_assistant_code_has_no_path_to_a_session_or_the_database():
     import ast
-    allowed = {"json", "logging", "os", "re", "threading", "time", "unicodedata", "uuid", "collections", "fastapi", "typing", "app"}
+    allowed = {"json", "logging", "os", "re", "threading", "time", "unicodedata", "uuid", "collections", "fastapi", "typing", "app",
+               "hashlib", "functools", "pathlib"}   # the last three only fingerprint the shipped engine.js file
     for name in ("ritanya_chat.py", "ritanya_knowledge.py"):
         tree = ast.parse((ROOT / "app" / name).read_text(encoding="utf-8"))
         for node in ast.walk(tree):
@@ -221,12 +222,11 @@ def test_the_assistant_code_has_no_path_to_a_session_or_the_database():
 
 # ------------------------------------------------------------------ installed app and sign-out
 
-def test_installed_app_neither_offers_the_card_nor_promises_it():
+def test_the_guide_does_not_offer_or_promise_the_card_anywhere():
     js = (ROOT / "assets" / "ritanya" / "ritanya.js").read_text(encoding="utf-8")
-    assert re.search(r"inApp\(\) && /\\bcard\\b/i\.test\(s\)", js)
-    assert "is-pwa" in js and "display-mode: standalone" in js
+    assert "inApp" not in js                                      # no special case: the Card is not available on rithavo.com at all
     reply = K.TOPICS["card"].reply
-    assert "installed app" in reply and not re.search(r"\byet\b|coming|soon|will be", reply, re.I)
+    assert "isn't available on rithavo.com" in reply and not re.search(r"\byet\b|coming|soon|will be", reply, re.I)
 
 
 def test_sign_out_clears_what_the_guide_kept_in_the_tab():

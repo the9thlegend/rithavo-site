@@ -11,9 +11,16 @@ What it is not: it does not assess anyone, score anything, recommend a career,
 read an account, or generate text. Personal-assessment requests are refused
 and pointed at the products that actually produce those results.
 
-Production state: DISABLED. mount() registers the chat route only if
-RITHAVO_RITANYA_MODE=deterministic is set in the environment; nothing in the
-repository sets it. The tiny status route is always present: disabled (or paused) it
+Production state: DISABLED. RITHAVO_RITANYA_MODE selects the engine:
+
+    (unset / anything else)  off. No chat route; status says {"enabled": false}.
+    deterministic            the SERVER engine: POST /ritanya/chat answers each message (rate limited, logged without content).
+    browser                  the BROWSER engine: status tells the page to load assets/ritanya/engine.js (generated from this
+                             module's data and patterns; tests/test_ritanya_engine_parity.py proves it answers identically) and
+                             answer inside the page. No chat route exists, so no message ever reaches a server and no limiter,
+                             address or log is involved. RITHAVO_RITANYA_PAUSED=true turns either engine off.
+
+Nothing in the repository sets the variable. The tiny status route is always present: disabled (or paused) it
 answers {"enabled": false} with a cache header, so the page's one question per tab is
 answered by the edge cache instead of waking a function (an absent route returned an
 uncacheable 404, i.e. one function run per new tab for every visitor).
@@ -41,6 +48,7 @@ Design decisions (each one tested in tests/test_ritanya_chat.py):
     rithavo.com). A message cannot cause any other link to be produced.
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -50,6 +58,8 @@ import time
 import unicodedata
 import uuid
 from collections import OrderedDict, deque
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -58,7 +68,7 @@ from app import ritanya_knowledge as K
 
 logger = logging.getLogger("rithavo_web.ritanya")
 
-MODE_ENV = "RITHAVO_RITANYA_MODE"          # "off" (default) or "deterministic"
+MODE_ENV = "RITHAVO_RITANYA_MODE"          # "off" (default), "deterministic" (server engine) or "browser" (browser engine)
 PAUSE_ENV = "RITHAVO_RITANYA_PAUSED"       # "true" -> every request answers 503 (kill switch)
 IP_HEADER_ENV = "RITHAVO_RITANYA_IP_HEADER"  # name of a TRUSTED proxy header carrying the client address
 
@@ -77,6 +87,20 @@ status_router = APIRouter(prefix="/ritanya")    # status: always registered (see
 
 def _mode() -> str:
     return os.environ.get(MODE_ENV, "off").strip().lower()
+
+
+ENGINE_FILE = Path(__file__).resolve().parent.parent / "assets" / "ritanya" / "engine.js"
+RECHECK_SECONDS = 120   # how long a page trusts "on" before asking again (the browser engine's kill switch); ritanya.js RECHECK_MS
+
+
+@lru_cache(maxsize=1)
+def engine_version() -> str:
+    """A short fingerprint of the shipped engine file, used by the page to request exactly this version of it (so a new release is
+    never answered by an older cached copy). "0" if the file cannot be read; the page then still works, just without cache-busting."""
+    try:
+        return hashlib.sha256(ENGINE_FILE.read_bytes()).hexdigest()[:12]
+    except OSError:
+        return "0"
 
 
 def _paused() -> bool:
@@ -436,23 +460,29 @@ async def status(request: Request):
     Off or paused: {"enabled": false}, cacheable at the edge. That is safe because the assistant's state only changes
     with an environment change, which only reaches a NEW deployment, and Vercel's cache is per deployment: a cached
     "off" cannot outlive a switch-on, nor a cached "on" a pause (the chat route also answers 503 when paused)."""
-    if _mode() != "deterministic" or _paused():
+    mode = _mode()
+    if mode not in ("deterministic", "browser") or _paused():
         return JSONResponse({"enabled": False}, headers={"Cache-Control": _STATUS_OFF_CACHE, "X-Content-Type-Options": "nosniff"})
+    browser = mode == "browser"
     body = {
         "enabled": True, "live_ai": False, "scope": SCOPE,
-        "greeting": K.GREETING, "disclosure": K.DISCLOSURE,
+        "engine": "browser" if browser else "server", "recheck_seconds": RECHECK_SECONDS,
+        "greeting": K.GREETING, "disclosure": K.DISCLOSURE_BROWSER if browser else K.DISCLOSURE,
         "starters": {path: list(items) for path, items in K.PAGE_STARTERS.items()},
         "default_starters": list(K.START_SUGGESTIONS),
         "fallback_actions": [_action(a) for a in K.FALLBACK_ACTIONS],
         "messages": {"busy": K.BUSY, "unavailable": K.UNAVAILABLE},
     }
+    if browser:
+        body["engine_version"] = engine_version()
     # Short public cache so a page view does not cost a function call.
     return JSONResponse(body, headers={"Cache-Control": _STATUS_CACHE, "X-Content-Type-Options": "nosniff"})
 
 
 def mount(app) -> bool:
-    """Registers the status route always and the chat route only when explicitly enabled. Returns whether chat is enabled.
-    Production default: RITHAVO_RITANYA_MODE is unset, so there is no chat route and status says {"enabled": false}."""
+    """Registers the status route always and the chat route only in the server-engine mode. Returns whether chat is enabled.
+    Production default: RITHAVO_RITANYA_MODE is unset, so there is no chat route and status says {"enabled": false}. In the
+    browser-engine mode there is no chat route either (nothing is ever sent), only the status route that switches the page on."""
     app.include_router(status_router)
     if _mode() != "deterministic":
         return False
