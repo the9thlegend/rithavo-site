@@ -10,4 +10,5 @@ storage/
 
 # Env / secrets — never commit
 .env
+*.local
 .env.*

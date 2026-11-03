@@ -1,0 +1,83 @@
+/* Rithavo PWA layer: bottom navigation, toasts, offline notice, offline page, install-only visibility rules.
+   Uses the tokens already defined in styles.css, so light and dark follow the rest of the site. */
+
+:root { --rv-bottomnav-h: 0px; }
+
+/* Things that must not appear inside the installed app. The Rithavo Card is handed off to a separate
+   service on another host today; one-domain rule: it is hidden in the app until it is served from rithavo.com. */
+@media (display-mode: standalone) { .pwa-hide-in-app { display: none !important; } }
+.is-pwa .pwa-hide-in-app { display: none !important; }
+
+/* ---- bottom navigation ---- */
+.pwa-bottomnav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  min-height: 64px; padding: 0 4px env(safe-area-inset-bottom, 0px);
+  background: var(--surface); border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(23, 22, 27, 0.06);
+}
+.pwa-bottomnav[hidden] { display: none; }
+.pwa-bottomnav a, .pwa-bottomnav button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 56px; min-width: 44px; padding: 6px 2px; margin: 4px 0;
+  background: none; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  color: var(--ink-soft); text-decoration: none; font: inherit; font-size: 0.72rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.pwa-bottomnav small { font-size: 0.6rem; font-weight: 500; color: var(--ink-faint); line-height: 1; }
+.pwa-bottomnav [aria-current="page"] { color: var(--g1); }
+.pwa-bottomnav a:active, .pwa-bottomnav button:active { background: var(--surface-muted); }
+.pwa-bottomnav a:focus-visible, .pwa-bottomnav button:focus-visible { outline: 2px solid var(--g1); outline-offset: -2px; }
+body.has-bottom-nav { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 12px); }
+/* the desktop tab strip and the long email are replaced by the bottom bar on small screens */
+body.has-bottom-nav .app-tabs, body.has-bottom-nav .app-identity span { display: none; }
+
+/* ---- Career sheet ---- */
+.pwa-sheet { position: fixed; inset: 0; z-index: 1000; }
+.pwa-sheet[hidden] { display: none; }
+.pwa-sheet-backdrop { position: absolute; inset: 0; background: rgba(23, 22, 27, 0.45); }
+.pwa-sheet-panel {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 80vh; overflow-y: auto;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-radius: var(--r-lg) var(--r-lg) 0 0; box-shadow: var(--shadow-lg);
+}
+.pwa-sheet-panel:focus { outline: none; }
+.pwa-sheet-title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 500; margin: 0 0 8px; }
+.pwa-sheet-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.pwa-sheet-list a {
+  display: flex; align-items: center; min-height: 48px; padding: 0 4px;
+  color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); font-weight: 500;
+}
+.pwa-sheet-list a[aria-current="page"] { color: var(--g1); }
+.pwa-sheet-list a:focus-visible { outline: 2px solid var(--g1); outline-offset: -2px; }
+.pwa-sheet-close { width: 100%; justify-content: center; min-height: 48px; }
+.pwa-sheet-open { overflow: hidden; }
+
+/* ---- toast and offline notice ---- */
+.pwa-toasts {
+  position: fixed; left: 12px; right: 12px; z-index: 1100; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  bottom: calc(var(--rv-bottomnav-h, 0px) + 12px + env(safe-area-inset-bottom, 0px));
+}
+.pwa-toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: 480px; margin: 0 auto; width: 100%;
+  padding: 10px 12px 10px 16px; background: var(--ink); color: var(--bg); border-radius: var(--r-md); box-shadow: var(--shadow-md); font-size: 0.9rem;
+}
+.pwa-toast span { flex: 1; }
+.pwa-toast-btn, .pwa-toast-close {
+  min-height: 44px; min-width: 44px; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; border-radius: var(--r-sm);
+}
+.pwa-toast-btn { font-weight: 700; text-decoration: underline; padding: 0 8px; }
+.pwa-toast-close { font-size: 1.3rem; line-height: 1; }
+.pwa-offline-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1200; padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
+  background: var(--mid-tint); color: var(--ink); border-bottom: 1px solid var(--mid); text-align: center; font-size: 0.85rem;
+}
+
+/* ---- offline page ---- */
+.pwa-offline {
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 32px 24px; text-align: center; max-width: 520px; margin: 0 auto;
+}
+.pwa-offline-note { min-height: 1.4em; color: var(--ink-soft); font-size: 0.9rem; }
+
+@media (prefers-reduced-motion: reduce) { .pwa-bottomnav *, .pwa-sheet * { transition: none !important; animation: none !important; } }

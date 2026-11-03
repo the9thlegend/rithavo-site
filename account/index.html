@@ -4,12 +4,21 @@
 <meta charset="UTF-8">
 <title>Account — Rithavo</title>
 <meta name="robots" content="noindex">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/app-shell.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121116" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rithavo">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
 <div class="app-topbar" id="app-topbar"></div>
@@ -21,6 +30,7 @@
     <div><span class="label">Signed in as</span><p id="email" style="color:var(--ink); font-weight:600;">…</p></div>
     <button class="btn btn-ghost" id="sign-out-btn">Sign out</button>
   </div>
+  <div class="card card-body" data-pwa-install hidden style="margin-top:16px;"></div>
 </div>
 
 <script src="/app-shell.js"></script>
@@ -33,5 +43,6 @@
   document.getElementById("sign-out-btn").addEventListener("click", () => RithavoApp.signOut());
 })();
 </script>
+<script src="/pwa.js" defer></script>
 </body>
 </html>
