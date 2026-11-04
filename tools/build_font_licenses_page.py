@@ -1,7 +1,7 @@
 """Builds assets/fonts/licenses.html (served at /assets/fonts/licenses.html) from assets/fonts/LICENSES.txt.
 
 The SIL Open Font License requires the license text to travel with redistributed fonts. The page carries the same PWA head tags and
-script as every other page (tests/test_pwa.py checks that), no navigation and no Ritanya launcher.
+script as every other page (tests/test_pwa.py checks that), a single link back to the home page and no Ritanya launcher.
     python tools/build_font_licenses_page.py
 """
 import html
@@ -43,6 +43,7 @@ page = f"""<!DOCTYPE html>
 </head>
 <body>
 <main class="licenses">
+<p><a href="/">&larr; Rithavo</a></p>
 <h1>Font licenses</h1>
 <p>Rithavo serves copies of three open-source font families from its own domain. Each is licensed under the SIL Open Font License, Version 1.1, reproduced below.</p>
 {body}</main>

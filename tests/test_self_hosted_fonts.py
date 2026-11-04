@@ -1,7 +1,7 @@
 """
 Fonts are served from rithavo.com. Google Fonts must never be requested again.
 
-Fraunces, Manrope and IBM Plex Mono are SIL Open Font License 1.1 fonts (google/fonts ofl/*/METADATA.pb). The files in assets/fonts are
+Fraunces, Manrope and DM Mono are SIL Open Font License 1.1 fonts (google/fonts ofl/*/METADATA.pb). The files in assets/fonts are
 Google's own latin and latin-ext woff2 subsets of the exact families, weights and unicode ranges the pages used before, with the
 license text alongside (assets/fonts/LICENSES.txt, served as assets/fonts/licenses.html).
 """
@@ -41,7 +41,7 @@ def test_every_page_with_the_site_font_stylesheet_uses_the_self_hosted_one():
 
 def test_font_files_exist_and_are_real_woff2():
     files = sorted(FONTS.glob("*.woff2"))
-    assert len(files) == 10
+    assert len(files) == 8
     for f in files:
         data = f.read_bytes()
         assert data[:4] == b"wOF2" and len(data) > 5000, f.name
@@ -51,10 +51,10 @@ def test_font_files_exist_and_are_real_woff2():
 def test_stylesheet_keeps_the_same_families_weights_and_swap_and_points_only_at_local_files():
     css = (FONTS / "fonts.css").read_text(encoding="utf-8")
     rules = re.findall(r"@font-face \{(.*?)\}", css, re.S)
-    assert len(rules) == 22
-    seen = {(re.search(r"font-family: '([^']+)'", r).group(1), re.search(r"font-weight: (\d+)", r).group(1)) for r in rules}
+    assert len(rules) == 20
+    seen = {(re.search(r"font-family: '([^']+)'", r).group(1), re.search(r"font-weight: ([\d ]+);", r).group(1)) for r in rules}
     assert seen == ({("Fraunces", w) for w in ("400", "500", "600")} | {("Manrope", w) for w in ("400", "500", "600", "700", "800")}
-                    | {("IBM Plex Mono", w) for w in ("400", "500", "600")})
+                    | {("DM Mono", w) for w in ("400", "500 600")})
     for r in rules:
         assert "font-display: swap" in r and "unicode-range:" in r
         url = re.search(r"url\(([^)]+)\)", r).group(1)
@@ -64,8 +64,20 @@ def test_stylesheet_keeps_the_same_families_weights_and_swap_and_points_only_at_
 
 def test_license_texts_travel_with_the_fonts():
     lic = (FONTS / "LICENSES.txt").read_text(encoding="utf-8")
-    for name in ("Fraunces Project Authors", "Manrope Project Authors", "IBM Corp."):
+    for name in ("Fraunces Project Authors", "Manrope Project Authors", "DM Mono Project Authors"):
         assert name in lic
     assert lic.count("SIL OPEN FONT LICENSE Version 1.1") == 3
     page = (FONTS / "licenses.html").read_text(encoding="utf-8")
     assert "SIL OPEN FONT LICENSE Version 1.1" in page and "<h2>Fraunces</h2>" in page
+
+
+def test_dm_mono_licence_has_no_reserved_font_name_and_plex_is_gone():
+    lic = (FONTS / "LICENSES.txt").read_text(encoding="utf-8")
+    dm = lic[lic.index("=== DM Mono ==="):]
+    head = dm.split("This Font Software is licensed")[0]
+    assert "Copyright 2020 The DM Mono Project Authors" in head and "Reserved Font Name" not in head
+    assert "SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007" in dm
+    for p in _site_files(".html", ".css", ".js", ".py"):
+        assert not re.search(r"plex", p.read_text(encoding="utf-8", errors="ignore"), re.I), p.name
+    assert not list(FONTS.glob("*plex*"))
+    assert "IBM" not in lic
