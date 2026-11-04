@@ -1,14 +1,12 @@
 """
 Payment gateway abstraction.
 
-Phase 2B-2: a real provider (Razorpay, app/razorpay_gateway.py) now
-exists satisfying this exact interface, selected below only when its
-three required environment variables are all configured — exactly as
-this module's own original docstring anticipated ("nothing in main.py,
-db.py, or pricing.py needs to change"). TestPaymentGateway remains the
-zero-config default for local dev and every automated test — no
-network call, no real money, nothing that could ever be mistaken for a
-live integration.
+The real provider is Cashfree (app/cashfree_gateway.py), selected below only when its
+required environment variables are configured (sandbox until a separate payment
+activation approval). TestPaymentGateway remains the zero-config default for
+local dev and every automated test: no network call, no real money, nothing that
+could ever be mistaken for a live integration. Razorpay was removed after it was
+shown that no environment configured it and nothing live depended on it.
 """
 
 from abc import ABC, abstractmethod
@@ -25,8 +23,7 @@ class PaymentGateway(ABC):
         deterministic reference the test can immediately confirm with).
 
         customer_phone (Cashfree customer-phone phase): optional, and
-        ignored entirely by gateways that don't need it (Razorpay,
-        Test) — added here only so main.py's purchase routes can call
+        ignored entirely by gateways that don't need it (Test) — added here only so main.py's purchase routes can call
         every gateway through one shared signature. Never a merchant
         contact number, never a hardcoded placeholder; validated
         server-side in main.py before this is ever called."""
@@ -79,18 +76,7 @@ class TestPaymentGateway(PaymentGateway):
 
 
 def get_gateway() -> PaymentGateway:
-    """Cashfree Sandbox phase: Razorpay is checked FIRST, completely
-    unchanged from before -- an environment with Razorpay's three env
-    vars configured behaves identically to every prior phase. Cashfree
-    (app/cashfree_gateway.py) only ever becomes active when Razorpay is
-    NOT configured and Cashfree's own env vars are -- both are sandbox/
-    unconfigured-by-default in production today, so this ordering has
-    no effect on production until an operator deliberately configures
-    one or the other."""
-    from app.razorpay_gateway import get_razorpay_gateway_if_configured
-    razorpay_gateway = get_razorpay_gateway_if_configured()
-    if razorpay_gateway is not None:
-        return razorpay_gateway
+    """Cashfree (sandbox) when its env vars are configured, otherwise the zero-config test gateway."""
     from app.cashfree_gateway import get_cashfree_gateway_if_configured
     cashfree_gateway = get_cashfree_gateway_if_configured()
     if cashfree_gateway is not None:

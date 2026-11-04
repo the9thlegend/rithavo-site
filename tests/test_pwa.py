@@ -121,7 +121,7 @@ def test_service_worker_policy_in_node():
 
 # Hosts a customer's browser may contact from a Rithavo page. Third-party libraries and fonts only; every
 # Rithavo address must be rithavo.com itself. Adding a host here is a deliberate, reviewed decision.
-ALLOWED_THIRD_PARTY_HOSTS = {"checkout.razorpay.com", "sdk.cashfree.com", "www.w3.org"}
+ALLOWED_THIRD_PARTY_HOSTS = {"sdk.cashfree.com", "www.w3.org"}
 FORBIDDEN_RITHAVO = re.compile(r"\b(?:[a-z0-9-]+\.rithavo\.com|rithavo\.app|rithavo\.applications\.com|rithavo\.in|rithavo\.co)\b", re.I)
 # Pages allowed to name the sibling host in visible text: none (the contact page's mention was removed).
 KNOWN_VISIBLE_MENTION = set()

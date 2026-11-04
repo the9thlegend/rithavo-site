@@ -192,7 +192,7 @@ async function main() {
   const PUBLIC = ["/", "/career/", "/systems/", "/growth/", "/about/", "/contact/", "/privacy/", "/terms/", "/sign-in/", "/sign-up/", "/career/career-intelligence/", "/career/application-diagnostic/"];
   for (const p of PUBLIC) {
     await goto(BASE + p);
-    const f = await evalJs(`(()=>{const ok=new Set([location.host,'rithavo.com','checkout.razorpay.com','cdn.razorpay.com','api.razorpay.com','sdk.cashfree.com']);const bad=[],text=[];
+    const f = await evalJs(`(()=>{const ok=new Set([location.host,'rithavo.com','sdk.cashfree.com']);const bad=[],text=[];
       document.querySelectorAll('a[href],form[action],iframe[src],link[href],script[src],img[src]').forEach(e=>{const u=e.getAttribute('href')||e.getAttribute('action')||e.getAttribute('src')||'';let h='';try{h=new URL(u,location.href).host}catch(x){}if(h&&!ok.has(h))bad.push(u)});
       if(/app[.]rithavo[.]com/i.test(document.body.innerText))text.push('names app.rithavo.com in visible text');
       return {bad,text,origin:location.origin}})()`);

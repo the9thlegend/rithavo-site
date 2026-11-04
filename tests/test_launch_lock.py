@@ -10,7 +10,6 @@ restore the locked/edge-case states to verify the gate itself.
 
 import config
 from app.cashfree_gateway import CashfreeGateway
-from app.razorpay_gateway import RazorpayGateway
 from app.launch_lock import is_purchase_locked
 from .conftest import login_via_magic_link
 
@@ -102,18 +101,19 @@ def test_no_cashfree_order_is_created_while_locked(app_and_client, monkeypatch):
     assert called["post"] is False  # Cashfree's own API was never even contacted
 
 
-def test_no_razorpay_order_is_created_while_locked(app_and_client, monkeypatch):
+def test_no_payment_intent_is_created_while_locked(app_and_client, monkeypatch):
     app, client = app_and_client
     monkeypatch.setattr(config, "LAUNCH_DATE", None)
-    login_via_magic_link(client, app, "lock-no-razorpay-order@example.com")
+    login_via_magic_link(client, app, "lock-no-payment-intent@example.com")
     from unittest.mock import MagicMock
-    gateway = RazorpayGateway("rzp_test_fake", "fake-secret-not-real", "fake-webhook-secret-not-real")
-    gateway._client = MagicMock()
+    from app.payment_gateway import TestPaymentGateway
+    gateway = TestPaymentGateway()
+    gateway.create_payment_intent = MagicMock()
     monkeypatch.setattr(app.state, "payment_gateway", gateway)
 
     resp = client.post("/career-intelligence/purchase", json={})
     assert resp.status_code == 403
-    gateway._client.order.create.assert_not_called()
+    gateway.create_payment_intent.assert_not_called()
 
 
 def test_no_entitlement_can_be_created_through_the_purchase_flow_while_locked(app_and_client, db, monkeypatch):

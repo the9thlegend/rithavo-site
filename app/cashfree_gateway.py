@@ -2,13 +2,10 @@
 Cashfree Payment Gateway — Sandbox implementation (Final Explore
 Corrections + Cashfree Sandbox phase).
 
-Satisfies the exact same PaymentGateway interface RazorpayGateway does
-(app/payment_gateway.py's own docstring) — selected by get_gateway()
-only when all required env vars below are present, exactly mirroring
-RazorpayGateway's own get_razorpay_gateway_if_configured() precedent.
-Razorpay is checked FIRST and is completely unmodified by this file;
-Cashfree only ever becomes active in an environment where Razorpay's
-own three env vars are absent.
+Satisfies the PaymentGateway interface (app/payment_gateway.py's own
+docstring) — selected by get_gateway() only when all required env vars
+below are present. (An earlier second provider was removed; Cashfree is
+the only real gateway.)
 
 API contract (re-verified against Cashfree's current live
 documentation, Cashfree Activation Readiness phase, September 2026):

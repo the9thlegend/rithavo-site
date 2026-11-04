@@ -17,8 +17,8 @@
   invented. Touches no entitlement or purchase.
 
   Phase 2B-2 — when the caller has no assessment, this page now shows
-  a real "Buy Career Intelligence" button (Razorpay Standard Checkout,
-  server-verified — see app-shell.js's startRazorpayPurchase). Buying
+  a real "Buy Career Intelligence" button (Cashfree Checkout,
+  server-verified — see app-shell.js's startPurchase). Buying
   creates a real `career_intelligence` entitlement (recognized by the
   sibling app's own find_active_entitlement, since it's the same
   literal product string in the one shared entitlements table) but
@@ -40,7 +40,6 @@
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/app-shell.css">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121116" media="(prefers-color-scheme: dark)">
@@ -146,7 +145,6 @@ function targetLabel(t) {
       try {
         await RithavoApp.startPurchase({
           purchasePath: "/career-intelligence/purchase",
-          confirmPath: (id) => `/career-intelligence/purchase/${id}/confirm`,
           confirmCashfreePath: (id) => `/career-intelligence/purchase/${id}/confirm-cashfree`,
           description: "Rithavo Career Intelligence",
           customerPhone: customerPhone,

@@ -107,52 +107,6 @@ const RithavoApp = (() => {
     container.innerHTML = `<div class="app-banner app-banner-${kind}">${text}</div>`;
   }
 
-  /* Phase 2B-2. Starts a real Razorpay purchase: calls the server to
-     create the purchase + Razorpay Order (server computes the price —
-     nothing here ever sends an amount), opens Razorpay's own Checkout
-     widget, and on the widget's own success callback POSTs the three
-     Razorpay-supplied values to the server's confirm endpoint for
-     real signature verification. Resolves with the SERVER's confirm
-     response (never treats reaching the callback itself as proof of
-     payment) — the caller should re-fetch whatever entitlement/access
-     state it displays from the server after this resolves, not flip
-     its own UI to "purchased" based on this function returning.
-     purchasePath: e.g. "/diagnosis/purchase" or "/career-intelligence/purchase".
-     confirmPath(purchaseId): returns e.g. `/diagnosis/purchase/${id}/confirm`. */
-  function startRazorpayPurchase({ purchasePath, confirmPath, description }) {
-    return apiJson(purchasePath, { method: "POST", body: JSON.stringify({}) }).then(order => {
-      return new Promise((resolve, reject) => {
-        if (typeof Razorpay === "undefined") {
-          reject(new Error("Payment could not be started — please reload the page and try again."));
-          return;
-        }
-        const rzp = new Razorpay({
-          key: order.razorpay_key_id,
-          amount: order.amount_inr * 100,
-          currency: "INR",
-          order_id: order.razorpay_order_id,
-          name: "Rithavo",
-          description: description,
-          handler: (response) => {
-            apiJson(confirmPath(order.purchase_id), {
-              method: "POST",
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            }).then(resolve).catch(reject);
-          },
-          modal: {
-            ondismiss: () => reject(new Error("Checkout was closed before completing payment.")),
-          },
-        });
-        rzp.on("payment.failed", () => reject(new Error("Payment failed — please try again.")));
-        rzp.open();
-      });
-    });
-  }
-
   let _cashfreeSdkPromise = null;
   function _loadCashfreeSdk() {
     if (typeof Cashfree !== "undefined") return Promise.resolve();
@@ -169,8 +123,7 @@ const RithavoApp = (() => {
 
   /* Opens Cashfree Checkout in a modal (redirectTarget: "_modal") for
      an ALREADY-CREATED order — never a navigation away from
-     rithavo.com. Unlike Razorpay's client-supplied signature, nothing
-     from the modal's own reported outcome is trusted: regardless of
+     rithavo.com. Nothing from the modal's own reported outcome is trusted: regardless of
      what it reports (including a rejection — the visitor may simply
      have closed it after actually completing payment on an underlying
      redirect), this always calls the server's confirm-cashfree
@@ -188,8 +141,7 @@ const RithavoApp = (() => {
       .then(() => apiJson(confirmCashfreePath(order.purchase_id), { method: "POST", body: JSON.stringify({}) }));
   }
 
-  /* Cashfree Sandbox phase — self-contained sibling of
-     startRazorpayPurchase: creates the purchase (server computes the
+  /* Cashfree (sandbox): creates the purchase (server computes the
      price) then opens Cashfree's own Checkout for it. Use this
      directly only when the caller already knows Cashfree is the
      active gateway; startPurchase (below) is the entry point that
@@ -199,62 +151,21 @@ const RithavoApp = (() => {
       .then(order => _openCashfreeCheckout(order, confirmCashfreePath));
   }
 
-  /* Same widget-opening step startRazorpayPurchase performs, factored
-     out so it can run against an order this function did NOT itself
-     create (see startPurchase below — the purchase must be created
-     exactly once, so whichever gateway turns out to be active reuses
-     that same order rather than creating a second one).
-     startRazorpayPurchase itself is completely unchanged and still
-     works exactly as it always has for any existing caller. */
-  function _openRazorpayCheckout(order, confirmPath, description) {
-    return new Promise((resolve, reject) => {
-      if (typeof Razorpay === "undefined") {
-        reject(new Error("Payment could not be started — please reload the page and try again."));
-        return;
-      }
-      const rzp = new Razorpay({
-        key: order.razorpay_key_id,
-        amount: order.amount_inr * 100,
-        currency: "INR",
-        order_id: order.razorpay_order_id,
-        name: "Rithavo",
-        description: description,
-        handler: (response) => {
-          apiJson(confirmPath(order.purchase_id), {
-            method: "POST",
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
-          }).then(resolve).catch(reject);
-        },
-        modal: {
-          ondismiss: () => reject(new Error("Checkout was closed before completing payment.")),
-        },
-      });
-      rzp.on("payment.failed", () => reject(new Error("Payment failed — please try again.")));
-      rzp.open();
-    });
-  }
-
   /* Unified entry point for a product's "Buy" button: creates the
-     purchase EXACTLY ONCE, then opens whichever checkout the server
-     actually activated for it (order.gateway, present on every
-     gateway's own create_payment_intent response) — nothing here
-     decides which gateway is "the" one; the server already did via
-     payment_gateway.get_gateway(). confirmPath is Razorpay's confirm
-     URL builder (unchanged), confirmCashfreePath is Cashfree's. */
-  function startPurchase({ purchasePath, confirmPath, confirmCashfreePath, description, customerPhone }) {
+     purchase EXACTLY ONCE, then opens the checkout of the gateway the
+     server actually activated for it (order.gateway, present on every
+     gateway's create_payment_intent response). Cashfree is the only
+     real gateway; anything else is refused. confirmCashfreePath builds
+     the server-side confirmation URL. */
+  function startPurchase({ purchasePath, confirmCashfreePath, customerPhone }) {
     return apiJson(purchasePath, { method: "POST", body: JSON.stringify({ customer_phone: customerPhone }) }).then(order => {
       if (order.gateway === "cashfree") return _openCashfreeCheckout(order, confirmCashfreePath);
-      if (order.gateway === "razorpay") return _openRazorpayCheckout(order, confirmPath, description);
       throw new Error("Payment is not available right now — please try again shortly.");
     });
   }
 
   return {
     apiFetch, apiJson, requireSession, renderTopbar, signOut, banner,
-    startRazorpayPurchase, startCashfreePurchase, startPurchase, TABS,
+    startCashfreePurchase, startPurchase, TABS,
   };
 })();

@@ -43,7 +43,7 @@ logger = logging.getLogger("rithavo_web.cashfree")
 
 
 def _verify_and_confirm_cashfree_payment(request: Request, purchase_id: int, expected_product: str, confirm_fn) -> dict:
-    """Cashfree equivalent of main.py's _verify_and_confirm_razorpay_payment.
+    """Server-side confirmation: re-fetches the order's real status from Cashfree.
     Ownership: owned_purchase() raises 404 for a purchase belonging to
     another user before any of this runs. expected_product guards a
     caller confirming their OWN purchase_id but for the wrong product.

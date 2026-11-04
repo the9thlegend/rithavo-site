@@ -226,7 +226,7 @@ async function main() {
     await goto(BASE + pth);
     await sleep(500);
     const f = await evalJs(`(()=>{
-      const ok=new Set([location.host,'rithavo.com','checkout.razorpay.com','cdn.razorpay.com','api.razorpay.com','sdk.cashfree.com']);   // the payment SDK's own subresources are not Rithavo hosts
+      const ok=new Set([location.host,'rithavo.com','sdk.cashfree.com']);   // the payment SDK's own subresources are not Rithavo hosts
       const bad=[],text=[];
       const vis=(e)=>{const r=e.getBoundingClientRect();const s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
       document.querySelectorAll('a[href],form[action],iframe[src],link[href],script[src],img[src]').forEach(e=>{

@@ -7,7 +7,6 @@ structural test already proves it accepts and ignores this field).
 """
 
 from app.cashfree_gateway import CashfreeGateway
-from app.razorpay_gateway import RazorpayGateway
 from .conftest import login_via_magic_link
 
 
@@ -112,14 +111,11 @@ def test_merchant_kyc_number_is_never_used_as_a_customer_default(app_and_client,
     assert "json" not in captured  # no Cashfree order was ever created
 
 
-def test_razorpay_purchase_flow_is_unaffected_by_the_phone_requirement(app_and_client, monkeypatch):
+def test_test_gateway_purchase_flow_is_unaffected_by_the_phone_requirement(app_and_client, monkeypatch):
     app, client = app_and_client
-    login_via_magic_link(client, app, "phone-razorpay-unaffected@example.com")
-    gateway = RazorpayGateway("rzp_test_fake", "fake-secret-not-real", "fake-webhook-secret-not-real")
-    from unittest.mock import MagicMock
-    gateway._client = MagicMock()
-    gateway._client.order.create.side_effect = lambda data: {"id": f"order_fake_{data['notes']['purchase_id']}"}
-    monkeypatch.setattr(app.state, "payment_gateway", gateway)
+    login_via_magic_link(client, app, "phone-test-gateway-unaffected@example.com")
+    from app.payment_gateway import TestPaymentGateway
+    monkeypatch.setattr(app.state, "payment_gateway", TestPaymentGateway())
 
     resp = client.post("/career-intelligence/purchase", json={})  # no phone at all
     assert resp.status_code == 200, resp.text

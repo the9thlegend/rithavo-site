@@ -1471,8 +1471,8 @@ class Database:
         safe without any extra check here because both callers already
         establish that the successful payment belongs to THIS purchase
         before ever reaching this method: the browser route
-        (_verify_and_confirm_razorpay_payment) rejects a mismatched
-        razorpay_order_id with a 400 before calling confirm_fn, and the
+        (_verify_and_confirm_cashfree_payment) re-fetches the order's real
+        status before calling confirm_fn, and the
         webhook route resolves the purchase via get_purchase_by_gateway_reference
         — i.e. only a payment for the exact same Order this purchase's
         gateway_reference already names can ever arrive here at all. An

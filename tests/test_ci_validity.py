@@ -1,6 +1,6 @@
 """
 CI validity foundation — the entitlement-creation side that lives on this
-repo (the canonical, customer-facing Razorpay purchase flow). The
+repo (the customer-facing purchase flow, confirmed through the database layer). The
 evaluation-consumption side (reserve_ci_evaluation, the Run/Re-Evaluate
 action) lives entirely on the sibling app (rithavo-career-profile) and is
 tested there — this file only covers what THIS repo actually creates and
@@ -9,33 +9,12 @@ Application Diagnosis is completely unaffected.
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
 
-from app.razorpay_gateway import RazorpayGateway
-
-from .conftest import login_via_magic_link
-
-
-def _install_razorpay_gateway(app, monkeypatch):
-    gateway = RazorpayGateway("rzp_test_fake", "fake-secret-not-real", "fake-webhook-secret-not-real")
-    gateway._client = MagicMock()
-    gateway._client.order.create.side_effect = (
-        lambda data: {"id": f"order_fake_{data['notes']['purchase_id']}"}
-    )
-    gateway._client.utility.verify_payment_signature.return_value = True
-    gateway._client.payment.fetch.return_value = {"status": "captured"}
-    monkeypatch.setattr(app.state, "payment_gateway", gateway)
-    return gateway
-
-
-def test_ci_purchase_confirmation_sets_a_30_day_expiry(app_and_client, db, monkeypatch):
-    app, client = app_and_client
-    login_via_magic_link(client, app, "ci-expiry-site@example.com")
-    gateway = _install_razorpay_gateway(app, monkeypatch)
-    started = client.post("/career-intelligence/purchase", json={}).json()
-    client.post(f"/career-intelligence/purchase/{started['purchase_id']}/confirm",
-                json={"razorpay_order_id": started["razorpay_order_id"],
-                      "razorpay_payment_id": "pay_expiry_test", "razorpay_signature": "sig"})
+def test_ci_purchase_confirmation_sets_a_30_day_expiry(db):
+    user_id = db.get_or_create_user("ci-expiry-site@example.com")
+    started = db.begin_ci_purchase(user_id)
+    db.mark_purchase_pending(started["purchase_id"], "order_ci_expiry_test")
+    db.confirm_ci_purchase(started["purchase_id"], "order_ci_expiry_test", "pay_expiry_test")
 
     entitlement_id = db.get_purchase(started["purchase_id"])["entitlement_id"]
     entitlement = db.get_entitlement(entitlement_id)
@@ -45,16 +24,13 @@ def test_ci_purchase_confirmation_sets_a_30_day_expiry(app_and_client, db, monke
     assert abs((expires_at - activated_at).total_seconds() - 30 * 86400) < 5
 
 
-def test_ad_purchase_confirmation_gets_no_expiry(app_and_client, db, monkeypatch):
+def test_ad_purchase_confirmation_gets_no_expiry(db):
     """Application Diagnostic has no expiry concept at all — confirming
     one must not invent an expires_at value for it."""
-    app, client = app_and_client
-    login_via_magic_link(client, app, "ad-no-expiry-site@example.com")
-    gateway = _install_razorpay_gateway(app, monkeypatch)
-    started = client.post("/diagnosis/purchase", json={}).json()
-    client.post(f"/diagnosis/purchase/{started['purchase_id']}/confirm",
-                json={"razorpay_order_id": started["razorpay_order_id"],
-                      "razorpay_payment_id": "pay_ad_no_expiry", "razorpay_signature": "sig"})
+    user_id = db.get_or_create_user("ad-no-expiry-site@example.com")
+    started = db.begin_ad_purchase(user_id)
+    db.mark_purchase_pending(started["purchase_id"], "order_ad_no_expiry")
+    db.confirm_ad_purchase(started["purchase_id"], "order_ad_no_expiry", "pay_ad_no_expiry")
 
     entitlement_id = db.get_purchase(started["purchase_id"])["entitlement_id"]
     entitlement = db.get_entitlement(entitlement_id)
