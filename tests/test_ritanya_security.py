@@ -226,7 +226,7 @@ def test_the_guide_does_not_offer_or_promise_the_card_anywhere():
     js = (ROOT / "assets" / "ritanya" / "ritanya.js").read_text(encoding="utf-8")
     assert "inApp" not in js                                      # no special case: the Card is not available on rithavo.com at all
     reply = K.TOPICS["card"].reply
-    assert "isn't available on rithavo.com" in reply and not re.search(r"\byet\b|coming|soon|will be", reply, re.I)
+    assert "isn't available on rithavo.com" in reply and not re.search(r"coming|soon|will be|launch", reply, re.I)
 
 
 def test_sign_out_clears_what_the_guide_kept_in_the_tab():

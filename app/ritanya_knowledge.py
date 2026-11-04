@@ -140,19 +140,34 @@ TOPICS = {t.id: t for t in (
         "Your Rithavo Profile is built from your education and experience. Application Diagnosis and "
         "Career Intelligence both use it, so adding it is the way to get started. You can do that on the "
         "Profile page once you've signed in.",
-        "The Rithavo Card, a shareable version of a Profile, isn't available on rithavo.com.",
+        "The Rithavo Card, your foundational professional identity built from your Profile, isn't available on rithavo.com yet.",
         ("profile", "sign_up"),
         ("What is a Rithavo Card?", "What is Career Intelligence?", "How do I join?"),
         "home/index.html (profile banner and Card copy)",
     ),
     Topic(
         "card",
-        "The Rithavo Card isn't available on rithavo.com. Your Rithavo Profile is the foundation for it, "
-        "and you can add to your Profile and keep it up to date here once you've signed in.",
-        "I can't open or create a Card for you, and I can't see whether you have one.",
-        ("explore", "profile"),
-        ("What is a Rithavo Profile?", "How do I join?", "What is Explore?"),
-        "home/index.html (\"Your Rithavo Card\")",
+        "The Rithavo Card is the foundation of your professional identity on Rithavo, built from your Rithavo "
+        "Profile, and completing it is mandatory for every member. It isn't available on rithavo.com yet, so "
+        "for now your Profile is where you start: you can add to it and keep it up to date once you've "
+        "signed in.",
+        "I can't open or create a Card for you, and I can't see whether you have one. Discover and Connect "
+        "are planned to build on the Card.",
+        ("profile", "explore"),
+        ("What are Discover and Connect?", "What is a Rithavo Profile?", "How do I join?"),
+        "founder-approved positioning; home/index.html (\"Your Rithavo Card\")",
+    ),
+    Topic(
+        "discover_connect",
+        "Discover and Connect are planned parts of Rithavo, and neither is live yet. Discover is meant to help "
+        "you find relevant professionals on Rithavo and understand why they are relevant. Connect is meant to "
+        "let you request a connection that the other person can accept or decline; once you both accept, you "
+        "would exchange professional identities through your Rithavo Cards.",
+        "The first version of Connect is focused on professional networking and identity exchange. Both "
+        "depend on the Rithavo Card, which isn't available on rithavo.com yet.",
+        ("profile", "about"),
+        ("What is a Rithavo Card?", "What is a Rithavo Profile?", "How do I join?"),
+        "founder-approved positioning (Discover and Connect are planned, not live)",
     ),
     Topic(
         "explore",
@@ -216,8 +231,9 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "systems_growth",
-        "Rithavo Systems is planned as small, practical automations for small teams, and Rithavo Growth "
-        "is planned for growing a business. Neither is live yet; Career comes first.",
+        "Rithavo Systems is planned as small, practical automations, productivity templates and digital "
+        "toolkits and workflows for small teams. Rithavo Growth is planned to help businesses with marketing, "
+        "customer acquisition and lead generation. Neither is live yet; Career comes first.",
         "Each page has a way to tell Rithavo what you'd want built.",
         ("systems", "growth"),
         ("What is Rithavo?", "What is Career Intelligence?", "How do I contact Rithavo?"),

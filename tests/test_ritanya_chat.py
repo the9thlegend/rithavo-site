@@ -185,7 +185,8 @@ def test_the_four_quick_questions(client, question, expected):
 TOPIC_QUESTIONS = {
     "overview": "What is Rithavo?", "ritanya": "Who are you?", "career_intelligence": "What is Career Intelligence?",
     "application_diagnosis": "What is Application Diagnosis?", "which_product": "Which one should I choose?",
-    "profile": "What is a Rithavo Profile?", "card": "What is a Rithavo Card?", "explore": "What is Explore?",
+    "profile": "What is a Rithavo Profile?", "card": "What is a Rithavo Card?", "discover_connect": "What are Discover and Connect?",
+    "explore": "What is Explore?",
     "mentorship": "What is Mentorship?", "stories": "Show me real career stories", "pricing": "How much does it cost?",
     "launch": "When does it launch?", "join": "How do I join?", "systems_growth": "What is Rithavo Systems?",
     "contact": "How do I contact Rithavo?", "privacy": "Is my data safe?", "method": "How does Rithavo work?",

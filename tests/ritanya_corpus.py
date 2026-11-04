@@ -22,6 +22,8 @@ TOPIC_VARIANTS = {
     "stories": ["career stories", "real stories", "success stories", "people who made a switch", "case studies", "stories of people who changed careers"],
     "mentorship": ["what is mentorship", "15 minute session", "mentor", "coach", "session with a mentor", "15minute chat"],
     "card": ["what is a rithavo card", "card", "tell me about the card", "do I get a card", "Rithavo Card?"],
+    "discover_connect": ["What are Discover and Connect?", "discover", "connect", "what is connect", "how do I connect with other professionals",
+                         "connection requests", "networking", "can I discover professionals", "will I be able to connect with people"],
     "profile": ["what is a rithavo profile", "add my education and experience", "profile", "education and experience", "how do I build a profile"],
     "which_product": ["which one should I choose", "difference between the two", "compare them", "where do I start", "ci vs ad",
                       "choose between the products", "which product is better", "where should I start"],

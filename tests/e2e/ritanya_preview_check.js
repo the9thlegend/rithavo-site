@@ -180,7 +180,7 @@ async function main() {
   const who = await ask("What can you do?");
   check("it says what it is: not a live AI, no account access, no personal advice", /not a live AI/.test(who.text) && /can't see your account/.test(who.text));
   const card = await ask("What is a Rithavo Card?");
-  check("Card answer: says the Card isn't available on rithavo.com, no promise ('yet') and no link to a card site", /isn't available on rithavo\.com/.test(card.text) && !/\byet\b/i.test(card.text) && card.actions.every((a) => !/card/i.test(a.href)), JSON.stringify(card.actions.map((a) => a.href)));
+  check("Card answer: foundational and mandatory, says the Card isn't available on rithavo.com, no date or promise, and no link to a card site", /isn't available on rithavo\.com/.test(card.text) && /mandatory for every member/.test(card.text) && !/coming|soon|will be|launch/i.test(card.text) && card.actions.every((a) => !/card/i.test(a.href)), JSON.stringify(card.actions.map((a) => a.href)));
 
   // ===================================================================== every destination resolves on this origin
   const dest = await evalJs(`Promise.all(${JSON.stringify(DESTINATIONS)}.map(p=>fetch(p,{redirect:'follow'}).then(r=>({p,s:r.status,same:new URL(r.url).origin===location.origin})).catch(e=>({p,s:0,same:false}))))`);

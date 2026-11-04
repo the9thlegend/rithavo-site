@@ -132,7 +132,10 @@ def test_prices_stay_disabled_and_availability_is_never_asserted():
 def test_card_answer_says_the_card_is_not_available_and_promises_nothing():
     reply = K.TOPICS["card"].reply
     assert "isn't available on rithavo.com" in reply
-    assert not re.search(r"\byet\b|coming|soon|will be|generate|view your", reply, re.I)
+    # founder-approved positioning: the Card is the foundational identity built from the Profile and mandatory for every member
+    assert "foundation" in reply and "built from your Rithavo Profile" in reply and "mandatory for every member" in reply
+    # but it is never promised, dated or described as something a visitor can open, create or view today
+    assert not re.search(r"coming|soon|will be|launch|generate|view your|share your|download", reply, re.I)
     assert "isn't available on rithavo.com" in K.TOPICS["profile"].more
     assert not any(d.path.startswith("/card") for d in K.DESTINATIONS.values())
 

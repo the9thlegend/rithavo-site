@@ -308,6 +308,7 @@ _TOPIC_RULES = [(topic, _rx(pattern)) for topic, pattern in (
     ("stories", r"career stories|real stories|stories of|success stories|people who.{0,12}made (a|the) (move|switch|transition)|case stud"),
     ("mentorship", r"mentor|15 ?minute|session with|\bcoach"),
     ("card", r"\bcard\b"),
+    ("discover_connect", r"^(?!.*\b(internet|wifi|wi fi|connection (lost|issue|problem|error)|network (error|issue|problem))\b).*\b(discover|connect|connecting|connected|connection requests?|networking|network of professionals)\b"),
     ("profile", r"profile|add my (education|experience)|education and experience"),
     ("which_product", r"which (one|product|should|is (better|right|best))|difference between|compare|\bversus\b|\bvs\b|choose between|better for|where do i start|where should i start"),
     ("application_diagnosis", r"application diagnos|diagnostic|diagnosis|job description|tailored resume|resume (match|against|for a)|check a resume|against (a|one) (specific )?job|\bad\b"),
