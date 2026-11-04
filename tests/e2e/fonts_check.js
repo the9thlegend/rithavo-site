@@ -57,6 +57,8 @@ const chromePath = [process.env.CHROME_PATH, "C:/Program Files/Google/Chrome/App
   const ev = async (e) => (await send("Runtime.evaluate", { expression: e, awaitPromise: true, returnByValue: true })).result.value;
   await send("Page.enable"); await send("Runtime.enable"); await send("Network.enable"); await send("DOM.enable"); await send("CSS.enable");
   await send("Network.setCacheDisabled", { cacheDisabled: true });
+  // a protected Preview: PWA_EXTRA_COOKIE="name=value" (the Vercel share cookie) is set before the first navigation
+  if (process.env.PWA_EXTRA_COOKIE) { const [n, ...v] = process.env.PWA_EXTRA_COOKIE.split("="); await send("Network.setCookie", { name: n, value: v.join("="), url: BASE + "/" }); }
   const out = [];
   for (const [view, w, h, mobile] of VIEWS) {
     await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile });
