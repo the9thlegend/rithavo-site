@@ -249,7 +249,7 @@ async function main() {
   const caches = await evalJs(`(async()=>{const out=[];for(const n of await caches.keys()){const c=await caches.open(n);for(const r of await c.keys())out.push(n.replace('rithavo-','')+':'+new URL(r.url).pathname)}return out})()`);
   console.log("INFO cached ritanya-related entries: " + caches.filter((e) => /ritanya/.test(e)).join(" "));
   check("service worker: no /api response (status, chat) is in any cache; the guide's public CSS/JS may be", caches.every((e) => !/:\/api\//.test(e)) && caches.every((e) => !/ritanya\/(status|chat)/.test(e)));
-  const allowed = new Set([new URL(BASE).host, "fonts.googleapis.com", "fonts.gstatic.com"]);
+  const allowed = new Set([new URL(BASE).host]);
   const outside = [...hosts].filter((h) => !allowed.has(h));
   check("the browser contacted only rithavo's own host and the fonts the site already uses (no AI provider, no other host)", outside.length === 0, outside.join(","));
 

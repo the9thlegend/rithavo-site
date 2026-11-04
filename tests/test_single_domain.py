@@ -24,7 +24,7 @@ from .conftest import login_via_magic_link, seed_minimal_profile
 
 ROOT = Path(__file__).resolve().parent.parent
 INTERNAL = {"design-lab", "ritanya-handoff", "tests", "app", "api", "tools", "node_modules", ".git", "storage", ".claude", ".vercel", "__pycache__"}
-THIRD_PARTY_OK = {"fonts.googleapis.com", "fonts.gstatic.com", "checkout.razorpay.com", "cdn.razorpay.com", "api.razorpay.com",
+THIRD_PARTY_OK = {"checkout.razorpay.com", "cdn.razorpay.com", "api.razorpay.com",
                   "sdk.cashfree.com", "www.w3.org"}
 
 # A Rithavo host that is not the canonical one: any subdomain of rithavo.com, or another rithavo.* domain.

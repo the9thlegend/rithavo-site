@@ -121,7 +121,7 @@ def test_service_worker_policy_in_node():
 
 # Hosts a customer's browser may contact from a Rithavo page. Third-party libraries and fonts only; every
 # Rithavo address must be rithavo.com itself. Adding a host here is a deliberate, reviewed decision.
-ALLOWED_THIRD_PARTY_HOSTS = {"fonts.googleapis.com", "fonts.gstatic.com", "checkout.razorpay.com", "sdk.cashfree.com", "www.w3.org"}
+ALLOWED_THIRD_PARTY_HOSTS = {"checkout.razorpay.com", "sdk.cashfree.com", "www.w3.org"}
 FORBIDDEN_RITHAVO = re.compile(r"\b(?:[a-z0-9-]+\.rithavo\.com|rithavo\.app|rithavo\.applications\.com|rithavo\.in|rithavo\.co)\b", re.I)
 # Pages allowed to name the sibling host in visible text: none (the contact page's mention was removed).
 KNOWN_VISIBLE_MENTION = set()
@@ -133,10 +133,20 @@ def _strip_comments(text):
     return re.sub(r"(?m)(^|\s)//[^\n]*", " ", text)
 
 
+# The SIL Open Font License texts name their authors' web addresses as PLAIN TEXT. That page may contain such text, but never a
+# link, form or script that sends anyone there (checked below), and it may not name a Rithavo host.
+PLAIN_TEXT_LICENSE_PAGES = {"assets/fonts/licenses.html"}
+
+
 def test_no_served_file_points_a_customer_at_another_host():
     offenders = []
     for rel in served_files({".html", ".js", ".css", ".webmanifest"}):
         raw = (ROOT / rel).read_text(encoding="utf-8", errors="ignore")
+        if rel.as_posix() in PLAIN_TEXT_LICENSE_PAGES:
+            assert not re.search(r"""(?:href|src|action|formaction)\s*=\s*["'](?:https?:)?//""", raw, re.I), "licence page must not link anywhere"
+            if FORBIDDEN_RITHAVO.search(_strip_comments(raw)):
+                offenders.append((rel.as_posix(), "rithavo subdomain/domain"))
+            continue
         for host in re.findall(r"(?:https?:)?//([a-z0-9.-]+\.[a-z]{2,})", raw, re.I):
             if host.lower() not in ALLOWED_THIRD_PARTY_HOSTS and host.lower() != "rithavo.com":   # the site's own canonical host is not a third party
                 offenders.append((rel.as_posix(), host))

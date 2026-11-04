@@ -108,7 +108,7 @@ async function main() {
   const cookies = (await send("Network.getCookies", { urls: [BASE + "/"] })).cookies.map((c) => c.name);
   check("Ritanya sets no cookie", !cookies.some((n) => /ritanya|rtn/i.test(n)), cookies.join(",") || "none");
   const hosts = [...new Set(collect().map((q) => new URL(q.url).host))];
-  const allowed = new Set([new URL(BASE).host, "fonts.googleapis.com", "fonts.gstatic.com"]);
+  const allowed = new Set([new URL(BASE).host]);
   check("only rithavo's own origin (plus the fonts the site already uses) is contacted", hosts.every((h) => allowed.has(h)), hosts.join(", "));
   const storage = await evalJs(`JSON.stringify({session:Object.keys(sessionStorage).filter(k=>k.startsWith('rv_ritanya')),local:Object.keys(localStorage).filter(k=>/ritanya/i.test(k))})`);
   check("conversation lives in sessionStorage only", JSON.parse(storage).session.length === 2 && JSON.parse(storage).local.length === 0, storage);

@@ -211,8 +211,8 @@ async function main() {
 
   // ===================================================================== what the whole session contacted
   const hosts = new Set(net.map((r) => { try { return new URL(r.url).host; } catch (e) { return ""; } }).filter(Boolean));
-  const outside = [...hosts].filter((h) => h !== new URL(BASE).host && !/^fonts\.(googleapis|gstatic)\.com$/.test(h));
-  check("the browser contacted only this site and the fonts it already uses", outside.length === 0, outside.join(","));
+  const outside = [...hosts].filter((h) => h !== new URL(BASE).host);
+  check("the browser contacted only this site (fonts are self-hosted: no Google Fonts request)", outside.length === 0, outside.join(","));
 
   ws.close(); chrome.kill();
   const failedN = results.filter((r) => !r).length;
