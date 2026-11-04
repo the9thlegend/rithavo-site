@@ -49,7 +49,7 @@
   /* ---- Type ---- */
   --font-display: "Fraunces", ui-serif, Georgia, serif;
   --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-mono: "DM Mono", "Manrope", ui-monospace, monospace;   /* Manrope supplies the rupee sign, which DM Mono does not have */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -393,7 +393,7 @@ footer.site .foot-links a { font-size: 0.85rem; color: var(--ink-faint); text-de
 footer.site .foot-links a:hover { color: var(--ink); }
 footer.site .foot-note { font-size: 0.78rem; color: var(--ink-faint); margin-top: 20px; max-width: 60ch; }
 footer.site .foot-fonts { margin-top: 4px; }
-footer.site .foot-fonts a { display: inline-block; padding: 8px 0; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+footer.site .foot-fonts a { display: inline-block; padding: 8px 0; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
 footer.site .foot-fonts a:hover { color: var(--ink); }
 
 /* ---- Divider path (ecosystem connector) ---- */

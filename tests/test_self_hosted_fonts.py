@@ -81,3 +81,9 @@ def test_dm_mono_licence_has_no_reserved_font_name_and_plex_is_gone():
         assert not re.search(r"plex", p.read_text(encoding="utf-8", errors="ignore"), re.I), p.name
     assert not list(FONTS.glob("*plex*"))
     assert "IBM" not in lic
+
+
+def test_monospace_stack_falls_back_to_manrope_for_the_rupee_sign():
+    css = (ROOT / "styles.css").read_text(encoding="utf-8")
+    stack = re.search(r"--font-mono:\s*([^;]+);", css).group(1)
+    assert stack.startswith('"DM Mono", "Manrope"')          # DM Mono's web subset has no U+20B9; Manrope's latin-ext does
