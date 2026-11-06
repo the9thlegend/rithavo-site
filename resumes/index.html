@@ -8,7 +8,7 @@
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
 <div class="app-topbar" id="app-topbar"></div>
 
 <div class="app-main">
@@ -30,7 +30,7 @@
   <div id="content" class="app-skeleton">Loading…</div>
 </div>
 
-<script src="/app-shell.js"></script>
+<script src="/app-shell.js?v=20261106"></script>
 <script>
 (async () => {
   const me = await RithavoApp.requireSession();
@@ -41,7 +41,7 @@
   try {
     const rows = await RithavoApp.apiJson("/resumes");
     if (!rows.length) {
-      content.innerHTML = `<div class="app-empty">No resumes yet. Resumes are created from an Application Diagnosis.</div>`;
+      content.innerHTML = `<div class="app-empty">No resumes yet. Resumes are created from an Application Diagnostic.</div>`;
       return;
     }
     content.innerHTML = `<ul class="app-list">${rows.map(r => `
@@ -60,6 +60,6 @@
   }
 })();
 </script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

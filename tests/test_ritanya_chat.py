@@ -184,11 +184,13 @@ def test_the_four_quick_questions(client, question, expected):
 
 TOPIC_QUESTIONS = {
     "overview": "What is Rithavo?", "ritanya": "Who are you?", "career_intelligence": "What is Career Intelligence?",
-    "application_diagnosis": "What is Application Diagnosis?", "which_product": "Which one should I choose?",
+    "application_diagnosis": "What is Application Diagnostic?", "which_product": "Which one should I choose?",
     "profile": "What is a Rithavo Profile?", "card": "What is a Rithavo Card?", "discover_connect": "What are Discover and Connect?",
     "explore": "What is Explore?",
     "mentorship": "What is Mentorship?", "stories": "Show me real career stories", "pricing": "How much does it cost?",
-    "launch": "When does it launch?", "join": "How do I join?", "systems_growth": "What is Rithavo Systems?",
+    "launch": "Can I buy it yet?", "join": "How do I join?", "product_studio": "What is Product Studio?",
+    "business_transformation": "What is Business Transformation?", "engagement_models": "What are the engagement models?",
+    "business_enquiry": "How do I start a business enquiry?", "technology_services": "Can you build custom software for us?",
     "contact": "How do I contact Rithavo?", "privacy": "Is my data safe?", "method": "How does Rithavo work?",
 }
 
@@ -269,7 +271,7 @@ def test_availability_is_never_asserted(client):
     for message, body in corpus_responses(client):
         assert not any(f in body["reply"].lower() for f in forbidden), (message, body["reply"])
     launch = ask(client, "Can I buy it today?").json()
-    assert "don't have a launch date" in launch["reply"]
+    assert "Not yet available for purchase." in launch["reply"] and "no purchase date" in launch["reply"]
 
 
 PERSONAL = [

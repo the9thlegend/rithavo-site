@@ -165,12 +165,12 @@ async function main() {
   await goto(BASE + "/systems/");
   check("browser tab on a phone: no app bottom bar on a public pillar page", !(await evalJs(`!!document.querySelector('.pwa-bottomnav') && !document.querySelector('.pwa-bottomnav').hidden`)));
   const shim = await send("Page.addScriptToEvaluateOnNewDocument", { source: "Object.defineProperty(navigator,'standalone',{get:()=>true})" });
-  for (const [p, label] of [["/systems/", "Systems"], ["/growth/", "Growth"], ["/career/", "Career"]]) {
+  for (const [p, label] of [["/systems/", "Product Studio"], ["/growth/", "Business Transformation"], ["/career/", "Career"]]) {
     await goto(BASE + p);
     await waitFor(`!!document.querySelector('.pwa-bottomnav')`, 5000);
     const nav = await evalJs(`(()=>{const n=document.querySelector('.pwa-bottomnav');if(!n||n.hidden)return null;const items=[...n.querySelectorAll('a,button')].map(x=>{const b=x.getBoundingClientRect();return{t:x.textContent.trim(),w:Math.round(b.width),h:Math.round(b.height),cur:x.getAttribute('aria-current')}});return{items,overflowX:document.documentElement.scrollWidth>window.innerWidth}})()`);
-    check(`installed app on a phone, ${label}: bottom bar with Home/Career/Systems/Growth/Account, targets >=44px, no sideways scroll`,
-      !!nav && nav.items.length === 5 && nav.items.every((i) => i.w >= 44 && i.h >= 44) && !nav.overflowX && /Systems.*In development/.test(nav.items[2].t) && /Growth.*In development/.test(nav.items[3].t), nav && nav.items.map((i) => i.t).join(" | "));
+    check(`installed app on a phone, ${label}: bottom bar with Home/Career/Studio/Transform/Account, targets >=44px, no sideways scroll`,
+      !!nav && nav.items.length === 5 && nav.items.every((i) => i.w >= 44 && i.h >= 44) && !nav.overflowX && /Studio/.test(nav.items[2].t) && /Transform/.test(nav.items[3].t) && !/In development/.test(nav.items[2].t + nav.items[3].t), nav && nav.items.map((i) => i.t).join(" | "));
     if (p === "/systems/") await shot("preview-mobile-systems");
     if (p === "/growth/") await shot("preview-mobile-growth");
     if (p === "/career/") await shot("preview-mobile-career");
@@ -179,14 +179,14 @@ async function main() {
   await send("Emulation.clearDeviceMetricsOverride");
 
   // ---------------------------------------------------------------- pillars, Card, one domain
-  for (const [p, label] of [["/systems/", "Systems"], ["/growth/", "Growth"]]) {
+  for (const [p, label, rx] of [["/systems/", "Product Studio", /Building products that solve real problems/i], ["/growth/", "Business Transformation", /Turning business potential into measurable performance/i]]) {
     await goto(BASE + p);
     const txt = await evalJs(`document.body.innerText`);
-    check(`${label} page says it is in development and not yet available`, /in development and not yet available/i.test(txt) && !/buy now|add to cart|purchase now/i.test(txt));
+    check(`${label} page presents the new pillar`, rx.test(txt) && !/Rithavo Systems|Rithavo Growth/.test(txt) && !/buy now|add to cart|purchase now/i.test(txt));
   }
   await goto(BASE + "/career/");
   const careerTxt = await evalJs(`document.body.innerText`);
-  check("Career page says 'available at launch', never 'available now' / 'live now'", /available at launch/i.test(careerTxt) && !/available now|live now/i.test(careerTxt));
+  check("Career page says 'Not yet available for purchase.' and shows no price or launch claim", /Not yet available for purchase\./.test(careerTxt) && !/available now|live now|available at launch|launching soon|₹/i.test(careerTxt));
   const crawl = await send("Page.addScriptToEvaluateOnNewDocument", { source: "Object.defineProperty(navigator,'standalone',{get:()=>true})" });
   const findings = [], textMentions = [];
   const PUBLIC = ["/", "/career/", "/systems/", "/growth/", "/about/", "/contact/", "/privacy/", "/terms/", "/sign-in/", "/sign-up/", "/career/career-intelligence/", "/career/application-diagnostic/"];

@@ -178,14 +178,14 @@ async function main() {
   await goto(BASE + "/home/");
   await waitFor(`!!document.querySelector('.pwa-bottomnav')`, 6000);
   const nav = await evalJs(`(()=>{const n=document.querySelector('.pwa-bottomnav');if(!n)return null;const r=n.getBoundingClientRect();const items=[...n.querySelectorAll('a,button')].map(x=>{const b=x.getBoundingClientRect();return{label:x.textContent.trim(),w:Math.round(b.width),h:Math.round(b.height)}});return{visible:getComputedStyle(n).display!=='none',bottom:Math.round(window.innerHeight-r.bottom),items,bodyClass:document.body.classList.contains('has-bottom-nav'),tabsHidden:getComputedStyle(document.querySelector('.app-tabs')).display==='none',overflowX:document.documentElement.scrollWidth>window.innerWidth}})()`);
-  check("mobile: bottom navigation is shown with the three pillars", !!nav && nav.visible && nav.items.length === 5 && ["Home", "Career", "Systems", "Growth", "Account"].every((l, i) => nav.items[i].label.startsWith(l)), nav && nav.items.map((i) => i.label).join(" | "));
+  check("mobile: bottom navigation is shown with the three pillars", !!nav && nav.visible && nav.items.length === 5 && ["Home", "Career", "Studio", "Transform", "Account"].every((l, i) => nav.items[i].label.startsWith(l)), nav && nav.items.map((i) => i.label).join(" | "));
   check("mobile: every nav target is at least 44px", !!nav && nav.items.every((i) => i.w >= 44 && i.h >= 44), nav && nav.items.map((i) => `${i.w}x${i.h}`).join(" "));
   check("mobile: desktop tab strip hidden, no horizontal scroll", !!nav && nav.tabsHidden && !nav.overflowX);
-  check("Systems and Growth are labelled as in development", await evalJs(`/In development/.test(document.querySelector('.pwa-bottomnav').innerText)`));
+  check("the bottom bar names the pillars Studio and Transform and carries no 'In development' label", await evalJs(`(()=>{const t=document.querySelector('.pwa-bottomnav').innerText;return /Studio/.test(t)&&/Transform/.test(t)&&!/In development/.test(t)&&!/Systems|Growth/.test(t)})()`));
   await shot("mobile-home");
   await evalJs(`document.querySelector('.pwa-bottomnav button[data-key=career]').click()`);
   const sheetOpen = await evalJs(`(()=>{const s=document.querySelector('.pwa-sheet');return{open:!s.hidden,links:[...s.querySelectorAll('a')].map(a=>a.textContent.trim()),focusInside:s.contains(document.activeElement),expanded:document.querySelector('.pwa-bottomnav button[data-key=career]').getAttribute('aria-expanded')}})()`);
-  check("Career sheet opens with the career tools, focus inside, aria-expanded set", sheetOpen.open && sheetOpen.focusInside && sheetOpen.expanded === "true" && ["Profile", "Career Intelligence", "Application Diagnosis", "Resumes", "Mentorship"].every((l) => sheetOpen.links.includes(l)), sheetOpen.links.join(", "));
+  check("Career sheet opens with the career tools, focus inside, aria-expanded set", sheetOpen.open && sheetOpen.focusInside && sheetOpen.expanded === "true" && ["Profile", "Career Intelligence", "Application Diagnostic", "Resumes", "Mentorship"].every((l) => sheetOpen.links.includes(l)), sheetOpen.links.join(", "));
   check("the Rithavo Card is not offered in navigation", !sheetOpen.links.some((l) => /card/i.test(l)));
   await shot("mobile-career-sheet");
   await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
@@ -195,7 +195,7 @@ async function main() {
   check("Escape closes the sheet and returns focus to Career", closed.hidden && closed.focus === "career" && closed.expanded === "false", JSON.stringify(closed));
   await goto(BASE + "/systems/");
   const sysInfo = await evalJs(`document.title + '|' + (document.body.innerText || '').slice(0, 80).split(String.fromCharCode(10)).join(' ')`);
-  check("direct URL /systems/ loads (public pillar page)", /Systems/i.test(sysInfo) && !/^Offline/.test(sysInfo), sysInfo);
+  check("direct URL /systems/ loads (Product Studio)", /Product Studio/i.test(sysInfo) && !/^Offline/.test(sysInfo), sysInfo);
   await goto(BASE + "/account/");
   await shot("mobile-account");
   check("Account page shows install guidance for a browser tab", await evalJs(`(()=>{const s=document.querySelector('[data-pwa-install]');return !!s && !s.hidden && s.innerText.length>20})()`));
@@ -209,14 +209,14 @@ async function main() {
   await send("Emulation.clearDeviceMetricsOverride");
 
   // ---------------------------------------------------------------- the three pillars
-  for (const [pth, rx, label] of [["/systems/", /in development and not yet available/i, "Systems"], ["/growth/", /in development and not yet available/i, "Growth"]]) {
+  for (const [pth, rx, label] of [["/systems/", /Building products that solve real problems/i, "Product Studio"], ["/growth/", /Turning business potential into measurable performance/i, "Business Transformation"]]) {
     await goto(BASE + pth);
     const txt = await evalJs(`document.body.innerText`);
-    check(label + " page says it is in development and not yet available", rx.test(txt) && !/buy now|add to cart|purchase now/i.test(txt));
+    check(label + " page presents the new pillar", rx.test(txt) && !/Rithavo Systems|Rithavo Growth/.test(txt) && !/buy now|add to cart|purchase now/i.test(txt));
   }
   await goto(BASE + "/career/");
   const careerTxt = await evalJs(`document.body.innerText`);
-  check("Career page presents Career Intelligence and Application Diagnostic as available at launch (not 'live now')", /available at launch/i.test(careerTxt) && !/available now|live now/i.test(careerTxt));
+  check("Career page says 'Not yet available for purchase.' with no price and no launch claim", /Not yet available for purchase\./.test(careerTxt) && !/available now|live now|available at launch|launching soon|₹/i.test(careerTxt));
 
   // ---------------------------------------------------------------- Card: never reachable in the installed app, never points at another domain
   const CARD_PAGES = ["/", "/home/", "/account/", "/profile/", "/resumes/", "/history/", "/mentorship/", "/career/", "/systems/", "/growth/", "/about/", "/contact/", "/privacy/", "/terms/", "/career-intelligence/", "/application-diagnosis/"];

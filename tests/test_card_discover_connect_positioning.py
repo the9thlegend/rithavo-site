@@ -49,10 +49,10 @@ def test_ritanya_says_discover_and_connect_are_planned_and_not_live():
     assert not re.search(r"(?<!neither )\bis live\b(?! yet)|available now|available today|you can (discover|connect|request)", t.reply + t.more, re.I)
 
 
-def test_systems_and_growth_name_their_planned_capabilities_and_stay_in_development():
+def test_the_old_systems_and_growth_positioning_is_gone_from_the_pages_and_from_ritanya():
+    # /systems/ and /growth/ now carry Product Studio and Business Transformation (tests/test_three_pillars.py checks the content)
     systems = (ROOT / "systems" / "index.html").read_text(encoding="utf-8")
     growth = (ROOT / "growth" / "index.html").read_text(encoding="utf-8")
-    assert "productivity templates" in systems and "digital toolkits and workflows" in systems
-    assert "lead generation" in growth
-    assert "isn't live yet" in systems and "isn't live yet" in growth
-    assert "productivity templates" in K.TOPICS["systems_growth"].reply and "lead generation" in K.TOPICS["systems_growth"].reply
+    assert "productivity templates" not in systems and "digital toolkits and workflows" not in systems
+    assert "marketing, content" not in growth and "isn't live yet" not in systems and "isn't live yet" not in growth
+    assert "systems_growth" not in K.TOPICS

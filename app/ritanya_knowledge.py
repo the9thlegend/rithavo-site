@@ -13,18 +13,20 @@ asserts):
   * Nothing here describes a personalised result: no score, no fit, no
     recommendation about a person. Ritanya points to the products that
     produce those; she does not produce them.
-  * Availability is never asserted. The public pages now agree ("available
-    for purchase at launch"; the About page's former "live now" was corrected),
-    and every answer still defers to the product pages for what is open today.
+  * Availability is never asserted. Career Intelligence and Application Diagnostic are described only as "Not yet
+    available for purchase." (founder decision, Gate 1.7), with no date and no commitment.
+  * Career prices are hidden (founder decision, Gate 1.7). No price text exists in this module.
+  * The three pillars are Career, Product Studio and Business Transformation. Product Studio is Career products only;
+    technology and automation implementation is not offered. The Business Transformation answers describe only the four
+    approved capability areas and the six possible engagement models, and never promise results or timelines.
 """
 
 from typing import NamedTuple
 
 CANONICAL_HOST = "https://rithavo.com"
 
-# Prices appear on the public Career page ("Launch price" 399 and 799), but
-# whether Ritanya may state them is a founder decision that is still open.
-# False = she points to the Career page instead. One flag, no other change.
+# Career prices are hidden on every customer-facing surface (founder decision, Gate 1.7), so Ritanya never states a price.
+# The flag stays False and is asserted by the tests; there is no price text in this module to switch on.
 PRICES_ENABLED = False
 
 
@@ -45,21 +47,20 @@ DESTINATIONS = {
     "contact":               Destination("Contact Rithavo", "/contact/", False),
     "privacy":               Destination("Read the Privacy page", "/privacy/", False),
     "terms":                 Destination("Read the Terms", "/terms/", False),
-    "systems":               Destination("See Rithavo Systems", "/systems/", False),
-    "growth":                Destination("See Rithavo Growth", "/growth/", False),
+    "systems":               Destination("See Product Studio", "/systems/", False),
+    "growth":                Destination("See Business Transformation", "/growth/", False),
     "sign_up":               Destination("Join Rithavo", "/sign-up/", False),
     "sign_in":               Destination("Sign in", "/sign-in/", False),
     "career_intelligence":   Destination("Open Career Intelligence", "/career-intelligence/", True),
-    "application_diagnosis": Destination("Open Application Diagnosis", "/application-diagnosis/", True),
+    "application_diagnosis": Destination("Open Application Diagnostic", "/application-diagnosis/", True),
     "explore":               Destination("Open Explore", "/home/", True),
     "mentorship":            Destination("Open Mentorship", "/mentorship/", True),
     "profile":               Destination("Open your Profile", "/profile/", True),
 }
 
 AVAILABILITY_NOTE = (
-    "Rithavo's public pages say Career Intelligence and Application Diagnosis will be available "
-    "for purchase at launch. I don't have a launch date and I can't see what is open today, so "
-    "the product pages are the place to check."
+    "Career Intelligence and Application Diagnostic: Not yet available for purchase. There is no "
+    "purchase date to share, and the product pages show the current status."
 )
 
 PERSONAL_BOUNDARY = (
@@ -80,23 +81,22 @@ class Topic(NamedTuple):
 TOPICS = {t.id: t for t in (
     Topic(
         "overview",
-        "Rithavo is a digital products and services company that builds structured, evidence-based "
-        "tools to show people where they stand and what to do next. Its first area is Rithavo Career, "
-        "with two products: Career Intelligence and Application Diagnosis. Rithavo Systems and Rithavo "
-        "Growth are still in development.",
+        "Rithavo is a digital products and services company with three pillars. Career is for individuals: "
+        "Career Intelligence and Application Diagnostic help you understand where you stand and what to do next. "
+        "Product Studio builds Rithavo's own products. Business Transformation works with businesses on how they perform.",
         "Every Rithavo product follows the same shape: a clear look at where things stand, a specific "
         "plan to improve it, and a practical next step. " + AVAILABILITY_NOTE,
         ("career", "about"),
-        ("What is Career Intelligence?", "What is Application Diagnosis?", "Which one should I choose?"),
-        "about/index.html; career/index.html; systems/index.html; growth/index.html",
+        ("What is Product Studio?", "What is Business Transformation?", "What is Career Intelligence?"),
+        "about/index.html; career/index.html; systems/index.html (Product Studio); growth/index.html (Business Transformation)",
     ),
     Topic(
         "ritanya",
         "I'm Ritanya, Rithavo's guide. I answer from Rithavo's approved product information and point "
         "you to the right page. I'm not a live AI, I can't see your account or your information, and "
         "I can't give personal career advice.",
-        "That means I can explain what Rithavo's products are, tell you where things are, and say so "
-        "plainly when I don't know something.",
+        "That means I can explain what Rithavo's three pillars are, what its products do and how to start a business "
+        "enquiry, tell you where things are, and say so plainly when I don't know something.",
         ("career",),
         ("What is Rithavo?", "What can you help me with?", "Which one should I choose?"),
         "design decision, Phase A (no model; fixed information only)",
@@ -110,34 +110,33 @@ TOPICS = {t.id: t for t in (
         "It is not tied to one job posting; it is a broader read on your direction. It uses your Rithavo "
         "Profile. " + AVAILABILITY_NOTE,
         ("career_intelligence", "career"),
-        ("How much does it cost?", "What is Application Diagnosis?", "What is a Rithavo Profile?"),
+        ("Can I buy it yet?", "What is Application Diagnostic?", "What is a Rithavo Profile?"),
         "index.html (product description, four moves); career/index.html",
     ),
     Topic(
         "application_diagnosis",
-        "Application Diagnosis is a one-time diagnosis for a single job opportunity, not a subscription. "
+        "Application Diagnostic is a one-time diagnosis for a single job opportunity, not a subscription. "
         "Rithavo evaluates the complete job description against your Rithavo Profile and leads to a "
         "tailored resume for that role.",
-        "The Career page describes it as six dimensions, scored, with a prioritized fix list. Returning "
-        "customers get lower pricing on every purchase after the first. " + AVAILABILITY_NOTE,
+        "The Career page describes it as six dimensions, scored, with a prioritized fix list. " + AVAILABILITY_NOTE,
         ("application_diagnosis", "career"),
-        ("How much does it cost?", "What is Career Intelligence?", "What is a Rithavo Profile?"),
+        ("Can I buy it yet?", "What is Career Intelligence?", "What is a Rithavo Profile?"),
         "index.html; about/index.html; career/index.html",
     ),
     Topic(
         "which_product",
-        "Choose Application Diagnosis if you have a specific role in front of you and want to know whether "
+        "Choose Application Diagnostic if you have a specific role in front of you and want to know whether "
         "your resume matches it before you apply. Choose Career Intelligence if you're weighing a move, "
         "such as a new role, industry or level, and want a clearer read on where you stand.",
         "I can't tell you which one suits you personally. I don't know your situation, and I can't assess "
         "it. The two descriptions above are the Career page's own guidance.",
         ("career_intelligence", "application_diagnosis"),
-        ("What is Career Intelligence?", "What is Application Diagnosis?", "How much does it cost?"),
+        ("What is Career Intelligence?", "What is Application Diagnostic?", "Can I buy it yet?"),
         "career/index.html (\"Choose Application Diagnostic if / Choose Career Intelligence if\")",
     ),
     Topic(
         "profile",
-        "Your Rithavo Profile is built from your education and experience. Application Diagnosis and "
+        "Your Rithavo Profile is built from your education and experience. Application Diagnostic and "
         "Career Intelligence both use it, so adding it is the way to get started. You can do that on the "
         "Profile page once you've signed in.",
         "The Rithavo Card, your foundational professional identity built from your Profile, isn't available on rithavo.com yet.",
@@ -173,7 +172,7 @@ TOPICS = {t.id: t for t in (
         "explore",
         "Explore is continuously refreshed professional and business news. Once you've joined, it shows "
         "stories ordered by how relevant they are to your Rithavo Profile, with the ones relevant to you "
-        "first. You can get Explore now by joining, ahead of launch.",
+        "first. You can get Explore now by joining.",
         "I can't pick stories for you or tell you what is in the feed today. Explore is on your Home page "
         "after you sign in.",
         ("explore", "sign_up"),
@@ -202,47 +201,93 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "pricing",
-        ("Launch prices on the Career page: Application Diagnosis ₹399 for a first purchase, with lower "
-         "pricing for returning customers, and Career Intelligence ₹799 one-time. "
-         if PRICES_ENABLED else
-         "Prices are listed on the Career page, so that is the reliable place to see them. ")
-        + "I can't take a payment or tell you what is open to buy today.",
+        "Prices aren't shown at the moment. Career Intelligence and Application Diagnostic: Not yet available for "
+        "purchase. The Career page explains what each one does.",
         AVAILABILITY_NOTE,
-        ("career", "terms"),
-        ("What is Application Diagnosis?", "What is Career Intelligence?", "How do I contact Rithavo?"),
-        "career/index.html (\"Launch price\"); app/pricing.py. Stating prices is gated by PRICES_ENABLED.",
+        ("career", "contact"),
+        ("What is Application Diagnostic?", "What is Career Intelligence?", "How do I contact Rithavo?"),
+        "career/index.html; founder decision: Career prices are hidden (Gate 1.7).",
     ),
     Topic(
         "launch",
         AVAILABILITY_NOTE,
-        "You can join now to get Explore and to build your Rithavo Profile ahead of launch.",
+        "You can join now to get Explore and to build your Rithavo Profile.",
         ("career", "sign_up"),
         ("How do I join?", "What is Explore?", "What is a Rithavo Profile?"),
         "index.html; career/index.html; contact/index.html; about/index.html",
     ),
     Topic(
         "join",
-        "You can join Rithavo now to get access to Explore and to build your Rithavo Profile ahead of "
-        "launch. If you already have an account, you can sign in.",
+        "You can join Rithavo now to get access to Explore and to build your Rithavo Profile. "
+        "If you already have an account, you can sign in.",
         "I can't create an account or sign you in. The Join and Sign in pages do that.",
         ("sign_up", "sign_in"),
-        ("What is Explore?", "What is a Rithavo Profile?", "When does it launch?"),
+        ("What is Explore?", "What is a Rithavo Profile?", "Can I buy it yet?"),
         "index.html (Join Rithavo; Sign In)",
     ),
     Topic(
-        "systems_growth",
-        "Rithavo Systems is planned as small, practical automations, productivity templates and digital "
-        "toolkits and workflows for small teams. Rithavo Growth is planned to help businesses with marketing, "
-        "customer acquisition and lead generation. Neither is live yet; Career comes first.",
-        "Each page has a way to tell Rithavo what you'd want built.",
-        ("systems", "growth"),
-        ("What is Rithavo?", "What is Career Intelligence?", "How do I contact Rithavo?"),
-        "systems/index.html; growth/index.html",
+        "product_studio",
+        "Product Studio is where Rithavo builds its own products. Today it includes two products from Rithavo "
+        "Career, Career Intelligence and Application Diagnostic. Status: Not yet available for purchase.",
+        "Product Studio builds Rithavo's own products. Business Transformation is separate: it works with businesses "
+        "on how they perform. This part of the site was previously called Systems.",
+        ("systems", "career"),
+        ("What is Business Transformation?", "What is Career Intelligence?", "What is Application Diagnostic?"),
+        "systems/index.html (Product Studio); Gate 1.7: Product Studio is Career products only for now",
+    ),
+    Topic(
+        "business_transformation",
+        "Business Transformation is where Rithavo works with businesses to strengthen operations, support delivery "
+        "commitments and pursue growth opportunities. Four areas are open for discussion: sales and revenue "
+        "operations; business process and operational management; taking ownership of selected business functions; "
+        "and business development and revenue growth. Rithavo does not promise guaranteed growth or standard "
+        "performance outcomes.",
+        "Sales and revenue operations covers MQL and SQL lead requirements, lead research and review of the data you "
+        "provide. Business process and operational management covers organisational structures, hierarchy, business "
+        "processes, Standard Operating Procedures and operational strategies. Taking ownership can include additional "
+        "resources, support for an existing production team, or operational control of an agreed production team. "
+        "Business development and revenue growth can include performance-linked objectives agreed separately.",
+        ("growth", "contact"),
+        ("What are the engagement models?", "How do I start a business enquiry?", "What is Product Studio?"),
+        "growth/index.html (Business Transformation); Gate 1.7: four approved capabilities",
+    ),
+    Topic(
+        "engagement_models",
+        "Depending on your requirement, an engagement may be advisory or consultation; a defined project with agreed "
+        "deliverables; ongoing operational support; dedicated resources or team deployment; end-to-end ownership of "
+        "an agreed business function; or a performance-linked engagement with agreed targets.",
+        "These are possible engagement models, not standard packages. The right one is discussed once Rithavo "
+        "understands your requirement, and the scope, terms and timelines are agreed separately.",
+        ("growth", "contact"),
+        ("What is Business Transformation?", "How do I start a business enquiry?", "Who approves the scope of work?"),
+        "growth/index.html (Business Transformation); Gate 1.7: six possible engagement models",
+    ),
+    Topic(
+        "business_enquiry",
+        "To start, email hello@rithavo.com and describe what you are looking to achieve. Your enquiry will be "
+        "reviewed by Rithavo. If appropriate, a Rithavo specialist will get in touch to understand your requirements. "
+        "Any scope of work is approved by Rithavo's Founder before it is agreed.",
+        "A specialist can discuss your objectives and existing commitments, but nothing is committed until the scope "
+        "has been approved by the Founder and both sides agree. No response time is promised.",
+        ("contact", "growth"),
+        ("What are the engagement models?", "What is Business Transformation?", "How do I contact Rithavo?"),
+        "contact/index.html; growth/index.html; Gate 1.7: enquiry wording and Founder approval of scope",
+    ),
+    Topic(
+        "technology_services",
+        "Right now, Product Studio builds Rithavo's own products, which today are Career Intelligence and Application "
+        "Diagnostic. Technology and automation implementation isn't part of what Rithavo offers at the moment. If you "
+        "have a business requirement, Business Transformation and the enquiry route are the best next step.",
+        "If your need is about how a business operates or performs, such as sales operations, processes or delivery, "
+        "Business Transformation is the place to start.",
+        ("growth", "contact"),
+        ("What is Product Studio?", "What is Business Transformation?", "How do I start a business enquiry?"),
+        "Gate 1.7: technology and automation implementation are not part of the current offering",
     ),
     Topic(
         "contact",
-        "The fastest way to reach Rithavo is email: hello@rithavo.com. That covers questions before you "
-        "buy, orders and billing, and feedback. For refunds, see the Terms first.",
+        "The fastest way to reach Rithavo is email: hello@rithavo.com. That covers questions about the products, "
+        "orders and billing, business requirements and feedback. For refunds, see the Terms first.",
         "I can't send a message for you.",
         ("contact", "terms"),
         ("What is Rithavo?", "How much does it cost?", "How do I join?"),
@@ -266,7 +311,7 @@ TOPICS = {t.id: t for t in (
         "employer's actual ATS software.",
         "That is how the About and Career pages describe it.",
         ("about", "career"),
-        ("What is Career Intelligence?", "What is Application Diagnosis?", "What is Rithavo?"),
+        ("What is Career Intelligence?", "What is Application Diagnostic?", "What is Rithavo?"),
         "about/index.html; footer disclaimer on career/index.html",
     ),
 )}
@@ -274,11 +319,11 @@ TOPICS = {t.id: t for t in (
 # --- answers that are not topics -------------------------------------------------
 
 REFUSE_PERSONAL = (
-    PERSONAL_BOUNDARY + " That is what Career Intelligence and Application Diagnosis are for, and I can "
+    PERSONAL_BOUNDARY + " That is what Career Intelligence and Application Diagnostic are for, and I can "
     "point you to them."
 )
 REFUSE_PERSONAL_ACTIONS = ("career_intelligence", "application_diagnosis")
-REFUSE_PERSONAL_SUGGESTIONS = ("What is Career Intelligence?", "What is Application Diagnosis?",
+REFUSE_PERSONAL_SUGGESTIONS = ("What is Career Intelligence?", "What is Application Diagnostic?",
                                "Which one should I choose?")
 
 NO_ACCOUNT_ACCESS = (
@@ -306,14 +351,14 @@ UNKNOWN = (
     "I don't have information about that. I can only answer from Rithavo's approved product "
     "information, and I'd rather say so than guess."
 )
-UNKNOWN_SUGGESTIONS = ("What is Rithavo?", "What is Career Intelligence?", "What is Application Diagnosis?",
+UNKNOWN_SUGGESTIONS = ("What is Rithavo?", "What is Career Intelligence?", "What is Application Diagnostic?",
                        "How do I contact Rithavo?")
 UNKNOWN_REPEATED = (
     UNKNOWN + " If it's something specific, emailing hello@rithavo.com is the surest way to get an answer."
 )
 
 NO_TOPIC_FOR_FOLLOWUP = "Which one do you mean? I can tell you about any of these."
-START_SUGGESTIONS = ("What is Rithavo?", "What is Career Intelligence?", "What is Application Diagnosis?",
+START_SUGGESTIONS = ("What is Rithavo?", "What is Career Intelligence?", "What is Application Diagnostic?",
                      "Which one should I choose?")
 
 # Messages the unavailable / rate-limited states show. Kept here so the wording is reviewed with the rest.
@@ -335,20 +380,20 @@ DISCLOSURE_BROWSER = DISCLOSURE + " Your messages are answered in your browser a
 # real matcher in tests/test_ritanya_chat.py and must produce a reviewed topic answer, never "I don't know".
 PAGE_STARTERS = {
     "/":                                       START_SUGGESTIONS,
-    "/career/":                                ("What is Career Intelligence?", "What is Application Diagnosis?", "Which one should I choose?"),
-    "/career/career-intelligence/":            ("What is Career Intelligence?", "Which one should I choose?", "When does it launch?"),
-    "/career/application-diagnostic/":         ("What is Application Diagnosis?", "Which one should I choose?", "When does it launch?"),
-    "/career-intelligence/":                   ("What is Career Intelligence?", "What is a Rithavo Profile?", "When does it launch?"),
-    "/application-diagnosis/":                 ("What is Application Diagnosis?", "What is a Rithavo Profile?", "When does it launch?"),
+    "/career/":                                ("What is Career Intelligence?", "What is Application Diagnostic?", "Which one should I choose?"),
+    "/career/career-intelligence/":            ("What is Career Intelligence?", "Which one should I choose?", "Can I buy it yet?"),
+    "/career/application-diagnostic/":         ("What is Application Diagnostic?", "Which one should I choose?", "Can I buy it yet?"),
+    "/career-intelligence/":                   ("What is Career Intelligence?", "What is a Rithavo Profile?", "Can I buy it yet?"),
+    "/application-diagnosis/":                 ("What is Application Diagnostic?", "What is a Rithavo Profile?", "Can I buy it yet?"),
     "/home/":                                  ("What is Explore?", "What is Mentorship?", "What is a Rithavo Profile?"),
     "/profile/":                               ("What is a Rithavo Profile?", "What is a Rithavo Card?", "What is Career Intelligence?"),
-    "/resumes/":                               ("What is Application Diagnosis?", "What is a Rithavo Profile?"),
-    "/history/":                               ("What is Application Diagnosis?", "What is Career Intelligence?"),
+    "/resumes/":                               ("What is Application Diagnostic?", "What is a Rithavo Profile?"),
+    "/history/":                               ("What is Application Diagnostic?", "What is Career Intelligence?"),
     "/mentorship/":                            ("What is Mentorship?", "What is Explore?"),
-    "/systems/":                               ("What are Systems and Growth?", "What is Rithavo?"),
-    "/growth/":                                ("What are Systems and Growth?", "What is Rithavo?"),
+    "/systems/":                               ("What is Product Studio?", "What is Business Transformation?", "What is Rithavo?"),
+    "/growth/":                                ("What is Business Transformation?", "What are the engagement models?", "How do I start a business enquiry?"),
     "/about/":                                 ("What is Rithavo?", "How does Rithavo work?", "How do I join?"),
-    "/contact/":                               ("How do I contact Rithavo?", "What is Rithavo?"),
+    "/contact/":                               ("How do I contact Rithavo?", "How do I start a business enquiry?", "What is Rithavo?"),
     "/privacy/":                               ("How does Rithavo handle my data?", "What can you help me with?"),
     "/terms/":                                 ("How do I contact Rithavo?", "What is Rithavo?"),
     "/account/":                               ("What can you help me with?", "How do I contact Rithavo?"),

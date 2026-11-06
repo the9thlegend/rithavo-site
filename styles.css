@@ -469,3 +469,10 @@ a.journey-title:hover { border-color: var(--line-strong); }
 @media (max-width: 640px) {
   .prelaunch-banner { padding: 10px 16px; font-size: 0.8rem; }
 }
+
+/* ---- Three-pillar positioning: product status label and the homepage brand strip / pillars ---- */
+.btn-status { background: var(--surface-sunken); color: var(--ink-soft); border-color: var(--line-strong); box-shadow: none; cursor: default; text-align: center; }
+.btn-status:hover { transform: none; }
+.brand-strip-section { padding: 8px 0 0; }
+.brand-strip { margin: 0; text-align: center; font-family: var(--font-display); font-size: clamp(1.1rem, 2.2vw, 1.45rem); letter-spacing: 0.01em; color: var(--ink-soft); }
+.pillars { padding-top: 40px; }

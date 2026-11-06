@@ -150,19 +150,19 @@ async function main() {
   check("Career: reviewed answer (four kinds of move), link to Career Intelligence marked 'Sign-in required', link stays on rithavo.com", /Stay, New Role, New Industry and Major Transition/.test(ci.text) && ci.actions.some((a) => a.href === "/career-intelligence/" && a.note) && ci.actions.every((a) => a.href.startsWith("/")), JSON.stringify(ci.actions.map((a) => a.href)));
   check("Career: Career Intelligence answer defers availability to the product pages (no 'available now')", /launch|product pages/i.test(ci.text) === false || !/available now|live now/i.test(ci.text));
   await shot("preview-ritanya-career");
-  await evalJs(`[...document.querySelectorAll('.rtn-chip')].find(c=>/Application Diagnosis/.test(c.textContent)).click()`);
+  await evalJs(`[...document.querySelectorAll('.rtn-chip')].find(c=>/Application Diagnostic/.test(c.textContent)).click()`);
   await waitFor(`document.querySelectorAll('.rtn-ritanya').length>=3 && !document.querySelector('.rtn-send').disabled`, 15000);
   const ad = await lastMsg();
-  check("Career: a suggested-question chip is answered (Application Diagnosis: one-time, not a subscription)", /not a subscription/.test(ad.text));
+  check("Career: a suggested-question chip is answered (Application Diagnostic: one-time, not a subscription)", /not a subscription/.test(ad.text));
   await goto(BASE + "/systems/"); await openPanel(); await resetConvo();
-  const sy = await ask("What are Systems and Growth?");
-  check("Systems: accurately described as in development, not live; no purchase link", /Neither is live yet/.test(sy.text) && !sy.actions.some((a) => /buy|purchase/i.test(a.label)), sy.text.slice(0, 120));
+  const sy = await ask("What is Product Studio?");
+  check("Product Studio: Rithavo's own products, Career products only; no purchase link", /Product Studio is where Rithavo builds its own products/.test(sy.text) && !sy.actions.some((a) => /buy|purchase/i.test(a.label)), sy.text.slice(0, 120));
   await shot("preview-ritanya-systems");
   await goto(BASE + "/growth/"); await openPanel(); await resetConvo();
-  const gr = await ask("Tell me about Growth");
-  check("Growth: accurately described as planned / in development", /planned|not live|isn't live|in development/i.test(gr.text) && !/available now|live now/i.test(gr.text), gr.text.slice(0, 120));
+  const gr = await ask("Tell me about Business Transformation");
+  check("Business Transformation: the four areas, and no promise of guaranteed growth", /does not promise guaranteed growth/.test(gr.text) && !/available now|live now/i.test(gr.text), gr.text.slice(0, 120));
   const ov = await ask("What is Rithavo?");
-  check("overview names Systems and Growth as still in development", /still in development/.test(ov.text));
+  check("overview names the three pillars", /Product Studio/.test(ov.text) && /Business Transformation/.test(ov.text));
 
   // ===================================================================== refusals, honesty, prices, availability
   const personal = await ask("Can you review my resume and tell me which career I should choose?");
@@ -176,7 +176,7 @@ async function main() {
   const price = await ask("How much does Career Intelligence cost?");
   check("prices stay disabled: no figure, no currency symbol, points to the Career page", !/[₹\d]/.test(price.text) && price.actions.some((a) => a.href === "/career/"), price.text.slice(0, 110));
   const avail = await ask("Can I buy it now?");
-  check("availability is deferred to the product pages; 'available now' is never said", /can't see what is open today/.test(avail.text) && !/available now|live now/i.test(avail.text));
+  check("availability is 'Not yet available for purchase.'; 'available now' is never said", /Not yet available for purchase\./.test(avail.text) && !/available now|live now/i.test(avail.text));
   const who = await ask("What can you do?");
   check("it says what it is: not a live AI, no account access, no personal advice", /not a live AI/.test(who.text) && /can't see your account/.test(who.text));
   const card = await ask("What is a Rithavo Card?");

@@ -131,7 +131,7 @@ async function main() {
   check("B1. status unreachable, last 'on' is 3 min old (inside grace): the page re-asked, could not, and the guide still answers", answered(b1) && S.statusCalls > calls0 && (await ui()).launcher, `${S.statusCalls - calls0} status attempts; ${b1 && b1.text.slice(0, 40)}`);
   check("B2. a failed attempt does NOT refresh the clock (the stored time of the last successful answer is unchanged)", (await statusT()) === t0, `${t0} -> ${await statusT()}`);
   await advance(Math.round(1.8 * MIN));          // age = 4.8 min: still inside
-  const b3 = await ask("What are Systems and Growth?");
+  const b3 = await ask("What is Product Studio?");
   check("B3. at 4.8 minutes without a successful check the guide still works (boundary just inside the grace period)", answered(b3));
   const convBefore = (await ui()).conv;
   await advance(Math.round(0.5 * MIN));          // age = 5.3 min: past the grace period

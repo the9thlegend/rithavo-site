@@ -76,7 +76,7 @@ def test_every_page_has_the_pwa_head_tags_and_script():
     assert len(pages) >= 20
     needed = ['rel="manifest" href="/manifest.webmanifest"', 'name="theme-color"',
               'rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png"', 'name="apple-mobile-web-app-capable"',
-              "viewport-fit=cover", '<script src="/pwa.js" defer></script>']
+              "viewport-fit=cover", '<script src="/pwa.js?v=20261106" defer></script>']
     missing = [p.as_posix() for p in pages if any(t not in (ROOT / p).read_text(encoding="utf-8") for t in needed)]
     assert missing == []
     offline = (ROOT / "offline/index.html").read_text(encoding="utf-8")

@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /home/
+Disallow: /account/
+Disallow: /profile/
+Disallow: /history/
+Disallow: /resumes/
+Disallow: /onboarding/
+Disallow: /mentorship/
+Disallow: /career-intelligence/
+Disallow: /application-diagnosis/
+Disallow: /sign-in/
+Disallow: /sign-up/
+Disallow: /reset-password/
+Disallow: /offline/
+
+Sitemap: https://rithavo.com/sitemap.xml

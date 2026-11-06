@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Application Diagnosis — Rithavo</title>
+<title>Application Diagnostic — Rithavo</title>
 <meta name="robots" content="noindex">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
@@ -21,16 +21,16 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
 <div class="app-topbar" id="app-topbar"></div>
 
 <div class="app-main app-main-wide">
-  <p class="label">Application Diagnosis</p>
+  <p class="label">Application Diagnostic</p>
   <h1 class="h2" style="margin:8px 0 24px;">Diagnose a job application</h1>
   <div id="content" class="app-skeleton">Loading…</div>
 </div>
 
-<script src="/app-shell.js"></script>
+<script src="/app-shell.js?v=20261106"></script>
 <script>
 (async () => {
   const me = await RithavoApp.requireSession();
@@ -142,9 +142,9 @@
     if (price.launch_locked) {
       content.innerHTML = `
         <div class="card card-body">
-          <p>You don't have an available Application Diagnosis credit.</p>
-          <p><strong style="color:var(--ink); font-size:1.3rem;">Available at launch</strong></p>
-          <p>You can purchase this on launch day. Create your Rithavo Profile till then.</p>
+          <p>You don't have an available Application Diagnostic credit.</p>
+          <p><strong style="color:var(--ink); font-size:1.3rem;">Not yet available for purchase.</strong></p>
+          <p>Create your Rithavo Profile in the meantime.</p>
           <a class="btn btn-primary" href="/profile/">Create My Rithavo Profile</a>
         </div>
       `;
@@ -154,7 +154,7 @@
     const needsPhone = price.gateway === "cashfree";
     content.innerHTML = `
       <div class="card card-body">
-        <p>You don't have an available Application Diagnosis credit.</p>
+        <p>You don't have an available Application Diagnostic credit.</p>
         <p><strong style="color:var(--ink); font-size:1.5rem;">₹${price.amount_inr}</strong></p>
         ${needsPhone ? `
         <div class="app-field" style="max-width:280px;">
@@ -163,7 +163,7 @@
           <span class="hint">Used only for this payment, by our payment partner.</span>
         </div>
         ` : ""}
-        <button class="btn btn-primary" id="buy-btn">Buy Application Diagnosis</button>
+        <button class="btn btn-primary" id="buy-btn">Buy Application Diagnostic</button>
         <div id="buy-status"></div>
       </div>
     `;
@@ -185,7 +185,7 @@
         await RithavoApp.startPurchase({
           purchasePath: "/diagnosis/purchase",
           confirmCashfreePath: (id) => `/diagnosis/purchase/${id}/confirm-cashfree`,
-          description: "Rithavo Application Diagnosis",
+          description: "Rithavo Application Diagnostic",
           customerPhone: customerPhone,
         });
         // Never trust the client callback alone — re-fetch entitlement
@@ -198,12 +198,12 @@
             Payment is still being confirmed — this can take a few seconds. Refresh this page shortly.
           </div>`;
           btn.disabled = false;
-          btn.textContent = "Buy Application Diagnosis";
+          btn.textContent = "Buy Application Diagnostic";
         }
       } catch (err) {
         status.innerHTML = `<div class="app-banner app-banner-error">${err.message}</div>`;
         btn.disabled = false;
-        btn.textContent = "Buy Application Diagnosis";
+        btn.textContent = "Buy Application Diagnostic";
       }
     });
   }
@@ -220,6 +220,6 @@
   }
 })();
 </script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "assets" / "ritanya" / "ritanya.js").read_text(encoding="utf-8")
 CSS = (ROOT / "assets" / "ritanya" / "ritanya.css").read_text(encoding="utf-8")
 EXCLUDED_PAGES = {"sign-in", "sign-up", "reset-password", "onboarding", "admin", "offline"}   # offline: the PWA offline page (a different branch)
-TAG = '<script src="/assets/ritanya/ritanya.js" defer></script>'
+ASSET_VERSION = "20261106"   # the cache-busting stamp every page carries on the scripts and stylesheet that changed in this release
+TAG = f'<script src="/assets/ritanya/ritanya.js?v={ASSET_VERSION}" defer></script>'
 
 
 def mounted_client(monkeypatch, mode="deterministic", paused=None):
@@ -126,7 +127,7 @@ def test_prices_stay_disabled_and_availability_is_never_asserted():
     for topic in ("launch", "career_intelligence", "application_diagnosis"):
         text = K.TOPICS[topic].reply + K.TOPICS[topic].more
         assert "available now" not in text.lower() and "live now" not in text.lower()
-    assert "available for purchase at launch" in K.AVAILABILITY_NOTE
+    assert "Not yet available for purchase." in K.AVAILABILITY_NOTE and "launch" not in K.AVAILABILITY_NOTE.lower()
 
 
 def test_card_answer_says_the_card_is_not_available_and_promises_nothing():

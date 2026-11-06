@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Rithavo",
   "short_name": "Rithavo",
-  "description": "Rithavo: understand where you stand and move forward. Career first, with Systems and Growth to follow.",
+  "description": "Rithavo: understand where you stand and move forward. Career, Product Studio and Business Transformation.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "/home/?source=pwa",
@@ -24,7 +24,7 @@
       "icons": [{ "src": "/assets/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
     },
     {
-      "name": "Application Diagnosis",
+      "name": "Application Diagnostic",
       "url": "/application-diagnosis/?source=pwa-shortcut",
       "icons": [{ "src": "/assets/pwa/icon-96.png", "sizes": "96x96", "type": "image/png" }]
     },

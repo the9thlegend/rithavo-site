@@ -8,7 +8,7 @@
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
@@ -21,14 +21,14 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
 <div class="app-topbar" id="app-topbar"></div>
 
 <div class="app-main app-main-wide">
   <div id="content" class="app-skeleton">Loading your account…</div>
 </div>
 
-<script src="/app-shell.js"></script>
+<script src="/app-shell.js?v=20261106"></script>
 <script src="/explore-feed.js"></script>
 <script>
 (async () => {
@@ -85,7 +85,7 @@
   // Home/Explore/Admin Integration Phase — Home is now Explore-centered:
   // the professional-news feed is the dominant content area, and every
   // pre-existing account/product link (Profile, Career Intelligence,
-  // Application Diagnosis, Resumes, History, Account) moves into a
+  // Application Diagnostic, Resumes, History, Account) moves into a
   // secondary-navigation rail alongside it, plus the new Mentorship
   // entry point. Nothing that worked before stops working — every href
   // below is unchanged from the previous tile grid.
@@ -111,7 +111,7 @@
 
     ${hasProfile ? "" : `
       <a href="/profile/" class="app-banner app-banner-info" style="display:block; text-decoration:none; color:inherit;">
-        We don't have a Rithavo Profile on file for this account yet. Application Diagnosis and
+        We don't have a Rithavo Profile on file for this account yet. Application Diagnostic and
         Career Intelligence both use your Profile — add your education and experience to get started.
       </a>
     `}
@@ -141,7 +141,7 @@
           <nav class="home-rail-links">
             <a href="/profile/">Your Profile</a>
             <a href="/career-intelligence/">Career Intelligence</a>
-            <a href="/application-diagnosis/">Application Diagnosis</a>
+            <a href="/application-diagnosis/">Application Diagnostic</a>
             <a href="/resumes/">Your Resumes</a>
             <a href="/mentorship/">Mentorship</a>
             <a href="/history/">History</a>
@@ -179,6 +179,6 @@
   })();
 })();
 </script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

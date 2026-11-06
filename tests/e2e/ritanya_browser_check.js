@@ -96,7 +96,7 @@ async function main() {
   r = await ask("How much does Career Intelligence cost?");
   check("prices are not stated (disabled)", !/₹|\b399\b|\b799\b/.test(r.text) && /Career page/.test(r.text), r.text.slice(0, 80));
   r = await ask("When can I buy it?");
-  check("availability is not asserted (deferred to the product pages)", /available for purchase at launch/.test(r.text) && !/available now|live now/i.test(r.text));
+  check("availability is stated only as 'Not yet available for purchase.', with no date or commitment", /Not yet available for purchase\./.test(r.text) && !/available now|live now|at launch|launch date/i.test(r.text));
   r = await ask("What is a Rithavo Card?");
   check("the Card answer says the Card isn't available on rithavo.com and links nowhere near a card site", /isn't available on rithavo\.com/.test(r.text) && r.links.every((h) => !h.startsWith("/card")));
   await shot("desktop-conversation");
@@ -151,9 +151,9 @@ async function main() {
   const sheet = await evalJs(`(()=>{const p=document.querySelector('.rtn-panel').getBoundingClientRect();const i=document.querySelector('.rtn-input');return{w:Math.round(p.width),bottom:Math.round(innerHeight-p.bottom),h:Math.round(p.height),font:getComputedStyle(i).fontSize,modal:document.querySelector('.rtn-panel').getAttribute('aria-modal'),chips:[...document.querySelectorAll('.rtn-chip')].map(c=>Math.round(c.getBoundingClientRect().height)),send:Math.round(document.querySelector('.rtn-send').getBoundingClientRect().height),close:Math.round(document.querySelector('.rtn-iconbtn').getBoundingClientRect().height),starters:[...document.querySelectorAll('.rtn-chip')].map(c=>c.innerText)}})()`);
   check("mobile: panel is a full-width bottom sheet and modal", sheet.w === 390 && sheet.bottom <= 1 && sheet.modal === "true", JSON.stringify({ w: sheet.w, bottom: sheet.bottom, modal: sheet.modal }));
   check("mobile: input is 16px (no iOS zoom) and every control is at least 44px", sheet.font === "16px" && sheet.chips.every((h) => h >= 44) && sheet.send >= 44 && sheet.close >= 44, JSON.stringify({ font: sheet.font, chips: sheet.chips, send: sheet.send, close: sheet.close }));
-  check("mobile: /systems/ starters match the page", sheet.starters.includes("What are Systems and Growth?"), sheet.starters.join(" | "));
-  r = await ask("What are Systems and Growth?");
-  check("Systems and Growth are described as in development, not live", /still in development|Neither is live/.test(r.text), r.text.slice(0, 90));
+  check("mobile: /systems/ starters match the page", sheet.starters.includes("What is Product Studio?"), sheet.starters.join(" | "));
+  r = await ask("What is Product Studio?");
+  check("Product Studio is described as Rithavo's own products, with the Career products' status", /Product Studio is where Rithavo builds its own products/.test(r.text) && /Not yet available for purchase\./.test(r.text), r.text.slice(0, 90));
   await shot("mobile-open");
   await keyPress("Escape", "Escape", 27); await sleep(300);
 

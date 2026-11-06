@@ -2,7 +2,7 @@
 Public wording gates (customer-facing pages only):
 
   * Rithavo does not say anything is live or active today. Career Intelligence and Application Diagnosis are
-    "available for purchase at launch"; Systems and Growth are in development. The pages must not contradict each other.
+    "Not yet available for purchase."; no page gives a launch date or an availability commitment. The pages must not contradict each other.
   * No page names another Rithavo host (app.rithavo.com and the like) in visible text.
   * The Card is not promised on the contact page.
 """
@@ -40,8 +40,8 @@ def test_no_page_says_a_product_is_live_or_active_today():
 
 def test_the_about_page_matches_the_other_pages_on_availability():
     about = visible(ROOT / "about" / "index.html")
-    assert "available for purchase at launch" in about
-    assert "Rithavo Career, available for purchase at launch" in about
+    assert "Not yet available for purchase." in about
+    assert "available for purchase at launch" not in about and "Available at launch" not in about
 
 
 def test_no_page_names_another_rithavo_host_in_visible_text():

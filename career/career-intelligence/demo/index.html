@@ -5,10 +5,11 @@
 <title>Free Demo — Career Intelligence</title>
 <meta name="description" content="A free, fictional demonstration of Rithavo Career Intelligence — the same real assessment engine, shown with a synthetic example profile.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="canonical" href="https://rithavo.com/career/career-intelligence/demo/">
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='f' x1='0' y1='1' x2='1' y2='0'><stop offset='0%' stop-color='%234b3bd4'/><stop offset='52%' stop-color='%23a24bd6'/><stop offset='100%' stop-color='%23f2734a'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(%23f)'/><path d='M22 16 L40 32 L22 48' fill='none' stroke='%23faf9f6' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <style>
   .band { display:inline-flex; align-items:center; padding:4px 12px; border-radius:var(--r-pill); font-family:var(--font-mono); font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; font-weight:700; }
@@ -31,8 +32,8 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
-<div class="prelaunch-banner"><div class="wrap"><span>Rithavo is launching soon. Join now and be part of the community — Career Intelligence and Application Diagnostic will be available for purchase at launch.</span><a href="/sign-up/">Join Rithavo</a></div></div>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
+<div class="prelaunch-banner"><div class="wrap"><span>Career Intelligence and Application Diagnostic: Not yet available for purchase. Join Rithavo and be part of the community.</span><a href="/sign-up/">Join Rithavo</a></div></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <linearGradient id="markGradSoft" x1="0" y1="1" x2="1" y2="0">
@@ -52,8 +53,8 @@
     <ul class="navlinks">
       <li><a href="/career/">Career</a></li>
       <li class="nav-dropdown"><details><summary aria-haspopup="true">Learn Products</summary><div class="nav-dropdown-panel"><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li>
-      <li><a href="/systems/">Systems</a></li>
-      <li><a href="/growth/">Growth</a></li>
+      <li><a href="/systems/">Product Studio</a></li>
+      <li><a href="/growth/">Business Transformation</a></li>
       <li><a href="/about/">About</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
@@ -62,14 +63,13 @@
     <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mobileNav" aria-label="Open menu">
       <span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span>
     </button>
-    <a class="btn btn-primary" href="/career-intelligence/" style="padding:10px 20px; font-size:0.85rem;">Get my own — ₹799</a>
   </div>
   <div class="mobile-nav" id="mobileNav" data-open="false">
     <ul class="mobile-nav-links">
       <li><a href="/career/">Career</a></li>
       <li class="nav-dropdown"><details><summary aria-haspopup="true">Learn Products</summary><div class="nav-dropdown-panel"><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li>
-      <li><a href="/systems/">Systems</a></li>
-      <li><a href="/growth/">Growth</a></li>
+      <li><a href="/systems/">Product Studio</a></li>
+      <li><a href="/growth/">Business Transformation</a></li>
       <li><a href="/about/">About</a></li>
       <li><a href="/contact/">Contact</a></li>
           <li><a href="/sign-in/" class="mobile-card-cta">Sign In</a></li>
@@ -289,7 +289,7 @@
   <div class="wrap">
     <h2 class="h1 reveal">This was a fictional example.<br>Your real assessment is next.</h2>
     <div class="row gap-16 mt-40 reveal reveal-delay-1" style="justify-content:center;">
-      <a class="btn btn-primary" href="/career-intelligence/">Get My Career Intelligence Assessment — ₹799</a>
+      <span class="btn btn-status" aria-disabled="true">Not yet available for purchase.</span>
       <a class="btn btn-ghost" href="/career/career-intelligence/">Back to Career Intelligence</a>
     </div>
   </div>
@@ -304,8 +304,8 @@
       </div>
       <ul class="foot-links">
         <li><a href="/career/">Career</a></li>
-        <li><a href="/systems/">Systems</a></li>
-        <li><a href="/growth/">Growth</a></li>
+        <li><a href="/systems/">Product Studio</a></li>
+        <li><a href="/growth/">Business Transformation</a></li>
         <li><a href="/privacy/">Privacy</a></li>
         <li><a href="/terms/">Terms</a></li>
         <li><a href="mailto:hello@rithavo.com">Contact</a></li>
@@ -317,6 +317,6 @@
 </footer>
 
 <script src="/script.js"></script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

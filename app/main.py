@@ -86,6 +86,16 @@ def _row_to_dict(row):
     return dict(row) if row is not None else None
 
 
+# Career prices are hidden from customers (founder decision, Gate 1.7). The stored purchase and entitlement rows are never
+# modified; only the customer-facing JSON view drops the money fields.
+_HIDDEN_MONEY_FIELDS = ("amount_inr", "amount")
+
+
+def _without_amounts(row):
+    d = _row_to_dict(row)
+    return None if d is None else {k: v for k, v in d.items() if k not in _HIDDEN_MONEY_FIELDS}
+
+
 @app.get("/")
 def index():
     return {"service": "rithavo-web-platform", "status": "phase-0"}
@@ -675,9 +685,12 @@ def preview_ci_price(request: Request):
     reports."""
     require_user(request)
     gateway = request.app.state.payment_gateway
+    if is_purchase_locked():
+        # Career prices are hidden while purchases are locked: the customer-facing client is told the state, never the amount.
+        return {"launch_locked": True, "gateway": gateway.name}
     return {
         "amount_inr": CAREER_INTELLIGENCE_PRICE_INR,
-        "launch_locked": is_purchase_locked(),
+        "launch_locked": False,
         "gateway": gateway.name,
     }
 
@@ -855,7 +868,10 @@ def preview_ad_price(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
     gateway = request.app.state.payment_gateway
-    return {**db.preview_ad_price(session_user_id), "launch_locked": is_purchase_locked(), "gateway": gateway.name}
+    if is_purchase_locked():
+        # Career prices are hidden while purchases are locked: no amount and no qualifying-count (which would reveal the ladder).
+        return {"launch_locked": True, "gateway": gateway.name}
+    return {**db.preview_ad_price(session_user_id), "launch_locked": False, "gateway": gateway.name}
 
 
 @app.get("/diagnosis/entitlement/active")
@@ -956,21 +972,21 @@ async def payments_webhook(request: Request):
 def list_purchases(request: Request):
     db = request.app.state.db
     session_user_id = require_user(request)
-    return [_row_to_dict(r) for r in db.list_purchases_for_user(session_user_id)]
+    return [_without_amounts(r) for r in db.list_purchases_for_user(session_user_id)]
 
 
 @app.get("/purchases/{purchase_id}")
 def get_purchase(request: Request, purchase_id: int):
     db = request.app.state.db
     session_user_id = require_user(request)
-    return _row_to_dict(owned_purchase(db, purchase_id, session_user_id))
+    return _without_amounts(owned_purchase(db, purchase_id, session_user_id))
 
 
 @app.get("/entitlements/{entitlement_id}")
 def get_entitlement(request: Request, entitlement_id: int):
     db = request.app.state.db
     session_user_id = require_user(request)
-    return _row_to_dict(owned_entitlement(db, entitlement_id, session_user_id))
+    return _without_amounts(owned_entitlement(db, entitlement_id, session_user_id))
 
 
 # ---- Application Diagnosis: the diagnosis itself ----
@@ -1024,7 +1040,7 @@ def create_diagnosis(request: Request, jd_text: str = Body(..., embed=True), job
     if profile_json is None:
         raise HTTPException(
             status_code=422,
-            detail="You need a Rithavo Profile before requesting an Application Diagnosis.",
+            detail="You need a Rithavo Profile before requesting an Application Diagnostic.",
         )
 
     entitlement = db.find_active_ad_entitlement(session_user_id)
@@ -1033,7 +1049,7 @@ def create_diagnosis(request: Request, jd_text: str = Body(..., embed=True), job
                     request_id, session_user_id)
         raise HTTPException(
             status_code=402,
-            detail="No available Application Diagnosis credit — purchase one to continue.",
+            detail="No available Application Diagnostic credit — purchase one to continue.",
         )
 
     try:
@@ -1185,7 +1201,7 @@ def create_diagnosis_resume(request: Request, diagnostic_id: int):
     if existing_count >= APPLICATION_DIAGNOSIS_MAX_REVISIONS:
         raise HTTPException(
             status_code=403,
-            detail=f"This Application Diagnosis has reached its limit of "
+            detail=f"This Application Diagnostic has reached its limit of "
                     f"{APPLICATION_DIAGNOSIS_MAX_REVISIONS} tailored resume revisions.",
         )
     version = existing_count + 1

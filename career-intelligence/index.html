@@ -12,7 +12,7 @@
   data. "Improve My Resume"/"Create My Resume for..." calls
   POST /api/career-intelligence/resume, which builds a resume via this
   service's own existing resume_export.py pipeline (the same one
-  Application Diagnosis resumes use), tailored using the persisted
+  Application Diagnostic resumes use), tailored using the persisted
   ReadinessAssessment's strengths/transfers — real CI output, not
   invented. Touches no entitlement or purchase.
 
@@ -38,7 +38,7 @@
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
@@ -51,7 +51,7 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
 <div class="app-topbar" id="app-topbar"></div>
 
 <div class="app-main app-main-wide">
@@ -60,7 +60,7 @@
   <div id="content" class="app-skeleton">Loading…</div>
 </div>
 
-<script src="/app-shell.js"></script>
+<script src="/app-shell.js?v=20261106"></script>
 <script>
 const CLASSIFICATION_LABEL = {
   STAY: "Stay / Current Career",
@@ -91,7 +91,7 @@ function targetLabel(t) {
   if (!data.has_assessment) {
     let price;
     try { price = await RithavoApp.apiJson("/career-intelligence/price"); }
-    catch (err) { price = { amount_inr: 799, launch_locked: true, gateway: "test" }; }
+    catch (err) { price = { launch_locked: true, gateway: "test" }; }
 
     // Pre-Launch Product Lock: a clear, intentional pre-launch state —
     // never an error/broken-product look — with a CTA into the one
@@ -102,8 +102,8 @@ function targetLabel(t) {
           <p>You don't have a completed Career Intelligence assessment yet. Career Intelligence
           helps you understand whether you're doing well in your current role, whether you
           could do better elsewhere, and what other roles or industries could look like.</p>
-          <p><strong style="color:var(--ink); font-size:1.3rem;">Available at launch</strong></p>
-          <p>You can purchase this on launch day. Create your Rithavo Profile till then.</p>
+          <p><strong style="color:var(--ink); font-size:1.3rem;">Not yet available for purchase.</strong></p>
+          <p>Create your Rithavo Profile in the meantime.</p>
           <a class="btn btn-primary" href="/profile/">Create My Rithavo Profile</a>
         </div>
       `;
@@ -241,6 +241,6 @@ function targetLabel(t) {
   });
 })();
 </script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

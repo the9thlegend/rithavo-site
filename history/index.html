@@ -8,7 +8,7 @@
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
 <link rel="stylesheet" href="/app-shell.css">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
@@ -21,7 +21,7 @@
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
-<script src="/assets/ritanya/ritanya.js" defer></script>
+<script src="/assets/ritanya/ritanya.js?v=20261106" defer></script>
 <div class="app-topbar" id="app-topbar"></div>
 
 <div class="app-main">
@@ -31,11 +31,11 @@
   <h2 class="h3">Purchases</h2>
   <div id="purchases" class="app-skeleton" style="margin:16px 0 40px;">Loading…</div>
 
-  <h2 class="h3">Application Diagnoses</h2>
+  <h2 class="h3">Application Diagnostics</h2>
   <div id="diagnoses" class="app-skeleton" style="margin:16px 0;">Loading…</div>
 </div>
 
-<script src="/app-shell.js"></script>
+<script src="/app-shell.js?v=20261106"></script>
 <script>
 (async () => {
   const me = await RithavoApp.requireSession();
@@ -48,7 +48,7 @@
     mount.innerHTML = purchases.length
       ? `<ul class="app-list">${purchases.map(p => `
           <li class="card app-list-row">
-            <div><strong>${p.product}</strong><div class="meta">₹${p.amount_inr} · ${p.payment_status}</div></div>
+            <div><strong>${p.product}</strong><div class="meta">${p.payment_status}</div></div>
             <span class="meta">${p.created_at ? p.created_at.slice(0, 10) : ""}</span>
           </li>
         `).join("")}</ul>`
@@ -72,6 +72,6 @@
   }
 })();
 </script>
-<script src="/pwa.js" defer></script>
+<script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

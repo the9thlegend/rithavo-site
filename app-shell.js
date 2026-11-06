@@ -61,7 +61,7 @@ const RithavoApp = (() => {
     { key: "home", label: "Home", href: "/home/" },
     { key: "profile", label: "Profile", href: "/profile/" },
     { key: "career-intelligence", label: "Career Intelligence", href: "/career-intelligence/" },
-    { key: "application-diagnosis", label: "Application Diagnosis", href: "/application-diagnosis/" },
+    { key: "application-diagnosis", label: "Application Diagnostic", href: "/application-diagnosis/" },
     { key: "resumes", label: "Resumes", href: "/resumes/" },
     { key: "mentorship", label: "Mentorship", href: "/mentorship/" },
     { key: "history", label: "History", href: "/history/" },

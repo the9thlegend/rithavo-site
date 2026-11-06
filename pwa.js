@@ -163,7 +163,7 @@
   var CAREER_LINKS = [
     ["Profile", "/profile/"],
     ["Career Intelligence", "/career-intelligence/"],
-    ["Application Diagnosis", "/application-diagnosis/"],
+    ["Application Diagnostic", "/application-diagnosis/"],
     ["Resumes", "/resumes/"],
     ["Explore", "/home/"],
     ["Mentorship", "/mentorship/"],
@@ -205,8 +205,8 @@
     careerBtn.appendChild(el("span", { "class": "pwa-nav-label", text: "Career" }));
     careerBtn.addEventListener("click", function () { openSheet(careerBtn); });
     nav.appendChild(careerBtn);
-    nav.appendChild(link("systems", "Systems", "/systems/", "In development"));
-    nav.appendChild(link("growth", "Growth", "/growth/", "In development"));
+    nav.appendChild(link("systems", "Studio", "/systems/"));
+    nav.appendChild(link("growth", "Transform", "/growth/"));
     nav.appendChild(link("account", "Account", "/account/"));
     var key = activeKey();
     Array.prototype.forEach.call(nav.querySelectorAll("[data-key]"), function (n) {
