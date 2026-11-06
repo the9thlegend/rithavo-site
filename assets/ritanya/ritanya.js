@@ -13,7 +13,8 @@
    - Kill switch: the page re-asks /status every RECHECK_MS. "off" or "paused" removes the guide at once; if the server cannot be
      asked, the last known "on" is used for at most GRACE_MS, then the guide is removed and the conversation cleared.
    - A browser engine that cannot be loaded or run is never mounted (no launcher, no half-working panel).
-   - The portrait stays off (AVATAR_SRC = null) until its rights are cleared; the Rithavo mark is the avatar. */
+   - Ritanya's face and pose change with the reply (LOOKS). The pictures are the 12 approved files in assets/ritanya/art/, pinned
+     by hash in tests/test_ritanya_integration.py; the choice is made here from the reply and never uses typed text as a file name. */
 (function () {
   "use strict";
 
@@ -34,9 +35,37 @@
   // the conversation cleared. A successful "off" or "paused" answer does not wait for this: it removes the guide at once.
   var GRACE_MS = 300000;
 
-  // Set to a same-origin path such as "/assets/ritanya/portrait/avatar.webp" ONLY after the portrait's provenance and
-  // usage rights are confirmed by the founder. Until then the Rithavo mark is used.
-  var AVATAR_SRC = null;
+  /* Ritanya's pictures. Founder-approved on 2026-11-06 (assets/ritanya/art/PROVENANCE.md): six face expressions and six poses,
+     shown as supplied. They are fixed files on this site, never generated, never fetched from anywhere else. Which one is shown
+     is chosen here from the topic and outcome of the reply (LOOKS below); nothing the visitor typed is sent anywhere to pick it.
+     If a picture cannot load, the Rithavo mark is used for the avatar and the stage is hidden. */
+  var ART = "/assets/ritanya/art/";
+  var FACES = ["neutral", "warm", "thoughtful", "observant", "analytical", "encouraging"];
+  var POSES = ["point", "explain", "present", "observe", "look", "walk"];
+  var FACE_SIZE = { w: 212, h: 236 }, POSE_SIZE = { point: [188, 298], explain: [250, 308], present: [152, 304], observe: [240, 314], look: [150, 312], walk: [192, 310] };
+  // [face, pose] for each answer topic. Topics not listed fall back to DEFAULT_LOOK.
+  var LOOKS = {
+    overview: ["warm", "explain"], ritanya: ["warm", "explain"], launch: ["warm", "explain"], stories: ["warm", "observe"],
+    career_intelligence: ["analytical", "present"], application_diagnosis: ["analytical", "present"], method: ["analytical", "explain"],
+    profile: ["observant", "present"], privacy: ["observant", "explain"],
+    which_product: ["thoughtful", "explain"], card: ["thoughtful", "explain"], pricing: ["thoughtful", "explain"], systems_growth: ["thoughtful", "look"],
+    explore: ["encouraging", "walk"], discover_connect: ["encouraging", "walk"], mentorship: ["encouraging", "point"], join: ["encouraging", "point"],
+    contact: ["warm", "point"]
+  };
+  var DEFAULT_LOOK = ["warm", "explain"], PENDING_LOOK = ["thoughtful", "observe"];
+  var LOOK_REFUSED = ["observant", "look"], LOOK_UNKNOWN = ["thoughtful", "observe"], LOOK_CLARIFY = ["observant", "observe"];
+  /* The expression for one reply, from the engine's own result: refusals, "I don't know" and "which do you mean?" have their own
+     look; every other answer uses its topic; a greeting or thanks (no topic) uses the default. */
+  function lookFor(d) {
+    if (d && d.refused) return LOOK_REFUSED;
+    if (d && d.unknown) return LOOK_UNKNOWN;
+    if (d && d.clarify) return LOOK_CLARIFY;
+    return (d && typeof d.topic === "string" && Object.prototype.hasOwnProperty.call(LOOKS, d.topic) && LOOKS[d.topic]) || DEFAULT_LOOK;
+  }
+  /* A saved look comes from sessionStorage, so it is checked against the fixed lists before it is used in a file name. */
+  function cleanLook(v) {
+    return typeof v === "string" && /^[a-z]+\|[a-z]+$/.test(v) && FACES.indexOf(v.split("|")[0]) >= 0 && POSES.indexOf(v.split("|")[1]) >= 0 ? v.split("|") : null;
+  }
 
   var doc = document;
   var memory = {};                       // used only if sessionStorage is unavailable
@@ -199,6 +228,8 @@
   function build(config) {
     var state = { messages: [], lastTopic: null, unknownStreak: 0, pending: false };
     var restored = false;
+    var faceImgs = [];                               // the avatar pictures that follow her expression (the panel header)
+    var look = null, preloaded = false;              // the look on show; whether the other pictures have been fetched
     try {
       var saved = JSON.parse(load(KEY_CONVERSATION) || "null");
       if (saved && Array.isArray(saved.messages)) {
@@ -211,6 +242,13 @@
 
     function validSaved(m) {
       return m && (m.role === "user" || m.role === "ritanya") && typeof m.text === "string" && m.text.length <= 2000;
+    }
+    /* the look of the newest answer, so a reopened conversation shows the same expression she last had */
+    function lastLook() {
+      for (var i = state.messages.length - 1; i >= 0; i--) {
+        if (state.messages[i].role === "ritanya") return cleanLook(state.messages[i].look) || DEFAULT_LOOK;
+      }
+      return DEFAULT_LOOK;
     }
     function persist() {
       store(KEY_CONVERSATION, JSON.stringify({ messages: state.messages.slice(-MAX_SAVED_MESSAGES), lastTopic: state.lastTopic, unknownStreak: state.unknownStreak }));
@@ -237,12 +275,20 @@
     panel.tabIndex = -1;
 
     var head = el("header", "rtn-head", panel);
-    avatar(head, "rtn-avatar-head");
+    avatar(head, "rtn-avatar-head", true);
     var titles = el("div", "rtn-titles", head);
     el("h2", "rtn-title", titles, "Ritanya");
     el("p", "rtn-subtitle", titles, "Rithavo's guide");
     var resetBtn = iconButton(head, "refresh", "New conversation");
     var closeBtn = iconButton(head, "close", "Close Ritanya");
+
+    /* the stage: her pose for the current answer. Decorative (the words carry the meaning), so it is hidden from screen readers. */
+    var stage = el("div", "rtn-stage", panel);
+    stage.setAttribute("aria-hidden", "true");
+    var poseImg = el("img", "rtn-pose", stage);
+    poseImg.alt = ""; poseImg.decoding = "async";
+    poseImg.addEventListener("error", function () { stage.hidden = true; });
+    poseImg.addEventListener("load", function () { stage.hidden = false; });
 
     el("p", "rtn-disclosure", panel, config.disclosure);
     var log = el("div", "rtn-log", panel);
@@ -264,12 +310,33 @@
     sendBtn.setAttribute("aria-label", "Send");
     sendBtn.appendChild(svg(ICON.send));
 
-    function avatar(parent, cls) {
+    function avatar(parent, cls, follows) {
       var wrap = el("span", "rtn-avatar " + cls, parent);
       wrap.setAttribute("aria-hidden", "true");
-      if (AVATAR_SRC && safePath(AVATAR_SRC)) { var img = el("img", "rtn-avatar-img", wrap); img.src = AVATAR_SRC; img.alt = ""; img.width = 40; img.height = 40; }
-      else wrap.appendChild(svg(ICON.mark, "rtn-mark"));
+      wrap.classList.add("rtn-avatar-photo");
+      var img = el("img", "rtn-avatar-img", wrap);
+      img.src = ART + "face-neutral.webp"; img.alt = ""; img.width = FACE_SIZE.w; img.height = FACE_SIZE.h; img.decoding = "async";
+      // A picture that cannot load falls back to the Rithavo mark, so the avatar is never an empty circle.
+      img.addEventListener("error", function () { if (img.parentNode) { img.parentNode.removeChild(img); wrap.classList.remove("rtn-avatar-photo"); wrap.appendChild(svg(ICON.mark, "rtn-mark")); } });
+      if (follows) faceImgs.push(img);
       return wrap;
+    }
+    /* Show a look: the face in the header, the pose on the stage. Each is one of the twelve fixed files, picked from the fixed lists. */
+    function setLook(pair) {
+      pair = pair && FACES.indexOf(pair[0]) >= 0 && POSES.indexOf(pair[1]) >= 0 ? pair : DEFAULT_LOOK;
+      if (look && look[0] === pair[0] && look[1] === pair[1]) return;
+      look = pair;
+      faceImgs.forEach(function (img) { if (img.parentNode) img.src = ART + "face-" + pair[0] + ".webp"; });
+      var size = POSE_SIZE[pair[1]];
+      poseImg.width = size[0]; poseImg.height = size[1];
+      poseImg.src = ART + "pose-" + pair[1] + ".webp";
+    }
+    // Fetch the other pictures the first time the panel opens (about 140 KB for all twelve), so a change of expression is instant.
+    function preload() {
+      if (preloaded) return;
+      preloaded = true;
+      FACES.forEach(function (f) { new Image().src = ART + "face-" + f + ".webp"; });
+      POSES.forEach(function (p) { new Image().src = ART + "pose-" + p + ".webp"; });
     }
     function iconButton(parent, icon, label) {
       var b = el("button", "rtn-iconbtn", parent);
@@ -312,13 +379,17 @@
     function scrollDown() { log.scrollTop = log.scrollHeight; }
     function clearChips() { Array.prototype.forEach.call(log.querySelectorAll(".rtn-chips"), function (n) { n.remove(); }); }
     function setStatus(text) { status.textContent = text || ""; }
-    function setPending(on) { state.pending = on; sendBtn.disabled = on; input.setAttribute("aria-busy", on ? "true" : "false"); setStatus(on ? "Ritanya is replying…" : ""); }
+    function setPending(on) {
+      state.pending = on; sendBtn.disabled = on; input.setAttribute("aria-busy", on ? "true" : "false"); setStatus(on ? "Ritanya is replying…" : "");
+      if (on) setLook(PENDING_LOOK);                 // she looks thoughtful while she answers
+    }
 
     function greet() {
-      state.messages = [{ role: "ritanya", text: config.greeting, actions: [], suggestions: suggestionsFor() }];
+      state.messages = [{ role: "ritanya", text: config.greeting, actions: [], suggestions: suggestionsFor(), look: DEFAULT_LOOK.join("|") }];
       state.lastTopic = null; state.unknownStreak = 0;
     }
     function repaint() {
+      setLook(lastLook());
       log.textContent = "";
       state.messages.forEach(function (m, i) {
         // suggestions are only live on the newest Ritanya message
@@ -333,7 +404,7 @@
 
     /* ---- sending ---- */
     function fallbackReply(text) {
-      return { role: "ritanya", text: text, actions: (config.fallback_actions || []).map(function (a) { return { label: a.label, href: a.href, needs_sign_in: false }; }), suggestions: [] };
+      return { role: "ritanya", text: text, actions: (config.fallback_actions || []).map(function (a) { return { label: a.label, href: a.href, needs_sign_in: false }; }), suggestions: [], look: LOOK_REFUSED.join("|") };
     }
     function ask(text) {
       text = String(text || "").replace(/\s+/g, " ").trim();
@@ -357,7 +428,7 @@
         if (r.status === 200 && typeof d.reply === "string") {
           if (typeof d.topic === "string") state.lastTopic = d.topic;
           state.unknownStreak = d.unknown ? Math.min(10, state.unknownStreak + 1) : 0;
-          finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
+          finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [], look: lookFor(d).join("|") });
         } else if (r.status === 429) {
           finishWith(fallbackReply(typeof d.message === "string" ? d.message : (config.messages && config.messages.busy) || "I'm getting a lot of questions right now. Please try again in a minute."));
         } else {
@@ -368,7 +439,7 @@
       });
     }
     function finishWith(reply) {
-      state.messages.push(reply); render(reply, true); persist(); setPending(false); scrollDown();
+      state.messages.push(reply); render(reply, true); persist(); setPending(false); setLook(cleanLook(reply.look)); scrollDown();
     }
     /* Browser engine: the answer is computed here from the reviewed information; no request is made and nothing leaves the page. */
     function answerLocally(text) {
@@ -386,7 +457,7 @@
         var d = out.result;
         if (typeof d.topic === "string") state.lastTopic = d.topic;
         state.unknownStreak = d.unknown ? Math.min(10, state.unknownStreak + 1) : 0;
-        finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [] });
+        finishWith({ role: "ritanya", text: d.reply, actions: Array.isArray(d.actions) ? d.actions : [], suggestions: Array.isArray(d.suggestions) ? d.suggestions : [], look: lookFor(d).join("|") });
       });
     }
     /* The kill switch. A recent "on" is trusted; otherwise the server is asked again (edge-cached, so cheap).
@@ -419,6 +490,9 @@
       dead = true; mounted = false;
       cancelExpiry();
       doc.removeEventListener("visibilitychange", onVisible);
+      doc.removeEventListener("click", onSlotClick);
+      if (slotWatcher) { slotWatcher.disconnect(); slotWatcher = null; }
+      syncSlots(false);
       store(KEY_CONVERSATION, null);
       [launcher, root, spacer].forEach(function (n) { if (n && n.parentNode) n.parentNode.removeChild(n); });
       doc.documentElement.classList.remove("rtn-lock");
@@ -440,6 +514,7 @@
       panel.setAttribute("aria-modal", isSheet() ? "true" : "false");
       doc.documentElement.classList.toggle("rtn-lock", isSheet());
       launcher.classList.add("rtn-launcher-hidden");
+      preload();
       setTimeout(function () { input.focus(); }, 30);
       recheck(function () { /* if it is off now, teardown() has already removed everything */ });
     }
@@ -465,6 +540,25 @@
     });
     // Following a link inside the app ends the conversation view, not the conversation itself (it is kept for this tab).
     log.addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("a.rtn-action"); if (a) { persist(); } });
+    /* Slots: a page may hold an element marked data-ritanya-slot (a hero line, a card on the signed-in home) that is hidden by default
+       and only shown while the guide is actually running, and any element marked data-ritanya-open opens the panel. Pages that
+       build their content after load (the signed-in home) are picked up as they appear. With the guide off, these stay hidden. */
+    function syncSlots(on) {
+      Array.prototype.forEach.call(doc.querySelectorAll("[data-ritanya-slot]"), function (n) { n.hidden = !on; });
+    }
+    function onSlotClick(e) {
+      var t = e.target && e.target.closest ? e.target.closest("[data-ritanya-open]") : null;
+      if (!t || dead) return;
+      e.preventDefault();
+      if (root.hidden) open();
+    }
+    var slotWatcher = null;
+    syncSlots(true);
+    doc.addEventListener("click", onSlotClick);
+    if (typeof MutationObserver === "function") {
+      slotWatcher = new MutationObserver(function () { if (!dead) syncSlots(true); });
+      slotWatcher.observe(doc.body, { childList: true, subtree: true });
+    }
     doc.body.classList.add("rtn-on");
     doc.addEventListener("visibilitychange", onVisible);
     var now = readStatus();                          // started from a stale "on" during an interruption: the grace clock is already running

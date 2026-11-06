@@ -30,7 +30,27 @@
 .rtn-avatar-head { width: 44px; height: 44px; }
 .rtn-avatar .rtn-mark { display: inline-flex; width: 58%; height: 58%; }
 .rtn-avatar .rtn-mark svg, .rtn-iconbtn svg, .rtn-send svg, .rtn-action svg { width: 100%; height: 100%; display: block; }
-.rtn-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.rtn-avatar-img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.rtn-avatar-photo { background: var(--gradient-soft-strong); }
+.rtn-avatar-head { transition: none; }
+
+/* ---- stage: her pose for the current answer (the twelve approved pictures, shown at or below their own size) ---- */
+.rtn-stage {
+  display: flex; align-items: flex-end; justify-content: center; height: 128px; flex: none; overflow: hidden;
+  background: var(--gradient-soft); border-bottom: 1px solid var(--line);
+}
+.rtn-stage[hidden] { display: none; }
+.rtn-pose { display: block; height: 124px; width: auto; max-width: 100%; object-fit: contain; object-position: bottom; animation: rtn-pose-in 0.22s ease both; }
+@keyframes rtn-pose-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-height: 640px) { .rtn-stage { height: 92px; } .rtn-pose { height: 88px; } }
+
+/* ---- slots: shown on a page only while the guide is running (ritanya.js sets [hidden]) ---- */
+.rtn-slot { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; padding: 14px 20px; }
+.rtn-slot[hidden] { display: none; }
+.rtn-slot-img { flex: none; width: auto; height: 120px; display: block; }
+.rtn-slot-copy { min-width: 0; }
+.rtn-slot-copy p { margin: 4px 0 12px; max-width: 52ch; }
+@media (max-width: 520px) { .rtn-slot { gap: 14px; padding: 12px 14px; } .rtn-slot-img { height: 96px; } }
 
 /* ---- panel ---- */
 .rtn-root[hidden] { display: none; }
@@ -108,5 +128,5 @@
 .rtn-send[disabled] { opacity: 0.45; cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rtn-in, .rtn-launcher { animation: none !important; transition: none !important; }
+  .rtn-in, .rtn-launcher, .rtn-pose { animation: none !important; transition: none !important; }
 }

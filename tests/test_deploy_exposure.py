@@ -90,8 +90,11 @@ def test_public_pages_and_assets_are_served():
         "/career/career-intelligence/demo/", "/application-diagnosis/", "/career-intelligence/",
         "/mentorship/", "/privacy/", "/terms/", "/reset-password/", "/onboarding/",
         "/favicon.ico", "/robots.txt", "/sitemap.xml", "/img/logo.svg", "/fonts/x.woff2",
+        "/assets/ritanya/art/face-neutral.webp", "/assets/ritanya/art/pose-explain.webp",
     ]
     assert [p for p in public if not served_as_file(p)] == []
+    # the provenance note beside the pictures is documentation, not a public file
+    assert goes_to_function("/assets/ritanya/art/PROVENANCE.md")
 
 
 def test_unlisted_file_types_are_not_served():

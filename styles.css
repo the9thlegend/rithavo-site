@@ -365,14 +365,30 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
   box-shadow: var(--shadow-lg);
 }
 .hero-mock-mark { width: 40%; height: 40%; }
+/* Ritanya in the hero: one of her twelve approved pictures (assets/ritanya/art), standing on the disc and rising above it. It is shown
+   at or below its own pixel size (250 x 308) so it stays sharp; the rings and the three product cards stay around her. */
+.hero-mock-core-ritanya { width: 56%; height: 56%; background: var(--gradient-soft-strong); }
+.hero-ritanya { position: absolute; left: 50%; bottom: -4%; transform: translateX(-50%); height: 128%; width: auto; max-width: none; display: block; user-select: none; -webkit-user-drag: none; }
+.hero-ritanya-caption { margin: 18px 0 0; text-align: center; font-size: 0.9rem; color: var(--ink-soft); pointer-events: none; }
+.hero-ritanya-caption .label { margin-right: 6px; }
+.hero-ritanya-ask {
+  pointer-events: auto; margin-left: 10px; min-height: 44px; padding: 0 18px; font: 600 0.88rem/1 var(--font-body); cursor: pointer;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-pill);
+}
+.hero-ritanya-ask[hidden] { display: none; }
+.hero-ritanya-ask:hover { border-color: var(--g2); background: var(--gradient-soft); }
+.hero-ritanya-ask:focus-visible { outline: 2px solid var(--g2); outline-offset: 3px; }
+.hero-visual { flex-direction: column; }
+/* A slot for Ritanya's guide stays invisible unless the guide is running (assets/ritanya/ritanya.js removes [hidden] then). */
+[data-ritanya-slot][hidden] { display: none !important; }
 .hero-mock-card {
   position: absolute; display: flex; align-items: center; gap: 12px;
   padding: 14px 16px; width: 208px; box-shadow: var(--shadow-md); pointer-events: none;
 }
 .hero-mock-card strong { display: block; font-size: 0.9rem; color: var(--ink); margin-top: 2px; font-weight: 600; }
 .hero-mock-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.hero-mock-card-1 { top: 2%; left: -8%; }
-.hero-mock-card-2 { top: 42%; right: -14%; }
+.hero-mock-card-1 { top: 2%; left: -14%; }
+.hero-mock-card-2 { top: 58%; right: -22%; }
 .hero-mock-card-3 { bottom: 0%; left: 4%; }
 
 @media (max-width: 860px) {
@@ -381,8 +397,8 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
   .hero-mock-card { width: 168px; padding: 10px 12px; }
   .hero-mock-card strong { font-size: 0.8rem; }
   .hero-mock-card-1 { left: -4%; }
-  .hero-mock-card-2 { right: -8%; }
-  .hero-mock-card-3 { left: 0%; }
+  .hero-mock-card-2 { right: -8%; top: 64%; }
+  .hero-mock-card-3 { left: 0%; bottom: -4%; }
 }
 
 /* ---- Footer ---- */

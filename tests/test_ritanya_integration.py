@@ -170,11 +170,63 @@ def test_launcher_respects_the_bottom_navigation_and_safe_areas():
     assert "@media (max-width: 640px)" in CSS and "prefers-reduced-motion" in CSS
 
 
-def test_portrait_stays_off_until_rights_are_cleared():
-    assert re.search(r"var\s+AVATAR_SRC\s*=\s*null\s*;", JS)
-    assert not list((ROOT / "assets" / "ritanya").glob("*.webp")) and not list((ROOT / "assets" / "ritanya").glob("*.jpg"))
-    for f in (ROOT / "assets" / "ritanya").rglob("*"):
-        assert "portrait" not in f.name.lower() and "hero" not in f.name.lower()
+ART = ROOT / "assets" / "ritanya" / "art"
+# The twelve pictures the founder approved on 2026-11-06 (assets/ritanya/art/PROVENANCE.md), pinned by SHA-256. Anything else
+# added to assets/ritanya, or any change to these files, fails this test: a new picture needs its own recorded approval.
+APPROVED_ART = {
+    "face-analytical.webp": "165da91d1964c76b097a0ba17cefe1ab925bb2a6b0870379825b5befdafaf696",
+    "face-encouraging.webp": "f9b28720f341334b9085fdd7d0d2598e6334827f665c7c75b1e677df89e93672",
+    "face-neutral.webp": "188910e2e5dabb7f19aedb107660d26daed181a70ba2702bf5c37aa6a804b43a",
+    "face-observant.webp": "311a7725c22c69ae3248f5b04ed398de0fa58580641dc21f47f8eda4eecba8cc",
+    "face-thoughtful.webp": "417ebbbb5716dbe477d0c525e6d6b2a6517e60a71efc927c4ad81d8886302888",
+    "face-warm.webp": "4d8c4b650981951632620c2cc877db6479fcb487a05ff7a8c87c17836de1827f",
+    "pose-explain.webp": "8a53c44f7c2169c37fcfeafb78c12f6d6849aed67aaef349c879c9eebf538759",
+    "pose-look.webp": "4ee35a49ae8bb3e2034c4ce072726e7bab3fccdf26b93217f114b5352d88f4b4",
+    "pose-observe.webp": "ac6a185130b5369899777af11717d78ce67f748f5e6d70eb8acd32f5251efd9f",
+    "pose-point.webp": "8f46f86650f8ddb2de51683f699b3d10ae2a9cec2afbaf91e0b5e0ea371bd9f0",
+    "pose-present.webp": "5f202df1b5e674197507f1ffe91b46b1e3f991905b7f6be078a6bb2595a6f1ed",
+    "pose-walk.webp": "6c5956323eee860725961b69246c842717695058f2e4f0744444299d6da4dddf",
+}
+
+
+def test_only_the_twelve_approved_pictures_are_present_and_unaltered():
+    found = {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in ART.iterdir() if f.suffix.lower() in {".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif"}}
+    assert found == APPROVED_ART
+    # no other image anywhere in assets/ritanya
+    others = [f.name for f in (ROOT / "assets" / "ritanya").rglob("*") if f.is_file() and f.suffix.lower() in {".webp", ".png", ".jpg", ".jpeg", ".gif", ".avif"} and f.parent != ART]
+    assert others == []
+    assert (ART / "PROVENANCE.md").is_file()
+
+
+def test_the_provenance_note_records_the_approval_and_leaves_rights_unverified():
+    note = (ART / "PROVENANCE.md").read_text(encoding="utf-8")
+    assert "2026-11-06" in note and "unverified" in note.lower()
+
+
+def _looks():
+    block = re.search(r"var LOOKS = \{(.*?)\n  \};", JS, re.S).group(1)
+    return {m[0]: (m[1], m[2]) for m in re.findall(r'(\w+): \["(\w+)", "(\w+)"\]', block)}
+
+
+def test_every_look_names_a_real_topic_and_real_pictures():
+    looks = _looks()
+    assert looks, "LOOKS not found"
+    for topic, (face, pose) in looks.items():
+        assert topic in K.TOPICS, topic
+        assert (ART / f"face-{face}.webp").is_file() and (ART / f"pose-{pose}.webp").is_file(), (topic, face, pose)
+    assert set(K.TOPICS) == set(looks)           # every topic has its own look; none silently uses the default
+    faces = {f for f, _ in looks.values()} | {"neutral"}       # neutral is the launcher's resting face
+    poses = {p for _, p in looks.values()}
+    assert faces == {n[5:-5] for n in APPROVED_ART if n.startswith("face-")}
+    assert poses == {n[5:-5] for n in APPROVED_ART if n.startswith("pose-")}
+
+
+def test_the_script_never_builds_a_picture_path_from_typed_or_server_text():
+    # the only place a file name is made is setLook / preload / avatar, from the fixed FACES and POSES lists
+    assert 'var FACES = ["neutral", "warm", "thoughtful", "observant", "analytical", "encouraging"];' in JS
+    assert 'var POSES = ["point", "explain", "present", "observe", "look", "walk"];' in JS
+    assert "FACES.indexOf(pair[0]) >= 0 && POSES.indexOf(pair[1]) >= 0" in JS
+    assert "cleanLook(" in JS and "AVATAR_SRC" not in JS
 
 
 # ------------------------------------------------------------------ placement

@@ -69,7 +69,7 @@ no half-working panel. The site's own navigation is the fallback.
    limiter bucket). In `deterministic` mode a client can beat the per-instance limit by sending requests in parallel (measured on Vercel).
 2. The Card answer assumes the Card is not available on rithavo.com: release after the Card-handoff removal (`feature/card-handoff-removal`).
 3. Privacy wording reviewed and approved (draft and review notes on `launch/privacy-and-wording`; not merged).
-4. The portrait stays off. `AVATAR_SRC` in `ritanya.js` is `null`.
+4. Ritanya's pictures: twelve founder-approved files in `assets/ritanya/art/` (six faces, six poses; `PROVENANCE.md` records the 2026-11-06 approval and that rights are still unverified). The hero on the homepage, the signed-in home card and the chat panel use them. Which face and pose show is chosen in `ritanya.js` (`LOOKS`) from the reply's topic and outcome. The pictures are pinned by SHA-256 in `tests/test_ritanya_integration.py`.
 
 ## Rollback
 Unset `RITHAVO_RITANYA_MODE` (or set `RITHAVO_RITANYA_PAUSED=true`) and redeploy. To go back from the browser engine to the server engine, set
