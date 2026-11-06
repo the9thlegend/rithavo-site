@@ -365,10 +365,10 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
   box-shadow: var(--shadow-lg);
 }
 .hero-mock-mark { width: 40%; height: 40%; }
-/* Ritanya in the hero: one of her twelve approved pictures (assets/ritanya/art), standing on the disc and rising above it. It is shown
-   at or below its own pixel size (250 x 308) so it stays sharp; the rings and the three product cards stay around her. */
-.hero-mock-core-ritanya { width: 56%; height: 56%; background: var(--gradient-soft-strong); }
-.hero-ritanya { position: absolute; left: 50%; bottom: -4%; transform: translateX(-50%); height: 128%; width: auto; max-width: none; display: block; user-select: none; -webkit-user-drag: none; }
+/* Ritanya in the hero: the founder-approved 1600 x 2000 portrait (assets/ritanya/art/portrait-hero.webp), shown at about 340 x 430 CSS
+   pixels so it stays sharp on high-density screens. The rings and the three product cards stay around her, in front of the picture. */
+.hero-mock-core-ritanya { width: 64%; height: 64%; background: var(--gradient-soft-strong); }
+.hero-ritanya { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); height: 104%; width: auto; max-width: none; display: block; user-select: none; -webkit-user-drag: none; z-index: 1; }
 .hero-ritanya-caption { margin: 18px 0 0; text-align: center; font-size: 0.9rem; color: var(--ink-soft); pointer-events: none; }
 .hero-ritanya-caption .label { margin-right: 6px; }
 .hero-ritanya-ask {
@@ -383,7 +383,7 @@ nav.site .inner { display: flex; align-items: center; justify-content: space-bet
 [data-ritanya-slot][hidden] { display: none !important; }
 .hero-mock-card {
   position: absolute; display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; width: 208px; box-shadow: var(--shadow-md); pointer-events: none;
+  padding: 14px 16px; width: 208px; box-shadow: var(--shadow-md); pointer-events: none; z-index: 2;
 }
 .hero-mock-card strong { display: block; font-size: 0.9rem; color: var(--ink); margin-top: 2px; font-weight: 600; }
 .hero-mock-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }

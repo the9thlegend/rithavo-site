@@ -171,7 +171,7 @@ def test_launcher_respects_the_bottom_navigation_and_safe_areas():
 
 
 ART = ROOT / "assets" / "ritanya" / "art"
-# The twelve pictures the founder approved on 2026-11-06 (assets/ritanya/art/PROVENANCE.md), pinned by SHA-256. Anything else
+# The twelve cut-outs and the one portrait the founder approved on 2026-11-06 (assets/ritanya/art/PROVENANCE.md), pinned by SHA-256. Anything else
 # added to assets/ritanya, or any change to these files, fails this test: a new picture needs its own recorded approval.
 APPROVED_ART = {
     "face-analytical.webp": "165da91d1964c76b097a0ba17cefe1ab925bb2a6b0870379825b5befdafaf696",
@@ -180,6 +180,7 @@ APPROVED_ART = {
     "face-observant.webp": "311a7725c22c69ae3248f5b04ed398de0fa58580641dc21f47f8eda4eecba8cc",
     "face-thoughtful.webp": "417ebbbb5716dbe477d0c525e6d6b2a6517e60a71efc927c4ad81d8886302888",
     "face-warm.webp": "4d8c4b650981951632620c2cc877db6479fcb487a05ff7a8c87c17836de1827f",
+    "portrait-hero.webp": "fe2c0da8d23b51114487f192acfa41160a649e8734abf1220ee399b8943ec1cd",
     "pose-explain.webp": "8a53c44f7c2169c37fcfeafb78c12f6d6849aed67aaef349c879c9eebf538759",
     "pose-look.webp": "4ee35a49ae8bb3e2034c4ce072726e7bab3fccdf26b93217f114b5352d88f4b4",
     "pose-observe.webp": "ac6a185130b5369899777af11717d78ce67f748f5e6d70eb8acd32f5251efd9f",
