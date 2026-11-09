@@ -62,7 +62,7 @@ CREATE POLICY crm_audit_select ON crm_audit_log FOR SELECT TO crm_app
 
 CREATE OR REPLACE FUNCTION crm_dup_probe(p_name_key text, p_email_key text)
 RETURNS TABLE(kind text, row_id integer, company_id integer, mine boolean)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT 'company'::text, CASE WHEN crm_is_founder() OR c.owner_user_id = crm_uid() THEN c.id END, NULL::integer,
          (c.owner_user_id = crm_uid())
     FROM crm_companies c WHERE p_name_key <> '' AND c.name_key = p_name_key AND c.archived = 0
@@ -73,13 +73,86 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     FROM crm_contacts k WHERE p_email_key <> '' AND k.email_key = p_email_key AND k.archived = 0
 $$;
 CREATE OR REPLACE FUNCTION crm_last_ref(p_prefix text) RETURNS text
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT max(ref) FROM crm_opportunities WHERE ref LIKE p_prefix || '%'
 $$;
 REVOKE ALL ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text) TO crm_app;
 COMMIT;
 """
+
+
+# Dedicated Preview database provisioning (owner-run, once). The application role is created WITHOUT a credential
+# here; the credential is set out of band so it never appears in the repository.
+PREVIEW_PROVISION_SQL = """
+-- CRM Lite Preview database: least-privilege application role. Run as the table owner after 000 and 010.
+DO $do$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'crm_app') THEN
+    CREATE ROLE crm_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION CONNECTION LIMIT 8;
+  END IF;
+END
+$do$;
+ALTER ROLE crm_app SET statement_timeout = '15s';
+ALTER ROLE crm_app SET lock_timeout = '10s';
+ALTER ROLE crm_app SET idle_in_transaction_session_timeout = '15s';
+ALTER ROLE crm_app SET search_path = public;
+
+-- Nothing for the Data API roles, now or by default.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public REVOKE ALL ON FUNCTIONS FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated, service_role;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM anon, authenticated, service_role;
+
+-- crm_app: data access only. Not the owner, so it cannot disable RLS, alter policies or run DDL.
+GRANT USAGE ON SCHEMA public TO crm_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO crm_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO crm_app;
+REVOKE UPDATE, DELETE ON crm_activities, crm_audit_log FROM crm_app;
+
+-- Defence in depth on the non-CRM application tables: RLS on, with an explicit policy only for crm_app.
+DO $do$
+DECLARE t text;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT LIKE 'crm\\_%' LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS app_trusted ON public.%I', t);
+    EXECUTE format('CREATE POLICY app_trusted ON public.%I FOR ALL TO crm_app USING (true) WITH CHECK (true)', t);
+  END LOOP;
+END
+$do$;
+"""
+
+POST_POLICY_SQL = """
+-- After the policies and functions exist: restrict the SECURITY DEFINER functions to crm_app only.
+REVOKE ALL ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text), crm_uid(), crm_is_founder(), crm_append_only()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text), crm_uid(), crm_is_founder() TO crm_app;
+"""
+
+
+def assert_least_privilege(db) -> None:
+    """Fail closed: on PostgreSQL the application must not connect as a superuser, a BYPASSRLS role, or the owner of
+    the CRM tables, and the ownership policies must exist. Raises RuntimeError otherwise."""
+    if not getattr(db, "_is_postgres", False):
+        return
+    with db.connect() as conn:
+        me = conn.execute(
+            "SELECT r.rolname AS name, r.rolsuper AS su, r.rolbypassrls AS bypass, "
+            "(SELECT pg_get_userbyid(c.relowner) FROM pg_class c WHERE c.relname = 'crm_opportunities' "
+            " AND c.relnamespace = 'public'::regnamespace) AS owner, "
+            "(SELECT count(*) FROM pg_policies WHERE left(tablename, 4) = 'crm_') AS policies "
+            "FROM pg_roles r WHERE r.rolname = current_user").fetchone()
+    if me is not None and me["owner"] is None:
+        raise RuntimeError("CRM tables are not provisioned on this database.")
+    if me is None or me["su"] or me["bypass"] or me["owner"] == me["name"]:
+        raise RuntimeError("CRM database role must be a non-owner, non-superuser, non-BYPASSRLS role.")
+    if not me["policies"]:
+        raise RuntimeError("CRM ownership policies are not installed on this database.")
 
 
 def is_active() -> bool:
@@ -90,8 +163,67 @@ def set_actor(actor) -> None:
     CURRENT.set((actor.user_id, actor.role))
 
 
+class BoundedValidatingPool:
+    """Wraps the psycopg2 pool of a serverless instance for the pre-provisioned Preview database.
+
+    * Bounded: callers wait (up to `wait` seconds) for a free connection instead of failing at once with
+      PoolError("connection pool exhausted") when more requests than pool slots are in flight.
+    * Validating: a pooled connection that the pooler or network closed while idle is discarded and replaced
+      instead of surfacing as a 500 ("SSL connection has been closed unexpectedly").
+    Only applied by `install`; the shared Database class is unchanged, so no other deployment is affected."""
+
+    IDLE_VALIDATE_AFTER = 10.0  # seconds a connection may sit idle before it is checked on the next checkout
+
+    def __init__(self, inner, size, wait=20.0):
+        import threading
+        self._inner, self._sem, self._wait = inner, threading.BoundedSemaphore(size), wait
+        self._returned = {}  # id(conn) -> monotonic time it was last returned
+
+    def getconn(self, *a, **k):
+        if not self._sem.acquire(timeout=self._wait):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="The database is busy. Try again.")
+        try:
+            for _ in range(4):
+                conn = self._inner.getconn(*a, **k)
+                try:
+                    if conn.closed:
+                        raise RuntimeError("closed")
+                    import time
+                    idle = time.monotonic() - self._returned.get(id(conn), 0.0)
+                    if idle > self.IDLE_VALIDATE_AFTER:   # recently used connections are known good; skip the round trip
+                        cur = conn.cursor()
+                        cur.execute("SELECT 1")
+                        cur.close()
+                        conn.rollback()
+                    return conn
+                except Exception:
+                    try:
+                        self._inner.putconn(conn, close=True)
+                    except Exception:
+                        pass
+            raise RuntimeError("could not obtain a healthy database connection")
+        except BaseException:
+            self._sem.release()
+            raise
+
+    def putconn(self, conn, *a, **k):
+        import time
+        self._returned[id(conn)] = time.monotonic()
+        try:
+            self._inner.putconn(conn, *a, **k)
+        finally:
+            self._sem.release()
+
+    def closeall(self):
+        return self._inner.closeall()
+
+
 def install(db) -> None:
     """Make every transaction on this Database carry the authenticated caller into PostgreSQL."""
+    if getattr(db, "_is_postgres", False) and not isinstance(db._pg_pool, BoundedValidatingPool):
+        import config
+        db._pg_pool = BoundedValidatingPool(db._get_pg_pool(), getattr(config, "DATABASE_POOL_MAX", 5))
     orig = db.connect
 
     @contextmanager

@@ -56,6 +56,23 @@ if ISOLATED_DEPLOYMENT and DATABASE_URL:
     if _production_url and _target(_production_url) == _target(DATABASE_URL):
         raise RuntimeError("RITHAVO_PREVIEW_DATABASE_URL must not point at the production database")
 
+    # A different role in the SAME Supabase project would pass the comparison above (the pooler username
+    # differs), so the project reference is checked too: it is the `.<ref>` suffix of the pooler username or the
+    # `db.<ref>.supabase.co` host. The Production project's reference (not a secret) is refused outright.
+    _FORBIDDEN_PROJECT_REFS = {"todgmhddihfgqeofzudb"}
+    _p = _urlparse(DATABASE_URL)
+    _refs = {(_p.username or "").rsplit(".", 1)[-1] if "." in (_p.username or "") else ""}
+    _h = _p.hostname or ""
+    if _h.startswith("db.") and _h.endswith(".supabase.co"):
+        _refs.add(_h[3:-len(".supabase.co")])
+    if _refs & _FORBIDDEN_PROJECT_REFS:
+        raise RuntimeError("RITHAVO_PREVIEW_DATABASE_URL must not point at the production Supabase project")
+
+# The Preview database is provisioned out of band (tables, role, policies). When this is set, the application
+# connects as a non-owner role, never runs DDL at start-up, and refuses to start the CRM unless the role is
+# least-privilege. Honoured only on an isolated deployment that has its own database URL.
+DB_PREPROVISIONED = bool(ISOLATED_DEPLOYMENT and DATABASE_URL and os.environ.get("RITHAVO_PREVIEW_DB_PREPROVISIONED") == "1")
+
 # Phase 1 correction (Phase 0.75 finding): the shared Supabase pooler does
 # NOT enforce TLS server-side — it will accept sslmode=disable just as
 # happily as sslmode=require. psycopg2's own default (sslmode=prefer)

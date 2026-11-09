@@ -54,7 +54,7 @@ CREATE POLICY crm_audit_select ON crm_audit_log FOR SELECT TO crm_app
 
 CREATE OR REPLACE FUNCTION crm_dup_probe(p_name_key text, p_email_key text)
 RETURNS TABLE(kind text, row_id integer, company_id integer, mine boolean)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT 'company'::text, CASE WHEN crm_is_founder() OR c.owner_user_id = crm_uid() THEN c.id END, NULL::integer,
          (c.owner_user_id = crm_uid())
     FROM crm_companies c WHERE p_name_key <> '' AND c.name_key = p_name_key AND c.archived = 0
@@ -65,7 +65,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     FROM crm_contacts k WHERE p_email_key <> '' AND k.email_key = p_email_key AND k.archived = 0
 $$;
 CREATE OR REPLACE FUNCTION crm_last_ref(p_prefix text) RETURNS text
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT max(ref) FROM crm_opportunities WHERE ref LIKE p_prefix || '%'
 $$;
 REVOKE ALL ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text) FROM PUBLIC;

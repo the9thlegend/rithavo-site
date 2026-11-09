@@ -32,7 +32,11 @@ _BOOT = time.time()
 def db_identity(db) -> str:
     """Kind plus a short fingerprint of the concrete store, so two instances over two files differ."""
     if getattr(db, "_is_postgres", False):
-        return "postgres"
+        # Same fingerprint on every instance that shares this database (host, port, name; never user or password).
+        from urllib.parse import urlparse
+        u = urlparse(db.db_path)
+        raw = f"{u.hostname}|{u.port}|{(u.path or '').lstrip('/')}"
+        return "postgres:" + hashlib.sha256(raw.encode()).hexdigest()[:8]
     try:
         st = os.stat(db.db_path)
         raw = f"{db.db_path}|{getattr(st, 'st_ino', 0)}|{getattr(st, 'st_ctime_ns', 0)}"
@@ -73,6 +77,12 @@ def state(db, user_id):
         return bool(row and row["pending_secret_enc"]), mfa.is_enrolled(row)
     except Exception:
         return None, None
+
+
+def boot(db, provisioned):
+    logger.info("crm_boot instance=%s pid=%s db=%s provisioned=%s least_privilege=%s",
+                INSTANCE_ID, os.getpid(), db_identity(db), str(bool(provisioned)).lower(),
+                "verified" if provisioned else "not_required")
 
 
 def _b(v):

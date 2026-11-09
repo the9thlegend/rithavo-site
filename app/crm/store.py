@@ -190,8 +190,16 @@ def check_duplicate(db, actor, company_name, email):
 
 # ---- capture ----------------------------------------------------------------
 
+_REF_LOCK_KEY = 7410001
+
+
 def _next_ref(conn):
     year = now_dt().year
+    if getattr(conn, "_conn", None) is not None:
+        # PostgreSQL: serialise reference allocation across every instance sharing the database. A transaction-level
+        # advisory lock is released at commit/rollback (safe through a transaction-mode pooler); without it two
+        # instances can both compute max+1 and one hits the UNIQUE constraint.
+        conn.execute("SELECT pg_advisory_xact_lock(?)", (_REF_LOCK_KEY,))
     if rls.is_active():
         last = conn.execute("SELECT crm_last_ref(?) AS r", (f"RIT-{year}-",)).fetchone()["r"]
     else:

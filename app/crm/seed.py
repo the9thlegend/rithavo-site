@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 import config
 
 from ..auth import hash_password
-from . import store
+from . import rls, store
 from .access import Actor
 
 FOUNDER_EMAIL = "founder.preview@example.test"
@@ -34,6 +34,16 @@ def _guard(db):
 
 def seed_synthetic(db, password: str):
     _guard(db)
+    # Seeding writes rows for several owners, so it runs with the Founder database context (a no-op on SQLite and
+    # on an owner connection). The context is reset afterwards so it can never leak into request handling.
+    token = rls.CURRENT.set((0, "founder"))
+    try:
+        return _seed(db, password)
+    finally:
+        rls.CURRENT.reset(token)
+
+
+def _seed(db, password: str):
     if not password or len(password) < 12:
         raise SeedRefused("A password of at least 12 characters is required.")
     with db.connect() as conn:
