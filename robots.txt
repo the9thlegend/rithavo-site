@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /crm/
 Disallow: /home/
 Disallow: /account/
 Disallow: /profile/

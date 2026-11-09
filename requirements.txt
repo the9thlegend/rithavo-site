@@ -7,3 +7,4 @@ httpx
 psycopg2-binary
 python-docx
 pypdf
+cryptography>=43

@@ -78,6 +78,8 @@ app.include_router(routes_admin.router)
 app.include_router(routes_dashboard.router)
 app.include_router(routes_mentor.router)
 app.include_router(routes_cashfree.router)
+from app.crm.setup import init_crm  # noqa: E402
+init_crm(app)
 # Ritanya Phase A (deterministic, no provider): registers NOTHING unless RITHAVO_RITANYA_MODE=deterministic is set.
 ritanya_chat.mount(app)
 

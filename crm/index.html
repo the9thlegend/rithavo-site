@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CRM — Rithavo</title>
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="/styles.css?v=20261106">
+<link rel="stylesheet" href="/app-shell.css">
+<link rel="stylesheet" href="/crm/crm.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rithavo">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="/pwa.css">
+<meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121116" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+<a class="crm-skip" href="#crm-main">Skip to content</a>
+<header class="crm-top">
+  <a class="wordmark" href="/home/" aria-label="Rithavo home">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true" width="24" height="24">
+      <path d="M4 5 L12.5 12 L4 19" fill="none" stroke="var(--g1)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+      <path d="M11 4 L21 12 L11 20" fill="none" stroke="var(--g3)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Rithavo</span>
+  </a>
+  <span class="crm-title">CRM</span>
+  <form class="crm-search" id="crm-search" role="search" hidden>
+    <label class="sr" for="crm-q">Search your records</label>
+    <input id="crm-q" type="search" placeholder="Search companies, contacts, opportunities" autocomplete="off" minlength="2">
+  </form>
+  <div class="crm-who" id="crm-who"></div>
+</header>
+<div class="crm-body">
+  <nav class="crm-nav" id="crm-nav" aria-label="CRM sections" hidden></nav>
+  <main id="crm-main" class="crm-main" tabindex="-1"><div class="app-skeleton">Loading CRM…</div></main>
+</div>
+<script src="/crm/crm.js"></script>
+<script src="/pwa.js?v=20261106" defer></script>
+</body>
+</html>

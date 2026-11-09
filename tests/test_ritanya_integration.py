@@ -22,7 +22,7 @@ from app import ritanya_knowledge as K
 ROOT = Path(__file__).resolve().parent.parent
 JS = (ROOT / "assets" / "ritanya" / "ritanya.js").read_text(encoding="utf-8")
 CSS = (ROOT / "assets" / "ritanya" / "ritanya.css").read_text(encoding="utf-8")
-EXCLUDED_PAGES = {"sign-in", "sign-up", "reset-password", "onboarding", "admin", "offline"}   # offline: the PWA offline page (a different branch)
+EXCLUDED_PAGES = {"sign-in", "sign-up", "reset-password", "onboarding", "admin", "crm", "offline"}   # offline: the PWA offline page (a different branch)
 ASSET_VERSION = "20261106"   # the cache-busting stamp every page carries on the scripts and stylesheet that changed in this release
 TAG = f'<script src="/assets/ritanya/ritanya.js?v={ASSET_VERSION}" defer></script>'
 

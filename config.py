@@ -166,3 +166,21 @@ LAUNCH_DATE = os.environ.get("RITHAVO_LAUNCH_DATE")
 
 if not DATABASE_URL:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+# ---- CRM Lite (Preview build) ----------------------------------------------
+# Default OFF. With the flag unset every /crm/* route answers 404, the CRM
+# schema is never created, and nothing else in the application changes. The
+# schema is additionally refused on any non-isolated (Production) deployment:
+# Production gets it only from a separately approved migration file.
+CRM_ENABLED = os.environ.get("RITHAVO_CRM_ENABLED") == "1"
+# One or more comma-separated Fernet keys (first encrypts, all decrypt).
+# Never logged. Absent in Production => MFA enrolment refuses (fail closed).
+CRM_MFA_ENCRYPTION_KEY = os.environ.get("RITHAVO_WEB_MFA_ENCRYPTION_KEY")
+CRM_SESSION_ABSOLUTE_SECONDS = 8 * 60 * 60
+CRM_SESSION_IDLE_SECONDS = 30 * 60
+CRM_MFA_SOFT_LOCK_FAILURES = 5
+CRM_MFA_SOFT_LOCK_SECONDS = 15 * 60
+CRM_MFA_HARD_LOCK_FAILURES = 10
+# Synthetic seed (Preview/dev only; refuses anywhere else).
+CRM_SEED_ENABLED = os.environ.get("RITHAVO_CRM_SEED") == "1"

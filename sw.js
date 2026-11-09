@@ -12,7 +12,7 @@
    - Anything that is not a GET request.
    - Anything on another origin (Google Fonts, the payment providers' scripts).
    - /api/* (all authenticated data, sign-in, resume downloads, payments, the Ritanya endpoint),
-     /profile/edit* (server-rendered pages containing the person's profile) and /admin/.
+     /profile/edit* (server-rendered pages containing the person's profile), /admin/ and /crm/.
    - Signed-in app pages (/home/, /account/, /profile/, /resumes/ and the other pages that load app-shell.js):
      always fetched from the network and never stored. Offline they show the offline page rather than a copy that
      could only sit on "Loading...".
@@ -47,7 +47,7 @@ const SHELL_URLS = [
 // Matched against the decoded, lower-cased, slash-collapsed path, so an encoded spelling of a private path
 // (/%61pi/me, //api/me, /API/me) is treated exactly like the plain one.
 const NEVER_HANDLE_PREFIXES = [
-  "/api", "/profile/edit", "/profile/photo", "/admin", "/auth", "/payments", "/card", "/resume",
+  "/api", "/profile/edit", "/profile/photo", "/admin", "/crm", "/auth", "/payments", "/card", "/resume",
   "/diagnosis", "/career-intelligence/resume", "/onboarding/resume", "/sw.js",
 ];
 // Pages that need a signed-in session. Keep in step with the pages that load app-shell.js
