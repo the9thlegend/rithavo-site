@@ -86,7 +86,8 @@ def test_provisioning_sql_files_match_generated_text_and_hold_no_credentials():
     assert "PASSWORD" not in on_disk.upper() and "SCRAM" not in on_disk.upper()
     assert "NOBYPASSRLS" in on_disk and "NOSUPERUSER" in on_disk and "CONNECTION LIMIT" in on_disk
     assert "statement_timeout" in on_disk
-    assert on_disk.count("SET search_path = public, pg_temp") == 2   # both SECURITY DEFINER functions
+    assert on_disk.count("SECURITY DEFINER SET search_path = public, pg_temp") == 2   # both SECURITY DEFINER functions
+    assert on_disk.count("SET search_path = public, pg_temp") == 5                    # plus the three helper functions
     assert "SECURITY DEFINER SET search_path = public AS" not in on_disk
     for f in ("000_app_base.sql", "010_crm.sql", "020_roles_rls.sql"):
         assert (SQL / f).exists()

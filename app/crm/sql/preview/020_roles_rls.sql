@@ -115,3 +115,6 @@ GRANT EXECUTE ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text) TO crm_a
 REVOKE ALL ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text), crm_uid(), crm_is_founder(), crm_append_only()
   FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION crm_dup_probe(text, text), crm_last_ref(text), crm_uid(), crm_is_founder() TO crm_app;
+ALTER FUNCTION crm_uid() SET search_path = public, pg_temp;
+ALTER FUNCTION crm_is_founder() SET search_path = public, pg_temp;
+ALTER FUNCTION crm_append_only() SET search_path = public, pg_temp;
