@@ -52,8 +52,8 @@
   }
   function gateMsg(t) { main.innerHTML = `<div class="crm-narrow"><h1>CRM</h1>${banner("info", t)}<p><a href="/home/">Back to Rithavo</a></p></div>`; }
 
-  async function renderEnrol() {
-    main.innerHTML = `<div class="crm-narrow"><h1>Set up your authenticator</h1>
+  async function renderEnrol(notice) {
+    main.innerHTML = `<div class="crm-narrow"><h1>Set up your authenticator</h1>${notice ? banner("error", notice) : ""}
       <p class="crm-sub">The CRM needs a second step every time you sign in. Add this key to an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy), then enter the 6-digit code it shows.</p>
       <div id="enrol-body" class="app-skeleton">Preparing…</div></div>`;
     const r = await api("/mfa/enrol/start", { method: "POST" });
@@ -69,6 +69,11 @@
     document.getElementById("enrol-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const c = await api("/mfa/enrol/confirm", { method: "POST", body: { code: document.getElementById("enrol-code").value } });
+      if (c.status === 409 && errText(c).startsWith("Start MFA setup first")) {
+        // The server that answered has no pending setup for you (it is a different instance from the one that issued the key).
+        // Issue a fresh key rather than leave a dead end; the earlier key will never work, so remove it from your app.
+        return renderEnrol("The setup you started was not found, so a new key has been issued. Delete the earlier entry from your authenticator app and add this one.");
+      }
       if (!c.ok) { document.getElementById("enrol-msg").innerHTML = banner("error", errText(c)); return; }
       main.innerHTML = `<div class="crm-narrow"><h1>Save your recovery codes</h1>
         <p class="crm-sub">Each code works once if you lose your authenticator. They are shown only now. Store them in a password manager, not in the CRM or an email.</p>

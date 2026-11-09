@@ -9,7 +9,7 @@ satisfied (body carries `code`); 403 signed in but no CRM role, or Founder-only 
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import PlainTextResponse
 
-from . import access, mfa, store
+from . import access, diag, mfa, store
 from .access import Actor, require_crm_actor, require_founder, resolve_actor
 
 router = APIRouter(prefix="/crm")
@@ -21,8 +21,27 @@ def _db(request):
 
 # ---- session / MFA (reachable before MFA is verified) ------------------------
 
+def _traced(stage, request, fn):
+    """Run an MFA handler body and emit one safe diagnostic line (see diag.py): stage, internal user id,
+    pending/enrolled state on THIS instance's database, instance/db identity, outcome, error category."""
+    db = _db(request)
+    uid = request.session.get("user_id")
+    pending, enrolled = diag.state(db, uid) if uid else (None, None)
+    try:
+        out = fn()
+    except Exception as e:
+        diag.log(stage, db, uid, pending, enrolled, "error", e)
+        raise
+    diag.log(stage, db, uid, pending, enrolled, "ok")
+    return out
+
+
 @router.get("/me")
 def me(request: Request):
+    return _traced("me", request, lambda: _me(request))
+
+
+def _me(request: Request):
     actor = resolve_actor(request)
     state, _ = access.mfa_state(request, actor)
     return {"user_id": actor.user_id, "email": actor.email, "role": actor.role, "name": actor.display_name, "mfa": state,
@@ -32,33 +51,39 @@ def me(request: Request):
 
 @router.post("/mfa/enrol/start")
 def enrol_start(request: Request):
-    actor = resolve_actor(request)
-    return mfa.start_enrolment(_db(request), actor.user_id, actor.email)
+    def run():
+        actor = resolve_actor(request)
+        return mfa.start_enrolment(_db(request), actor.user_id, actor.email)
+    return _traced("enrol_start", request, run)
 
 
 @router.post("/mfa/enrol/confirm")
 def enrol_confirm(request: Request, code: str = Body(..., embed=True)):
-    actor = resolve_actor(request)
-    codes, epoch = mfa.confirm_enrolment(_db(request), actor.user_id, code)
-    access.stamp_session(request, actor, epoch)
-    with _db(request).connect() as conn:
-        store.audit(conn, actor, "mfa_enrolled", "staff", actor.user_id)
-    return {"recovery_codes": codes}
+    def run():
+        actor = resolve_actor(request)
+        codes, epoch = mfa.confirm_enrolment(_db(request), actor.user_id, code)
+        access.stamp_session(request, actor, epoch)
+        with _db(request).connect() as conn:
+            store.audit(conn, actor, "mfa_enrolled", "staff", actor.user_id)
+        return {"recovery_codes": codes}
+    return _traced("enrol_confirm", request, run)
 
 
 @router.post("/mfa/verify")
 def verify(request: Request, code: str = Body(..., embed=True)):
-    actor = resolve_actor(request)
-    try:
-        epoch = mfa.verify_code(_db(request), actor.user_id, code)
-    except Exception as e:
+    def run():
+        actor = resolve_actor(request)
+        try:
+            epoch = mfa.verify_code(_db(request), actor.user_id, code)
+        except Exception as e:
+            with _db(request).connect() as conn:
+                store.audit(conn, actor, "mfa_verify", "staff", actor.user_id, outcome="failed")
+            raise e
+        access.stamp_session(request, actor, epoch)
         with _db(request).connect() as conn:
-            store.audit(conn, actor, "mfa_verify", "staff", actor.user_id, outcome="failed")
-        raise e
-    access.stamp_session(request, actor, epoch)
-    with _db(request).connect() as conn:
-        store.audit(conn, actor, "mfa_verify", "staff", actor.user_id)
-    return {"ok": True}
+            store.audit(conn, actor, "mfa_verify", "staff", actor.user_id)
+        return {"ok": True}
+    return _traced("verify", request, run)
 
 
 @router.post("/mfa/recover")
