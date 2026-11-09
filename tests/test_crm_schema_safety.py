@@ -115,3 +115,12 @@ def test_seed_builds_a_realistic_synthetic_dataset(crm, db):
     with db.connect() as conn:
         emails = column(conn.execute("SELECT email FROM users").fetchall())
     assert emails and all(e.endswith("@example.test") for e in emails)
+
+
+def test_proposed_rls_policy_file_matches_generated_text_and_is_not_applied_by_code():
+    from app.crm import rls
+    on_disk = (ROOT / "app" / "crm" / "sql" / "002_crm_rls_policies_PROPOSED.sql").read_text(encoding="utf-8")
+    assert on_disk == rls.POLICIES_SQL
+    # No code path executes it outside tests: ensure_schema and init_crm never reference the policies.
+    for name in ("schema.py", "setup.py", "seed.py", "routes.py"):
+        assert "POLICIES_SQL" not in (ROOT / "app" / "crm" / name).read_text(encoding="utf-8")

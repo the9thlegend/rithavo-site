@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from . import mfa
+from . import mfa, rls
 from .access import Actor, Scope, audit_denied
 
 STAGES = ["New Lead", "Contacted", "Qualified", "Discovery", "Founder Review", "Requirement Assessment",
@@ -130,6 +130,8 @@ def _valid_owner(conn, user_id):
 
 def find_matches(conn, name_key, email_key):
     """All records anywhere that match. INTERNAL: callers decide what may be revealed."""
+    if rls.is_active():
+        return _find_matches_rls(conn, name_key, email_key)
     comps = []
     if name_key:
         comps = conn.execute("SELECT id, name, owner_user_id FROM crm_companies WHERE name_key = ? AND archived = 0",
@@ -140,6 +142,20 @@ def find_matches(conn, name_key, email_key):
             "SELECT c.id, c.company_id, c.owner_user_id, co.name AS company_name FROM crm_contacts c "
             "JOIN crm_companies co ON co.id = c.company_id WHERE c.email_key = ? AND c.archived = 0",
             (email_key,)).fetchall()
+    return comps, conts
+
+
+def _find_matches_rls(conn, name_key, email_key):
+    """Database-enforced mode: the cross-owner probe is a SECURITY DEFINER function that returns ids only for
+    the caller's own rows. Shapes match find_matches; a foreign row has owner_user_id -1 and no ids."""
+    me = int(conn.execute("SELECT crm_uid() AS u").fetchone()["u"] or -2)
+    comps, conts = [], []
+    for r in conn.execute("SELECT * FROM crm_dup_probe(?, ?)", (name_key or "", email_key or "")).fetchall():
+        owner = me if r["mine"] else -1
+        if r["kind"] == "company":
+            comps.append({"id": r["row_id"], "name": None, "owner_user_id": owner})
+        else:
+            conts.append({"id": r["row_id"], "company_id": r["company_id"], "owner_user_id": owner, "company_name": None})
     return comps, conts
 
 
@@ -176,9 +192,13 @@ def check_duplicate(db, actor, company_name, email):
 
 def _next_ref(conn):
     year = now_dt().year
-    row = conn.execute("SELECT ref FROM crm_opportunities WHERE ref LIKE ? ORDER BY ref DESC LIMIT 1",
-                       (f"RIT-{year}-%",)).fetchone()
-    n = int(row["ref"].rsplit("-", 1)[1]) + 1 if row else 1
+    if rls.is_active():
+        last = conn.execute("SELECT crm_last_ref(?) AS r", (f"RIT-{year}-",)).fetchone()["r"]
+    else:
+        row = conn.execute("SELECT ref FROM crm_opportunities WHERE ref LIKE ? ORDER BY ref DESC LIMIT 1",
+                           (f"RIT-{year}-%",)).fetchone()
+        last = row["ref"] if row else None
+    n = int(last.rsplit("-", 1)[1]) + 1 if last else 1
     return f"RIT-{year}-{n:03d}"
 
 

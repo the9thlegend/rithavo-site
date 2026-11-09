@@ -18,7 +18,9 @@ from dataclasses import dataclass
 import config
 from fastapi import HTTPException, Request
 
-from . import mfa
+from starlette.concurrency import run_in_threadpool
+
+from . import mfa, rls
 
 
 @dataclass
@@ -62,12 +64,15 @@ def resolve_actor(request: Request) -> Actor:
         request.session.clear()
         raise HTTPException(status_code=401, detail="Not signed in.")
     if db.is_super_admin(user_id):
-        return Actor(user_id, "founder", user["email"], "Founder")
-    with db.connect() as conn:
-        staff = conn.execute("SELECT * FROM crm_staff WHERE user_id = ?", (user_id,)).fetchone()
-    if staff is None or not staff["active"]:
-        raise HTTPException(status_code=403, detail="CRM access has not been activated for this account.")
-    return Actor(user_id, "specialist", user["email"], staff["display_name"])
+        actor = Actor(user_id, "founder", user["email"], "Founder")
+    else:
+        with db.connect() as conn:
+            staff = conn.execute("SELECT * FROM crm_staff WHERE user_id = ?", (user_id,)).fetchone()
+        if staff is None or not staff["active"]:
+            raise HTTPException(status_code=403, detail="CRM access has not been activated for this account.")
+        actor = Actor(user_id, "specialist", user["email"], staff["display_name"])
+    rls.set_actor(actor)  # for handlers that call this directly (MFA routes); the gate re-sets it in its own context
+    return actor
 
 
 def mfa_state(request: Request, actor: Actor):
@@ -113,8 +118,16 @@ def stamp_session(request: Request, actor: Actor, epoch: int):
     }
 
 
-def require_crm_actor(request: Request) -> Actor:
-    """The gate for every CRM data route."""
+async def require_crm_actor(request: Request) -> Actor:
+    """The gate for every CRM data route. Async on purpose: the blocking checks run in a worker thread, then the
+    authenticated caller is recorded in this request's context so that every later database transaction in the
+    same request carries it into PostgreSQL (see rls.install)."""
+    actor = await run_in_threadpool(_gate, request)
+    rls.set_actor(actor)
+    return actor
+
+
+def _gate(request: Request) -> Actor:
     actor = resolve_actor(request)
     state, _epoch = mfa_state(request, actor)
     if state == "ok":
@@ -128,8 +141,8 @@ def require_crm_actor(request: Request) -> Actor:
     raise _err(status, "Multi-factor authentication is required.", codes[state])
 
 
-def require_founder(request: Request) -> Actor:
-    actor = require_crm_actor(request)
+async def require_founder(request: Request) -> Actor:
+    actor = await require_crm_actor(request)
     if not actor.is_founder:
         audit_denied(_db(request), actor, "founder_only", None, None)
         raise HTTPException(status_code=403, detail="Founder only.")

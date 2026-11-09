@@ -59,7 +59,13 @@ def test_foreign_records_are_404_on_every_route_and_lists_exclude_them(crm):
     assert f.get("/crm/reports").json()["per_owner"] == {"Alice": 1}
     # Foreign access attempts are audited as denials.
     denied = [r for r in f.get("/crm/audit").json() if r["outcome"] == "denied" and r["action"] == "foreign_record"]
-    assert len(denied) >= 10
+    from app.crm import rls
+    if rls.is_active():
+        # Database-enforced mode: PostgreSQL hides the foreign row before the application can see it, so the
+        # application-level denial audit never fires. Known trade-off, documented in the RLS proposal.
+        assert denied == []
+    else:
+        assert len(denied) >= 10
 
 
 def test_founder_sees_everything(crm):

@@ -1,5 +1,6 @@
 """Shared fixtures and helpers for the CRM Lite tests. Synthetic data only."""
 
+import os
 import types
 
 import pytest
@@ -41,7 +42,10 @@ def crm(app_and_client, db, monkeypatch, clock):
     monkeypatch.setattr(config, "CRM_ALLOW_SCHEMA_ON_POSTGRES", True, raising=False)
     schema.ensure_schema(db)
     app, _ = app_and_client
-    return CrmEnv(app, db, clock)
+    env = CrmEnv(app, db, clock)
+    if os.environ.get("RITHAVO_CRM_TEST_RLS") == "1":
+        enforce_db_rls(env, monkeypatch)
+    return env
 
 
 class Person:
@@ -137,3 +141,49 @@ def scalar(row):
 
 def column(rows):
     return [scalar(r) for r in rows]
+
+
+APP_ROLE = "crm_app"
+APP_ROLE_PASSWORD = "localtest-crm-app-only"
+
+
+def app_role_dsn(dsn):
+    from urllib.parse import urlsplit, urlunsplit
+    p = urlsplit(dsn)
+    return urlunsplit((p.scheme, f"{APP_ROLE}:{APP_ROLE_PASSWORD}@{p.hostname}:{p.port}", p.path, p.query, ""))
+
+
+def create_app_role(superuser_dsn):
+    """The proposed least-privilege application role: not the owner, no superuser, no BYPASSRLS."""
+    import psycopg2
+    c = psycopg2.connect(superuser_dsn)
+    c.autocommit = True
+    cur = c.cursor()
+    cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (APP_ROLE,))
+    if not cur.fetchone():
+        cur.execute(f"CREATE ROLE {APP_ROLE} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE "
+                    f"PASSWORD '{APP_ROLE_PASSWORD}'")
+    cur.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}")
+    cur.execute(f"GRANT ALL ON ALL TABLES IN SCHEMA public TO {APP_ROLE}")
+    cur.execute(f"GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO {APP_ROLE}")
+    c.close()
+
+
+def enforce_db_rls(env, monkeypatch):
+    """Run the application as `crm_app` with the proposed policies installed, so every CRM query is filtered by
+    PostgreSQL itself. `env.db` stays the superuser connection used only for test set-up and assertions."""
+    from app.crm import rls
+    from app.db import Database
+    from tests.conftest import POSTGRES_DSN
+    assert POSTGRES_DSN, "RITHAVO_CRM_TEST_RLS needs RITHAVO_WEB_TEST_POSTGRES_DSN"
+    create_app_role(POSTGRES_DSN)
+    import psycopg2
+    c = psycopg2.connect(POSTGRES_DSN)
+    c.autocommit = True
+    c.cursor().execute(rls.POLICIES_SQL)
+    c.close()
+    app_db = Database(app_role_dsn(POSTGRES_DSN))
+    rls.install(app_db)
+    env.app.state.db = app_db
+    env.app_db = app_db
+    monkeypatch.setattr(rls, "_ACTIVE", {"on": True})
