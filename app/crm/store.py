@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException
 
-from . import mfa, rls
+from . import audit as audit_mod, credentials, identity, invites, locking, mfa, rls
 from .access import Actor, Scope, audit_denied
 
 STAGES = ["New Lead", "Contacted", "Qualified", "Discovery", "Founder Review", "Requirement Assessment",
@@ -115,13 +115,13 @@ def _owner_label_map(conn):
     out = {}
     for r in conn.execute("SELECT s.user_id, s.display_name FROM crm_staff s").fetchall():
         out[r["user_id"]] = r["display_name"]
-    for r in conn.execute("SELECT user_id FROM super_admins").fetchall():
-        out[r["user_id"]] = "Founder"
+    for uid in identity.founder_ids(conn):
+        out[uid] = "Founder"
     return out
 
 
 def _valid_owner(conn, user_id):
-    if conn.execute("SELECT 1 FROM super_admins WHERE user_id = ?", (user_id,)).fetchone():
+    if user_id in identity.founder_ids(conn):
         return True
     return conn.execute("SELECT 1 FROM crm_staff WHERE user_id = ? AND active = 1", (user_id,)).fetchone() is not None
 
@@ -846,10 +846,10 @@ def reassign_company(db, actor, company_id, new_owner_user_id):
 
 def needs_owner(db, actor):
     with db.connect() as conn:
-        return [dict(r) for r in conn.execute(
-            "SELECT id, name, owner_user_id FROM crm_companies WHERE archived = 0 AND owner_user_id NOT IN "
-            "(SELECT user_id FROM crm_staff WHERE active = 1 UNION SELECT user_id FROM super_admins) ORDER BY name"
-        ).fetchall()]
+        valid = {r["user_id"] for r in conn.execute("SELECT user_id FROM crm_staff WHERE active = 1").fetchall()}
+        valid |= set(identity.founder_ids(conn))
+        rows = conn.execute("SELECT id, name, owner_user_id FROM crm_companies WHERE archived = 0 ORDER BY name").fetchall()
+        return [dict(r) for r in rows if r["owner_user_id"] not in valid]
 
 
 # ---- search, overview, reports, retention -----------------------------------
@@ -1007,40 +1007,133 @@ def audit_view(db, actor, limit=200):
 
 # ---- staff (Founder) --------------------------------------------------------
 
+def _conflict(code, message, status=409):
+    return HTTPException(status_code=status, detail={"code": code, "message": message})
+
+
 def list_staff(db, actor):
     with db.connect() as conn:
         out = []
-        for r in conn.execute(
-                "SELECT s.*, u.email FROM crm_staff s JOIN users u ON u.id = s.user_id ORDER BY s.display_name").fetchall():
-            m = mfa.get_row(conn, r["user_id"])
-            x = {k: r[k] for k in ("user_id", "display_name", "email", "active", "activated_at", "deactivated_at")}
+        for r in conn.execute("SELECT * FROM crm_staff ORDER BY display_name").fetchall():
+            uid = r["user_id"]
+            u = identity.user_by_id(conn, uid)
+            m = mfa.get_row(conn, uid)
+            cred = credentials.get(conn, uid)
+            _s, state = identity.staff_state(conn, uid)
+            last_rec = conn.execute("SELECT MAX(id) AS i FROM crm_audit_log WHERE entity = 'staff' AND entity_id = ? "
+                                    "AND action = 'staff_returned_to_awaiting_activation'", (uid,)).fetchone()["i"]
+            last_act = conn.execute("SELECT MAX(id) AS i FROM crm_audit_log WHERE entity = 'staff' AND entity_id = ? "
+                                    "AND action = 'staff_activated'", (uid,)).fetchone()["i"]
+            x = {k: r[k] for k in ("user_id", "display_name", "active", "activated_at", "deactivated_at")}
+            x["email"] = u["email"] if u else None
+            x["state"] = state
             x["mfa_enrolled"] = mfa.is_enrolled(m)
             x["lock"] = mfa.lock_state(m)
+            x["credential_epoch"] = cred["credential_epoch"] if cred else 0     # the epochs the Founder reviews
+            x["mfa_epoch"] = m["session_epoch"] if m else 0
+            x["mfa_recovered_review"] = bool(last_rec and last_rec > (last_act or 0))
             out.append(x)
         return out
 
 
-def activate_staff(db, actor, email, display_name):
+def invite_staff(db, actor, email, display_name):
+    """Founder-controlled invitation (scope 2.4, 5a). Creates the identity row through the existing code path (one
+    users row, nothing else), an INACTIVE staff record, and a single-use token. Returns (token, user_id, email).
+    Any existing onboarding for the person starts over: the old password is disabled, the authenticator cleared,
+    older tokens revoked. The person has no CRM access until the Founder activates them."""
+    import config
     email = text(email, "Email", maxlen=200).lower()
     name = text(display_name, "Display name", maxlen=80)
-    user = db.get_user_by_email(email)
-    if user is None:
-        raise HTTPException(status_code=404, detail="No registered account has that email.")
-    if db.is_super_admin(user["id"]):
-        raise bad("That account is the Founder.", 409)
+    if "@" not in email or " " in email or email.startswith("@") or email.endswith("@"):
+        raise bad("Enter a valid email address.")
+    if identity.is_allowlisted(email):
+        raise _conflict("founder_email", "That email belongs to the Founder.")
+    uid = identity.ensure_user(db, email)
     t = now_iso()
     with db.connect() as conn:
-        s = conn.execute("SELECT * FROM crm_staff WHERE user_id = ?", (user["id"],)).fetchone()
+        conn.execute("INSERT INTO crm_staff (user_id, display_name, active, created_at) VALUES (?, ?, 0, ?) "
+                     "ON CONFLICT (user_id) DO NOTHING", (uid, name, t))
+        locking.lock_person(conn, uid)
+        conn.execute("UPDATE crm_staff SET display_name = ?, active = 0, activated_by = NULL, activated_at = NULL, "
+                     "deactivated_by = NULL, deactivated_at = NULL WHERE user_id = ?", (name, uid))
+        mfa.reset_user(conn, uid)
+        credentials.disable(conn, uid)
+        token = invites.issue(conn, user_id=uid, email=email, purpose=invites.STAFF_INVITE,
+                              created_by=str(actor.user_id), ttl=config.CRM_INVITE_TTL_SECONDS)
+        audit(conn, actor, "staff_invited", "staff", uid)
+    return token, uid, email
+
+
+def resend_invite(db, actor, user_id):
+    with db.connect() as conn:
+        s, state = identity.staff_state(conn, user_id)
+        u = identity.user_by_id(conn, user_id)
+    if s is None or u is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    if state != "invited":
+        raise _conflict("already_accepted", "That invitation was already accepted. Invite them again to start over.")
+    return invite_staff(db, actor, u["email"], s["display_name"])
+
+
+def revoke_invite(db, actor, user_id):
+    with db.connect() as conn:
+        s, state = identity.staff_state(conn, user_id)
         if s is None:
-            conn.execute("INSERT INTO crm_staff (user_id, display_name, active, activated_by, activated_at, created_at) "
-                         "VALUES (?, ?, 1, ?, ?, ?)", (user["id"], name, actor.user_id, t, t))
-        else:
-            conn.execute("UPDATE crm_staff SET active = 1, display_name = ?, activated_by = ?, activated_at = ?, "
-                         "deactivated_at = NULL, deactivated_by = NULL WHERE user_id = ?",
-                         (name, actor.user_id, t, user["id"]))
-        mfa.reset_user(conn, user["id"])  # reactivation always means fresh enrolment
-        audit(conn, actor, "staff_activated", "staff", user["id"])
-        return {"user_id": user["id"]}
+            raise HTTPException(status_code=404, detail="Not found.")
+        locking.lock_person(conn, user_id)
+        n = invites.revoke_open(conn, user_id, invites.STAFF_INVITE)
+        audit(conn, actor, "staff_invite_revoked", "staff", user_id, f"revoked={n}")
+        return {"revoked": n}
+
+
+def activate_staff(db, actor, user_id, reviewed_credential_epoch, reviewed_mfa_epoch):
+    """The only transition to active (scope 2.8a). Bound to the credential and MFA epochs the Founder reviewed;
+    checked under the person's row locks AND again inside the single conditional UPDATE."""
+    if user_id == actor.user_id:
+        raise _conflict("self_activation", "You cannot activate your own account.", 403)
+    for v in (reviewed_credential_epoch, reviewed_mfa_epoch):
+        if not isinstance(v, int) or isinstance(v, bool):
+            raise bad("The reviewed state is missing. Reload the page.")
+    with db.connect() as conn:
+        locking.lock_person(conn, user_id)
+        s, state = identity.staff_state(conn, user_id)
+        u = identity.user_by_id(conn, user_id)
+        if s is None or u is None:
+            raise HTTPException(status_code=404, detail="Not found.")
+        if identity.is_allowlisted(u["email"]):
+            raise _conflict("founder_email", "That account is the Founder.")
+        if state == "active":
+            raise _conflict("already_active", "That account is already active.")
+        if state == "deactivated":
+            raise _conflict("needs_new_invitation", "Invite them again before activating.")
+        cred = credentials.get(conn, user_id)
+        if state == "invited" or not credentials.has_password(cred) or not invites.accepted_staff_invite(conn, user_id):
+            raise _conflict("password_not_set", "They have not accepted the invitation and set a password.")
+        m = mfa.get_row(conn, user_id)
+        if not mfa.is_enrolled(m):
+            raise _conflict("mfa_not_enrolled", "They have not enrolled an authenticator.")
+        if mfa.lock_state(m) != "none":
+            raise _conflict("locked", "That account is locked. Unlock it first.")
+        if cred["credential_epoch"] != reviewed_credential_epoch or m["session_epoch"] != reviewed_mfa_epoch:
+            raise _conflict("state_changed_retry",
+                            "Their sign-in details changed after you reviewed them. Reload and review again.")
+        t = now_iso()
+        cur = conn.execute(
+            "UPDATE crm_staff SET active = 1, activated_by = ?, activated_at = ?, deactivated_by = NULL, "
+            "deactivated_at = NULL WHERE user_id = ? AND active = 0 AND deactivated_at IS NULL "
+            "AND EXISTS (SELECT 1 FROM crm_credentials c WHERE c.user_id = ? AND c.password_hash IS NOT NULL "
+            "            AND c.credential_epoch = ?) "
+            "AND EXISTS (SELECT 1 FROM crm_mfa k WHERE k.user_id = ? AND k.secret_enc IS NOT NULL "
+            "            AND k.enrolled_at IS NOT NULL AND k.session_epoch = ? AND k.hard_locked = 0 "
+            "            AND k.locked_until <= ?)",
+            (actor.user_id, t, user_id, user_id, reviewed_credential_epoch, user_id, reviewed_mfa_epoch,
+             int(mfa.time.time())))
+        if cur.rowcount != 1:
+            raise _conflict("state_changed_retry",
+                            "Their sign-in details changed after you reviewed them. Reload and review again.")
+        audit(conn, actor, "staff_activated", "staff", user_id,
+              f"credential_epoch={reviewed_credential_epoch};mfa_epoch={reviewed_mfa_epoch}")
+        return {"user_id": user_id}
 
 
 def deactivate_staff(db, actor, user_id):
@@ -1048,9 +1141,11 @@ def deactivate_staff(db, actor, user_id):
         s = conn.execute("SELECT * FROM crm_staff WHERE user_id = ?", (user_id,)).fetchone()
         if s is None:
             raise HTTPException(status_code=404, detail="Not found.")
+        locking.lock_person(conn, user_id)
         conn.execute("UPDATE crm_staff SET active = 0, deactivated_by = ?, deactivated_at = ? WHERE user_id = ?",
                      (actor.user_id, now_iso(), user_id))
-        mfa.reset_user(conn, user_id)  # wipes secrets and bumps the epoch: sessions die on the next request
+        mfa.reset_user(conn, user_id)  # wipes secrets and bumps the epoch; the state check ends sessions at once
+        invites.revoke_open(conn, user_id)
         n = conn.execute("SELECT COUNT(*) AS n FROM crm_companies WHERE owner_user_id = ? AND archived = 0",
                          (user_id,)).fetchone()["n"]
         audit(conn, actor, "staff_deactivated", "staff", user_id, f"companies_needing_owner={n}")
@@ -1061,6 +1156,14 @@ def reset_staff_mfa(db, actor, user_id, unlock_only=False):
     with db.connect() as conn:
         if conn.execute("SELECT 1 FROM crm_staff WHERE user_id = ?", (user_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Not found.")
-        mfa.reset_user(conn, user_id, unlock_only=unlock_only)
-        audit(conn, actor, "mfa_unlocked" if unlock_only else "mfa_reset", "staff", user_id)
-        return {"ok": True}
+        locking.lock_person(conn, user_id)
+        if unlock_only:
+            mfa.reset_user(conn, user_id, unlock_only=True)
+            audit(conn, actor, "mfa_unlocked", "staff", user_id)
+            return {"ok": True}
+        mfa.reset_user(conn, user_id)
+        returned = mfa.return_to_inactive(conn, user_id)   # scope 2.8b: inactive until re-enrolled and re-activated
+        audit(conn, actor, "mfa_reset", "staff", user_id)
+        if returned:
+            audit(conn, actor, "staff_returned_to_awaiting_activation", "staff", user_id)
+        return {"ok": True, "returned_to_inactive": returned}

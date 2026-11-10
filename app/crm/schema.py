@@ -151,6 +151,40 @@ CREATE INDEX IF NOT EXISTS idx_crm_rev_state ON crm_founder_reviews(state);
 CREATE INDEX IF NOT EXISTS idx_crm_audit_at ON crm_audit_log(at);
 """
 
+
+# CRM independent authentication tables (scope Revision 3). Kept separate from TABLES so migration 001 is unchanged
+# and the Preview migration 030 can add exactly these three tables.
+AUTH_TABLES = """
+CREATE TABLE IF NOT EXISTS crm_credentials (
+    user_id INTEGER PRIMARY KEY,
+    password_hash TEXT,
+    credential_epoch INTEGER NOT NULL DEFAULT 1,
+    set_at TEXT,
+    set_by INTEGER
+);
+CREATE TABLE IF NOT EXISTS crm_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    expires_at BIGINT NOT NULL,
+    used_at BIGINT,
+    revoked_at BIGINT
+);
+CREATE TABLE IF NOT EXISTS crm_rate_limits (
+    key_hash TEXT NOT NULL,
+    window_start BIGINT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (key_hash, window_start)
+);
+CREATE INDEX IF NOT EXISTS idx_crm_invites_user ON crm_invites(user_id);
+CREATE INDEX IF NOT EXISTS idx_crm_rl_window ON crm_rate_limits(window_start);
+"""
+AUTH_TABLE_NAMES = ("crm_credentials", "crm_invites", "crm_rate_limits")
+
 APPEND_ONLY_TABLES = ("crm_activities", "crm_audit_log")
 ALL_TABLES = (
     "crm_staff", "crm_mfa", "crm_mfa_recovery_codes", "crm_companies", "crm_contacts",
@@ -220,8 +254,10 @@ def ensure_schema(db) -> None:
     with db.connect() as conn:
         if db._is_postgres:
             conn.executescript(_pg(TABLES))
+            conn.executescript(_pg(AUTH_TABLES))
             conn.executescript(POSTGRES_TRIGGERS)
             conn.executescript(POSTGRES_RLS)
         else:
             conn.executescript(TABLES)
+            conn.executescript(AUTH_TABLES)
             conn.executescript(SQLITE_TRIGGERS)

@@ -25,10 +25,12 @@ def _second_instance(env, tmp_path):
 
 
 def _seed_same_user(env, other, email):
-    from app.auth import hash_password
+    from app.crm import credentials, mfa
     uid = other.get_or_create_user(email)
-    other.set_user_password(uid, hash_password(PASSWORD))
     other.add_super_admin_if_missing(uid)
+    with other.connect() as conn:                     # the same seeded credential, so epochs and the cookie line up
+        credentials.set_password(conn, uid, PASSWORD, set_by=uid)
+        mfa.ensure_row(conn, uid)
     return uid
 
 
@@ -38,7 +40,7 @@ def test_root_cause_separate_instance_databases_lose_the_pending_secret(crm, tmp
     db_a, app = crm.db, crm.app
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     db_b = _second_instance(crm, tmp_path)
     assert _seed_same_user(crm, db_b, "founder@example.test") == p.user_id  # same internal id on both instances
 
@@ -60,7 +62,7 @@ def test_shared_persistence_layer_survives_instance_change(crm):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     app = crm.app
     shared_a = crm.db
     shared_b = Database(shared_a.db_path)  # a second Database object over the same store
@@ -78,7 +80,7 @@ def test_setup_state_survives_separate_http_requests(crm):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     r = p.client.post("/crm/mfa/enrol/start")
     assert r.status_code == 200
     with crm.db.connect() as conn:
@@ -93,7 +95,7 @@ def test_confirm_without_start_is_the_documented_error(crm):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     r = p.client.post("/crm/mfa/enrol/confirm", json={"code": "123456"})
     assert r.status_code == 409 and r.json()["detail"] == "Start MFA setup first."
     assert p.client.get("/crm/me").json()["mfa"] == "enrol"            # nothing was enrolled
@@ -103,7 +105,7 @@ def test_invalid_otp_rejected_and_enrolment_not_completed(crm):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     p.secret = _b32decode(p.client.post("/crm/mfa/enrol/start").json()["secret"])
     wrong = totp.hotp(p.secret, totp.step_for() + 50)
     r = p.client.post("/crm/mfa/enrol/confirm", json={"code": wrong})
@@ -117,7 +119,7 @@ def test_completed_enrolment_cannot_be_replayed(crm):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     p.secret = _b32decode(p.client.post("/crm/mfa/enrol/start").json()["secret"])
     code = p.code()
     assert p.client.post("/crm/mfa/enrol/confirm", json={"code": code}).status_code == 200
@@ -141,15 +143,16 @@ def test_founder_and_specialist_gates(crm):
     s.enrol()
     assert s.get("/crm/overview").status_code == 200
     assert s.get("/crm/staff").status_code == 403                         # specialist is never a Founder
-    stranger = Person(crm, "stranger@example.test", "x").login()
-    assert stranger.post("/crm/mfa/enrol/start").status_code == 403       # not activated: cannot even begin enrolment
+    stranger = Person(crm, "stranger@example.test", "x")                  # a customer identity with no CRM role
+    assert stranger.post("/crm/mfa/enrol/start").status_code == 401       # no CRM session: cannot even begin enrolment
+    assert stranger.client.post("/crm/auth/login", json={"email": stranger.email, "password": PASSWORD}).status_code == 401
 
 
 def test_diagnostics_log_stage_user_pending_and_instance_but_no_secrets(crm, caplog):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     with caplog.at_level(logging.INFO, logger="rithavo_web.crm.diag"):
         start = p.client.post("/crm/mfa/enrol/start")
         secret_text = start.json()["secret"]
@@ -170,7 +173,7 @@ def test_diag_marks_missing_pending_state_distinctly(crm, caplog, tmp_path):
     from tests.crm_helpers import Person
     p = Person(crm, "founder@example.test", "founder")
     crm.db.add_super_admin_if_missing(p.user_id)
-    p.login()
+    p.give_credential().login()
     with caplog.at_level(logging.INFO, logger="rithavo_web.crm.diag"):
         p.client.post("/crm/mfa/enrol/confirm", json={"code": "123456"})
     text = "\n".join(r.getMessage() for r in caplog.records if r.name == "rithavo_web.crm.diag")

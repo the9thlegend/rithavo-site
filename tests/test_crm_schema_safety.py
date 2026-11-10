@@ -82,7 +82,7 @@ def test_no_project_or_customer_data_anywhere_in_the_crm_package():
     # schema.py and rls.py are owner-run SQL text (they name pg_roles, anon, catalog views); the CRM's runtime
     # queries in every other module are what this checks.
     code = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "app" / "crm").glob("*.py")
-                     if p.name not in ("schema.py", "rls.py"))
+                     if p.name not in ("schema.py", "rls.py", "authmigration.py"))
     for table in ("career_profiles", "purchases", "entitlements", "businesses", "card_settings", "mentor",
                   "diagnostics", "resumes"):
         assert not re.search(rf"\b(FROM|JOIN|INTO|UPDATE)\s+{table}\b", code), table

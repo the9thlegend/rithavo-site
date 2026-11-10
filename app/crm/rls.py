@@ -196,6 +196,53 @@ def assert_least_privilege(db) -> dict:
     return {"role": me["name"], "checks": sorted(checks), "policies": me["policies"]}
 
 
+def assert_auth_objects(db, extra_required=()):
+    """Fail closed (CP-M3): the CRM authentication tables must exist with RLS enabled, a `crm_app` policy, exactly the
+    planned privileges for the connected role (no DELETE on credentials or invites, no TRUNCATE, no REFERENCES or
+    TRIGGER), and the database identity marker must be present. `extra_required` lets a read-only probe name a
+    deliberately non-existent object to prove detection without any DDL. Returns the confirmed facts; raises
+    LeastPrivilegeError (category-only text) otherwise. SQLite can never satisfy this."""
+    from . import authmigration as am
+    if not getattr(db, "_is_postgres", False):
+        raise LeastPrivilegeError("auth objects cannot be verified: the database is not PostgreSQL")
+    problems = []
+    with db.connect() as conn:
+        for t in tuple(am.AUTH_TABLES) + tuple(extra_required):
+            r = conn.execute("SELECT to_regclass('public.' || ?) IS NOT NULL AS present", (t,)).fetchone()
+            if not r["present"]:
+                problems.append(f"missing_table:{t}")
+                continue
+            info = conn.execute(
+                "SELECT c.relrowsecurity AS rls, "
+                "EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = ? "
+                "        AND 'crm_app' = ANY (p.roles)) AS policy FROM pg_class c WHERE c.oid = to_regclass('public.' || ?)",
+                (t, t)).fetchone()
+            if not info["rls"]:
+                problems.append(f"rls_disabled:{t}")
+            if not info["policy"]:
+                problems.append(f"missing_policy:{t}")
+            for priv in am.REQUIRED_PRIVILEGES.get(t, ()):
+                ok = conn.execute("SELECT has_table_privilege(current_user, 'public.' || ?, ?) AS ok", (t, priv)).fetchone()["ok"]
+                if not ok:
+                    problems.append(f"missing_privilege:{t}:{priv}")
+            for priv in am.FORBIDDEN_PRIVILEGES.get(t, ()):
+                bad = conn.execute("SELECT has_table_privilege(current_user, 'public.' || ?, ?) AS ok", (t, priv)).fetchone()["ok"]
+                if bad:
+                    problems.append(f"excess_privilege:{t}:{priv}")
+        seq = conn.execute("SELECT has_sequence_privilege(current_user, 'public.crm_invites_id_seq', 'USAGE') AS ok").fetchone()
+        if not seq["ok"]:
+            problems.append("missing_privilege:crm_invites_id_seq:USAGE")
+        mk = conn.execute(
+            "SELECT shobj_description((SELECT oid FROM pg_database WHERE datname = current_database()), 'pg_database') AS db, "
+            "shobj_description((SELECT oid FROM pg_roles WHERE rolname = 'crm_app'), 'pg_authid') AS role").fetchone()
+    marker = next((m for m in (mk["db"], mk["role"]) if m and m.startswith(am.MARKER_PREFIX)), None)
+    if marker is None:
+        problems.append("identity_marker_missing")
+    if problems:
+        raise LeastPrivilegeError("auth objects NOT verified: " + ", ".join(problems))
+    return {"tables": list(am.AUTH_TABLES), "marker": marker}
+
+
 def is_active() -> bool:
     return _ACTIVE["on"]
 

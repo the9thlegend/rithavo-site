@@ -37,20 +37,67 @@
 
   /* ---------- sign-in gate and MFA ---------- */
   async function boot() {
+    if (location.hash.startsWith("#/accept")) return renderAccept();
     const r = await api("/me");
-    if (r.status === 401) { location.href = "/sign-in/?next=" + encodeURIComponent("/crm/"); return; }
-    if (r.status === 404) return gateMsg("The CRM is not available on this deployment.");
-    if (r.status === 403) return gateMsg("CRM access has not been activated for your account. Ask the Founder to activate it.");
+    if (r.status === 401) return renderLogin();
+    if (r.status === 404) return gateMsg("Rithavo Nexus is not available on this deployment.");
+    if (r.status === 429) return gateMsg("Too many attempts. Please wait and try again.");
     if (!r.ok) return gateMsg(errText(r));
     ME = r.data;
-    document.getElementById("crm-who").innerHTML = `<span>${esc(ME.email)}</span><span class="crm-pill">${esc(ME.role)}</span>`;
-    if (ME.mfa === "enrol") return renderEnrol();
-    if (ME.mfa === "verify") return renderVerify();
+    const who = document.getElementById("crm-who");
+    who.innerHTML = ME.email ? `<span>${esc(ME.email)}</span><span class="crm-pill">${esc(ME.role)}</span>` : "";
     if (ME.mfa === "locked_soft") return gateMsg("Too many incorrect codes. Try again in a few minutes.");
     if (ME.mfa === "locked_hard") return gateMsg("Your account is locked. Ask the Founder to unlock it.");
+    if (ME.mfa === "enrol") return renderEnrol();
+    if (ME.mfa === "verify") return renderVerify();
+    if (ME.state && ME.state !== "active" && ME.state !== "founder") return renderWaiting();
     return startApp();
   }
-  function gateMsg(t) { main.innerHTML = `<div class="crm-narrow"><h1>CRM</h1>${banner("info", t)}<p><a href="/home/">Back to Rithavo</a></p></div>`; }
+  function gateMsg(t) { main.innerHTML = `<div class="crm-narrow"><h1>Rithavo Nexus</h1>${banner("info", t)}</div>`; }
+
+  function renderLogin(msg) {
+    nav.hidden = true; document.getElementById("crm-search").hidden = true; document.getElementById("crm-who").innerHTML = "";
+    main.innerHTML = `<div class="crm-narrow"><h1>Rithavo Nexus</h1>
+      <p class="crm-sub">Internal sign-in for authorised Rithavo staff.</p>
+      <form id="lf"><div class="app-field"><label for="l-mail">Email</label><input id="l-mail" type="email" autocomplete="username" required></div>
+      <div class="app-field"><label for="l-pw">Password</label><input id="l-pw" type="password" autocomplete="current-password" required></div>
+      <button class="crm-btn primary" type="submit">Continue</button></form><div id="l-msg">${msg ? banner("error", msg) : ""}</div></div>`;
+    document.getElementById("lf").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await api("/auth/login", { method: "POST", body: { email: document.getElementById("l-mail").value, password: document.getElementById("l-pw").value } });
+      if (r.ok) return boot();
+      document.getElementById("l-msg").innerHTML = banner("error", r.status === 429 ? "Too many attempts. Please wait and try again." : errText(r));
+    });
+  }
+
+  function renderAccept() {
+    nav.hidden = true; document.getElementById("crm-search").hidden = true;
+    const m = location.hash.match(/token=([^&]+)/);
+    const token = m ? decodeURIComponent(m[1]) : "";
+    history.replaceState(null, "", location.pathname);       // the one-time token never stays in the address bar or history
+    main.innerHTML = `<div class="crm-narrow"><h1>Set your password</h1>
+      <p class="crm-sub">Choose a password of at least 12 characters. This password is only for Rithavo Nexus. You will then set up your authenticator.</p>
+      <form id="af"><div class="app-field"><label for="a-pw">New password</label><input id="a-pw" type="password" autocomplete="new-password" minlength="12" required></div>
+      <div class="app-field"><label for="a-pw2">Repeat password</label><input id="a-pw2" type="password" autocomplete="new-password" minlength="12" required></div>
+      <button class="crm-btn primary" type="submit">Save password</button></form><div id="a-msg"></div></div>`;
+    document.getElementById("af").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pw = document.getElementById("a-pw").value;
+      if (pw !== document.getElementById("a-pw2").value) { document.getElementById("a-msg").innerHTML = banner("error", "The two passwords do not match."); return; }
+      const r = await api("/auth/accept", { method: "POST", body: { token, password: pw } });
+      if (!r.ok) { document.getElementById("a-msg").innerHTML = banner("error", errText(r)); return; }
+      renderLogin();
+      document.getElementById("l-msg").innerHTML = banner("success", "Password saved. Sign in to continue.");
+    });
+  }
+
+  function renderWaiting() {
+    nav.hidden = true; document.getElementById("crm-search").hidden = true;
+    main.innerHTML = `<div class="crm-narrow"><h1>Waiting for activation</h1>
+      <p class="crm-sub">Your sign-in is set up. The Founder must activate your account before you can use Rithavo Nexus. You can close this page and come back later.</p>
+      <button class="crm-btn" id="w-out" type="button">Sign out</button></div>`;
+    document.getElementById("w-out").addEventListener("click", async () => { await api("/auth/logout", { method: "POST" }); location.reload(); });
+  }
 
   async function renderEnrol(notice) {
     main.innerHTML = `<div class="crm-narrow"><h1>Set up your authenticator</h1>${notice ? banner("error", notice) : ""}
@@ -127,16 +174,17 @@
   function drawNav(active) {
     const item = ([k, t]) => `<a href="#/${k}" ${active === k ? 'aria-current="page"' : ""}>${esc(t)}${badges[k] ? `<span class="crm-badge">${badges[k]}</span>` : ""}</a>`;
     nav.innerHTML = NAV.map(item).join("") + (isFounder() ? `<div class="sep">Founder</div>` + NAV_FOUNDER.map(item).join("") : "") +
-      `<div class="sep">Session</div><a href="#/signout" id="nav-signout">Lock CRM</a>`;
+      `<div class="sep">Session</div><a href="#/signout" id="nav-signout">Sign out</a>`;
     document.getElementById("nav-signout").addEventListener("click", async (e) => {
-      e.preventDefault(); await api("/mfa/signout", { method: "POST" }); location.hash = ""; location.reload();
+      e.preventDefault(); await api("/auth/logout", { method: "POST" }); location.hash = ""; location.reload();
     });
   }
 
   async function guard(r) {
-    // The server remains the authority: a lapsed MFA stamp (idle/absolute limit) returns to the code screen.
+    // The server remains the authority: a lapsed session returns to the sign-in; MFA stages return to the code screens.
     if (r.status === 401 && r.data && r.data.detail && r.data.detail.code) { ME.mfa = r.data.detail.code.includes("enrol") ? "enrol" : "verify"; ME.mfa === "enrol" ? renderEnrol() : renderVerify("Your session timed out. Enter a new code."); nav.hidden = true; return false; }
-    if (r.status === 401) { location.href = "/sign-in/?next=" + encodeURIComponent("/crm/"); return false; }
+    if (r.status === 401) { renderLogin("Your session ended. Sign in again."); return false; }
+    if (r.status === 403 && r.data && r.data.detail && r.data.detail.code === "awaiting_activation") { renderWaiting(); return false; }
     return true;
   }
 
@@ -368,16 +416,30 @@
   async function staff() {
     const [r, n, rq] = await Promise.all([api("/staff"), api("/needs-owner"), api("/reviews")]); if (!(await guard(r))) return;
     if (!r.ok) { main.innerHTML = banner("error", errText(r)); return; }
-    main.innerHTML = `<h1>Staff and security</h1><p class="crm-sub">Activate a specialist by their registered business email. They then set up their own authenticator. Deactivation takes effect on their next request.</p>
-      <div class="crm-card"><form id="act-staff" class="crm-form"><div class="app-field"><label for="s-mail">Registered email</label><input id="s-mail" name="email" type="email" required></div><div class="app-field"><label for="s-name">Display name</label><input id="s-name" name="display_name" required maxlength="80"></div><div class="full"><button class="crm-btn primary" type="submit">Activate CRM access</button></div></form><div id="s-msg"></div></div>
-      <p class="crm-h">Specialists</p>${table(["Name", "Email", "Status", "Authenticator", ""], r.data.map((x) => `<tr><td>${esc(x.display_name)}</td><td>${esc(x.email)}</td><td>${x.active ? "Active" : "Deactivated"}${x.lock !== "none" ? ` <span class="crm-pill s-lost">${esc(x.lock)} lock</span>` : ""}</td><td>${x.mfa_enrolled ? "Set up" : "Not set up"}</td>
-        <td><div class="crm-actions">${x.active ? `<button class="crm-btn danger" data-deact="${x.user_id}">Deactivate</button>` : ""}<button class="crm-btn" data-reset="${x.user_id}">Reset authenticator</button>${x.lock !== "none" ? `<button class="crm-btn" data-unlock="${x.user_id}">Unlock</button>` : ""}</div></td></tr>`), "No specialists activated yet.")}
+    const stateLabel = { invited: "Invited", credentialed: "Password set, no authenticator", awaiting_activation: "Awaiting your activation", active: "Active", deactivated: "Deactivated" };
+    main.innerHTML = `<h1>Staff and security</h1><p class="crm-sub">Invite a specialist by work email. They set their own password and authenticator, then wait for you to activate them. Nobody has access to CRM data until you activate them. Deactivation takes effect on their next request.</p>
+      <div class="crm-card"><form id="inv-staff" class="crm-form"><div class="app-field"><label for="s-mail">Work email</label><input id="s-mail" name="email" type="email" required></div><div class="app-field"><label for="s-name">Display name</label><input id="s-name" name="display_name" required maxlength="80"></div><div class="full"><button class="crm-btn primary" type="submit">Send invitation</button></div></form><div id="s-msg"></div><div id="s-link"></div></div>
+      <p class="crm-h">Specialists</p>${table(["Name", "Email", "Status", "Authenticator", ""], r.data.map((x) => `<tr><td>${esc(x.display_name)}</td><td>${esc(x.email)}</td><td>${esc(stateLabel[x.state] || x.state)}${x.mfa_recovered_review ? ` <span class="crm-pill s-hold">MFA recovered, review</span>` : ""}${x.lock !== "none" ? ` <span class="crm-pill s-lost">${esc(x.lock)} lock</span>` : ""}</td><td>${x.mfa_enrolled ? "Set up" : "Not set up"}</td>
+        <td><div class="crm-actions">${x.state === "awaiting_activation" ? `<button class="crm-btn primary" data-act="${x.user_id}" data-ce="${x.credential_epoch}" data-me="${x.mfa_epoch}">Activate</button>` : ""}${x.state === "invited" ? `<button class="crm-btn" data-resend="${x.user_id}">Resend invitation</button><button class="crm-btn" data-revoke="${x.user_id}">Revoke invitation</button>` : ""}${x.state === "active" ? `<button class="crm-btn danger" data-deact="${x.user_id}">Deactivate</button>` : ""}<button class="crm-btn" data-reset="${x.user_id}">Reset authenticator</button>${x.lock !== "none" ? `<button class="crm-btn" data-unlock="${x.user_id}">Unlock</button>` : ""}</div></td></tr>`), "No specialists invited yet.")}
       <p class="crm-h">Companies needing an owner</p>${table(["Company", ""], (n.data || []).map((c) => `<tr><td>${esc(c.name)}</td><td><a href="#/company/${c.id}">Reassign</a></td></tr>`), "None.")}`;
     const msg = (res, ok) => (document.getElementById("s-msg").innerHTML = res.ok ? banner("success", ok) : banner("error", errText(res)));
-    document.getElementById("act-staff").addEventListener("submit", async (e) => { e.preventDefault(); const res = await api("/staff/activate", { method: "POST", body: Object.fromEntries(new FormData(e.target).entries()) }); res.ok ? staff() : msg(res); });
-    const bind = (attr, path, ok) => main.querySelectorAll(`[${attr}]`).forEach((b) => b.addEventListener("click", async () => { const res = await api(`/staff/${b.getAttribute(attr)}/${path}`, { method: "POST" }); res.ok ? staff() : msg(res, ok); }));
+    const showLink = (res) => {
+      if (res.data && res.data.link) {
+        document.getElementById("s-link").innerHTML = `<p class="crm-h">Invitation link (shown once)</p><code class="crm-code" id="s-linktext">${esc(res.data.link)}</code><p class="hint" style="font-size:.8rem">Copy it now and send it to the person yourself. It works once and expires in 24 hours. It is not emailed or stored, and you cannot view it again; use Resend to create a new one.</p>`;
+      } else if (res.data && res.data.delivery === "email") {
+        document.getElementById("s-link").innerHTML = banner("success", "Invitation emailed.");
+      }
+    };
+    document.getElementById("inv-staff").addEventListener("submit", async (e) => { e.preventDefault(); const res = await api("/staff/invite", { method: "POST", body: Object.fromEntries(new FormData(e.target).entries()) }); if (!res.ok) return msg(res); await staffAfter(res, showLink); });
+    const bind = (attr, path, ok, after) => main.querySelectorAll(`[${attr}]`).forEach((b) => b.addEventListener("click", async () => { const res = await api(`/staff/${b.getAttribute(attr)}/${path}`, { method: "POST" }); if (!res.ok) return msg(res, ok); after ? await staffAfter(res, showLink) : staff(); }));
     bind("data-deact", "deactivate"); bind("data-reset", "reset-mfa"); bind("data-unlock", "unlock");
+    bind("data-resend", "resend", "", true); bind("data-revoke", "revoke-invite");
+    main.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", async () => {
+      const res = await api(`/staff/${b.getAttribute("data-act")}/activate`, { method: "POST", body: { credential_epoch: Number(b.getAttribute("data-ce")), mfa_epoch: Number(b.getAttribute("data-me")) } });
+      res.ok ? staff() : msg(res);
+    }));
   }
+  async function staffAfter(res, showLink) { await staff(); showLink(res); }
 
   async function retention() {
     const r = await api("/retention"); if (!(await guard(r))) return;

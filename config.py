@@ -259,3 +259,31 @@ CRM_MFA_SOFT_LOCK_SECONDS = 15 * 60
 CRM_MFA_HARD_LOCK_FAILURES = 10
 # Synthetic seed (Preview/dev only; refuses anywhere else).
 CRM_SEED_ENABLED = os.environ.get("RITHAVO_CRM_SEED") == "1"
+
+# ---- CRM independent authentication (Preview build; see CRM scope Revision 3) ------------------------------
+# Founder identity = Super Admin row AND an email on this allowlist (comma-separated). Never inherited from /admin/.
+CRM_FOUNDER_EMAILS = tuple(
+    e.strip().lower() for e in os.environ.get("RITHAVO_CRM_FOUNDER_EMAILS", "").split(",") if e.strip())
+CRM_PASSWORD_MIN = 12
+CRM_PASSWORD_MAX = 200
+CRM_PRE_SECONDS = 10 * 60                 # absolute life of the password-only (pre-MFA) stage
+CRM_INVITE_TTL_SECONDS = 24 * 60 * 60
+CRM_BOOTSTRAP_TTL_SECONDS = 30 * 60
+# Dedicated rate-limiter HMAC key (base64url, >= 32 random bytes). No default and no generated fallback: when it is
+# missing or invalid CRM authentication is unavailable (fails closed). PREVIOUS exists only during a rotation window.
+CRM_RL_HMAC_KEY = os.environ.get("RITHAVO_CRM_RL_HMAC_KEY")
+CRM_RL_HMAC_KEY_PREVIOUS = os.environ.get("RITHAVO_CRM_RL_HMAC_KEY_PREVIOUS")
+# Vercel sets VERCEL=1 in the process environment; a request cannot influence it.
+ON_VERCEL = os.environ.get("VERCEL") == "1"
+# (failures, window seconds) per scope and dimension. These values govern (scope document 2.5).
+CRM_LIMITS = {
+    "login_pair":        (5, 15 * 60),
+    "login_account":     (20, 15 * 60),
+    "login_source":      (20, 15 * 60),
+    "invite_source":     (10, 15 * 60),
+    "invite_token":      (20, 15 * 60),
+    "bootstrap_source":  (5, 30 * 60),
+    "bootstrap_global":  (10, 30 * 60),
+    "mfa_source":        (30, 15 * 60),
+    "password_account":  (5, 15 * 60),
+}

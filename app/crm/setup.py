@@ -1,20 +1,29 @@
-"""Wiring for CRM Lite. The router is always mounted; the gate answers 404 for every
+"""Wiring for CRM Lite (Rithavo Nexus). The router is always mounted; the gate answers 404 for every
 route while the flag is off. Schema creation happens only with the flag on, and only
 on an isolated database (see schema.ensure_schema); on failure the CRM stays off.
 
 On a pre-provisioned Preview database (config.DB_PREPROVISIONED) nothing is created at start-up. The application
-must be connected as a non-owner, non-superuser, non-BYPASSRLS role with the ownership policies installed, otherwise
-the CRM stays off (fail closed), and every transaction carries the authenticated caller into PostgreSQL (rls.install)."""
+must be connected as a non-owner, non-superuser, non-BYPASSRLS role with the ownership policies installed AND the
+authentication tables, policies, grants and identity marker present, otherwise the CRM stays off (fail closed), and
+every transaction carries the authenticated caller into PostgreSQL (rls.install).
+
+In every mode the CRM also refuses to run without a valid rate-limiter key and a non-empty Founder allowlist."""
 
 import logging
 
 import config
 
-from . import diag, rls
+from . import diag, ratelimit, rls
 from .routes import router
 from .schema import ensure_schema
 
 logger = logging.getLogger("rithavo_web.crm")
+
+
+def _preflight():
+    ratelimit.validate()                       # RateLimitKeyError("rate_limit_key_invalid") fails closed
+    if not config.CRM_FOUNDER_EMAILS:
+        raise rls.LeastPrivilegeError("founder_allowlist_missing")
 
 
 def init_crm(app) -> None:
@@ -23,8 +32,10 @@ def init_crm(app) -> None:
         return
     db = app.state.db
     try:
+        _preflight()
         if config.DB_PREPROVISIONED:
             verified = rls.assert_least_privilege(db)   # PostgreSQL confirms the role; raises otherwise (never SQLite)
+            rls.assert_auth_objects(db)
             rls.install(db)
             diag.boot(db, provisioned=True, verified=verified)
         else:
@@ -33,7 +44,8 @@ def init_crm(app) -> None:
     except Exception as e:
         # Category only: database errors can echo host or role names, so no traceback and no exception text
         # unless it is one of our own category-only errors.
-        safe = str(e) if isinstance(e, (rls.LeastPrivilegeError, config.PreviewDatabaseUrlError)) else type(e).__name__
+        ours = (rls.LeastPrivilegeError, config.PreviewDatabaseUrlError, ratelimit.RateLimitKeyError)
+        safe = str(e) if isinstance(e, ours) else type(e).__name__
         logger.error("CRM stays disabled: %s", safe)
         config.CRM_ENABLED = False
         return

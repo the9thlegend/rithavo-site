@@ -361,7 +361,7 @@ def test_mutations_are_audited_atomically_and_without_personal_values(crm):
     for pii in ("zephyr", "ishaan", "distinctive", "bespoke", "zephyrquartz", "@"):
         assert pii not in text, pii
     actions = {r["action"] for r in rows}
-    assert {"opportunity_created", "activity_added", "set_lost", "mfa_enrolled", "staff_activated"} <= actions
+    assert {"opportunity_created", "activity_added", "set_lost", "mfa_enrolled"} <= actions
     # A failed operation leaves no audit row behind (same transaction).
     n = len(rows)
     assert a.post(f"/crm/opportunities/{oid}/stage", {"to": "Contacted"}).status_code == 409

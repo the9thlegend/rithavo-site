@@ -201,6 +201,13 @@ def test_unprovisioned_and_unknown_roles_fail_closed():
 
 # ---- start-up never claims verification it did not get ------------------------------------------------------------
 
+def _ready_for_init(monkeypatch):
+    import base64
+    monkeypatch.setattr(config, "CRM_RL_HMAC_KEY", base64.urlsafe_b64encode(os.urandom(32)).decode())
+    monkeypatch.setattr(config, "CRM_RL_HMAC_KEY_PREVIOUS", None)
+    monkeypatch.setattr(config, "CRM_FOUNDER_EMAILS", ("founder@example.test",))
+
+
 def _boot_lines(caplog):
     return "\n".join(r.getMessage() for r in caplog.records if r.name == "rithavo_web.crm.diag" and "crm_boot" in r.getMessage())
 
@@ -218,6 +225,7 @@ def test_boot_says_verified_only_with_postgresql_confirmation(caplog, db):
 
 
 def test_init_crm_with_preprovisioned_flag_on_sqlite_keeps_the_crm_off_and_never_reports_verified(monkeypatch, caplog, db):
+    _ready_for_init(monkeypatch)
     monkeypatch.setattr(config, "CRM_ENABLED", True)
     monkeypatch.setattr(config, "DB_PREPROVISIONED", True)
     monkeypatch.setattr(config, "CRM_SEED_ENABLED", False)
@@ -235,6 +243,7 @@ def test_init_crm_failure_logs_no_connection_details(monkeypatch, caplog):
         _is_postgres = True
         def connect(self):
             raise RuntimeError('connection to server at "db-host.example" failed: password authentication failed for user "crm_app"')
+    _ready_for_init(monkeypatch)
     monkeypatch.setattr(config, "CRM_ENABLED", True)
     monkeypatch.setattr(config, "DB_PREPROVISIONED", True)
     monkeypatch.setattr(config, "CRM_SEED_ENABLED", False)

@@ -1,13 +1,18 @@
 """
 The CRM gate and the one data-access scope.
 
-Order of checks on every CRM request (each re-reads the database; the signed
-cookie only carries stamps, never authority):
+CRM authentication is independent of the customer site (scope 2): the gate reads only the CRM session keys
+(`crm_pre`, `crm`), never the public `user_id`, and re-reads the database on every request. The signed cookie
+carries stamps only (user id, credential epoch, MFA epoch, times), never authority.
 
-  flag on -> signed in (401) -> role: Founder or ACTIVE staff (403)
-  -> MFA enrolled and session verified (401 with a machine code)
-  -> not locked -> epoch matches -> absolute 8 h -> idle 30 min -> password
-     unchanged since the MFA stamp.
+Two dependencies, and every route must declare one (see routes.CLASSIFICATION):
+  require_onboarding  a valid password-only (`crm_pre`) or verified (`crm`) stage for a Founder or a specialist who
+                      is credentialed, awaiting activation or active. Used ONLY for the onboarding and MFA operations.
+  require_crm_actor   a verified `crm` stage AND the Founder, or a specialist in the active state. Every data,
+                      search, export, report, audit and staff-management route.
+A specialist who is not yet active (invited, credentialed, awaiting activation) gets 403 `awaiting_activation` on
+anything behind require_crm_actor, with no data. Anonymous callers, customer-only sessions, deactivated people and
+removed Founders all get the same 401 "Not signed in.".
 
 Foreign records are a plain 404 (never 403) via `Scope.fetch`.
 """
@@ -20,7 +25,7 @@ from fastapi import HTTPException, Request
 
 from starlette.concurrency import run_in_threadpool
 
-from . import mfa, rls
+from . import audit, credentials, identity, mfa, rls, session
 
 
 @dataclass
@@ -30,6 +35,8 @@ class Actor:
     email: str
     display_name: str
     mfa_ok: bool = False
+    state: str = "active"
+    stage: str = "full"        # "pre" (password only) or "full" (password and MFA)
 
     @property
     def is_founder(self) -> bool:
@@ -52,93 +59,103 @@ def crm_enabled_or_404():
         raise HTTPException(status_code=404, detail="Not found.")
 
 
-def resolve_actor(request: Request) -> Actor:
-    """Signed-in user -> Founder / active specialist, else 401/403. No MFA check."""
+class _Ctx:
+    def __init__(self, stage, stamp, ident, cred, mfa_row):
+        self.stage, self.stamp, self.ident, self.cred, self.mfa = stage, stamp, ident, cred, mfa_row
+
+
+def _deny(request):
+    session.clear(request)
+    raise HTTPException(status_code=401, detail="Not signed in.")
+
+
+def load(request: Request) -> _Ctx:
+    """Validate the CRM session against the database. Raises the uniform 401 on anything wrong."""
     crm_enabled_or_404()
-    user_id = request.session.get("user_id")
-    if not user_id:
+    full, pre = session.full(request), session.pre(request)
+    stage, stamp = ("full", full) if full else (("pre", pre) if pre else (None, None))
+    if stamp is None:
         raise HTTPException(status_code=401, detail="Not signed in.")
-    db = _db(request)
-    user = db.get_user_by_id(user_id)
-    if user is None:
-        request.session.clear()
-        raise HTTPException(status_code=401, detail="Not signed in.")
-    if db.is_super_admin(user_id):
-        actor = Actor(user_id, "founder", user["email"], "Founder")
+    with _db(request).connect() as conn:
+        ident = identity.resolve(conn, stamp["uid"])
+        cred = credentials.get(conn, stamp["uid"])
+        m = mfa.get_row(conn, stamp["uid"])
+    if ident is None or ident.role is None or ident.state in ("deactivated", "invited"):
+        _deny(request)
+    if not credentials.has_password(cred) or stamp["cred"] != cred["credential_epoch"]:
+        _deny(request)
+    now = int(time.time())
+    epoch = m["session_epoch"] if m is not None else 1
+    if stamp["mfa"] != epoch:
+        _deny(request)
+    if stage == "pre":
+        if now - stamp["at"] > config.CRM_PRE_SECONDS:
+            _deny(request)
     else:
-        with db.connect() as conn:
-            staff = conn.execute("SELECT * FROM crm_staff WHERE user_id = ?", (user_id,)).fetchone()
-        if staff is None or not staff["active"]:
-            raise HTTPException(status_code=403, detail="CRM access has not been activated for this account.")
-        actor = Actor(user_id, "specialist", user["email"], staff["display_name"])
-    rls.set_actor(actor)  # for handlers that call this directly (MFA routes); the gate re-sets it in its own context
-    return actor
+        if now - stamp["at"] > config.CRM_SESSION_ABSOLUTE_SECONDS or now - stamp["last"] > config.CRM_SESSION_IDLE_SECONDS:
+            _deny(request)
+        if not mfa.is_enrolled(m):
+            _deny(request)
+    return _Ctx(stage, stamp, ident, cred, m)
 
 
-def mfa_state(request: Request, actor: Actor):
-    """Returns (state, epoch) where state is one of
-    enrol | verify | locked_soft | locked_hard | ok."""
-    db = _db(request)
-    with db.connect() as conn:
-        row = mfa.get_row(conn, actor.user_id)
-        user = conn.execute("SELECT password_updated_at FROM users WHERE id = ?", (actor.user_id,)).fetchone()
-    if not mfa.is_enrolled(row):
-        return "enrol", None
-    lock = mfa.lock_state(row)
+def _actor(ctx: _Ctx) -> Actor:
+    i = ctx.ident
+    return Actor(i.user_id, i.role, i.email, i.display_name, mfa_ok=(ctx.stage == "full"), state=i.state or "active",
+                 stage=ctx.stage)
+
+
+def mfa_status(ctx: _Ctx) -> str:
+    """enrol | verify | locked_soft | locked_hard | ok (own state; shown only after the password step)."""
+    lock = mfa.lock_state(ctx.mfa)
     if lock == "hard":
-        return "locked_hard", row["session_epoch"]
+        return "locked_hard"
     if lock == "soft":
-        return "locked_soft", row["session_epoch"]
-    stamp = request.session.get("crm")
-    if not isinstance(stamp, dict):
-        return "verify", row["session_epoch"]
-    now = int(time.time())
-    pw_now = (user["password_updated_at"] if user is not None else None) or ""
-    valid = (
-        stamp.get("epoch") == row["session_epoch"]
-        and now - int(stamp.get("at", 0)) <= config.CRM_SESSION_ABSOLUTE_SECONDS
-        and now - int(stamp.get("last", 0)) <= config.CRM_SESSION_IDLE_SECONDS
-        and (stamp.get("pw") or "") == pw_now
-        and stamp.get("uid") == actor.user_id
-    )
-    if not valid:
-        request.session.pop("crm", None)
-        return "verify", row["session_epoch"]
-    return "ok", row["session_epoch"]
+        return "locked_soft"
+    if not mfa.is_enrolled(ctx.mfa):
+        return "enrol"
+    return "ok" if ctx.stage == "full" else "verify"
 
 
-def stamp_session(request: Request, actor: Actor, epoch: int):
-    db = _db(request)
-    with db.connect() as conn:
-        user = conn.execute("SELECT password_updated_at FROM users WHERE id = ?", (actor.user_id,)).fetchone()
-    now = int(time.time())
-    request.session["crm"] = {
-        "uid": actor.user_id, "epoch": epoch, "at": now, "last": now,
-        "pw": (user["password_updated_at"] if user is not None else None) or "",
-    }
+def _gate_onboarding(request: Request) -> Actor:
+    ctx = load(request)
+    if ctx.stage == "full":
+        session.touch(request)
+    return _actor(ctx)
+
+
+def _gate_data(request: Request) -> Actor:
+    ctx = load(request)
+    i = ctx.ident
+    if i.role == "specialist" and i.state != "active":
+        route = request.scope.get("route")
+        audit.write_own(_db(request), i.user_id, "specialist", "denied_awaiting_activation",
+                        getattr(route, "name", None) or request.url.path, None, "denied", None)
+        raise _err(403, "Your account is waiting for Founder activation.", "awaiting_activation")
+    lock = mfa.lock_state(ctx.mfa)
+    if lock == "hard":
+        raise _err(423, "Locked. Ask the Founder to unlock your account.", "mfa_locked_hard")
+    if lock == "soft":
+        raise _err(429, "Too many incorrect codes. Try again later.", "mfa_locked")
+    if not mfa.is_enrolled(ctx.mfa):
+        raise _err(401, "Multi-factor authentication is required.", "mfa_enrol_required")
+    if ctx.stage != "full":
+        raise _err(401, "Multi-factor authentication is required.", "mfa_required")
+    session.touch(request)
+    return _actor(ctx)
+
+
+async def require_onboarding(request: Request) -> Actor:
+    return await run_in_threadpool(_gate_onboarding, request)
 
 
 async def require_crm_actor(request: Request) -> Actor:
     """The gate for every CRM data route. Async on purpose: the blocking checks run in a worker thread, then the
     authenticated caller is recorded in this request's context so that every later database transaction in the
     same request carries it into PostgreSQL (see rls.install)."""
-    actor = await run_in_threadpool(_gate, request)
+    actor = await run_in_threadpool(_gate_data, request)
     rls.set_actor(actor)
     return actor
-
-
-def _gate(request: Request) -> Actor:
-    actor = resolve_actor(request)
-    state, _epoch = mfa_state(request, actor)
-    if state == "ok":
-        # Reassign (not mutate in place): Starlette only re-issues the cookie when the session is marked modified.
-        request.session["crm"] = {**request.session["crm"], "last": int(time.time())}
-        actor.mfa_ok = True
-        return actor
-    codes = {"enrol": "mfa_enrol_required", "verify": "mfa_required",
-             "locked_soft": "mfa_locked", "locked_hard": "mfa_locked_hard"}
-    status = {"enrol": 401, "verify": 401, "locked_soft": 429, "locked_hard": 423}[state]
-    raise _err(status, "Multi-factor authentication is required.", codes[state])
 
 
 async def require_founder(request: Request) -> Actor:
@@ -152,16 +169,8 @@ async def require_founder(request: Request) -> Actor:
 def audit_denied(db, actor, action, entity, entity_id):
     """Denials are written on their own connection, so the audit row survives the
     exception that rolls back the request's transaction."""
-    from datetime import datetime, timezone
-    try:
-        with db.connect() as conn:
-            conn.execute(
-                "INSERT INTO crm_audit_log (at, actor_user_id, actor_role, action, entity, entity_id, outcome, detail) "
-                "VALUES (?, ?, ?, ?, ?, ?, 'denied', NULL)",
-                (datetime.now(timezone.utc).isoformat(), actor.user_id if actor else None,
-                 actor.role if actor else None, action, entity, entity_id))
-    except Exception:
-        pass
+    audit.write_own(db, actor.user_id if actor else None, actor.role if actor else None, action, entity, entity_id,
+                    "denied", None)
 
 
 class Scope:

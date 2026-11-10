@@ -8,8 +8,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import config
 
-from ..auth import hash_password
-from . import rls, store
+from . import credentials, mfa, rls, store
 from .access import Actor
 
 FOUNDER_EMAIL = "founder.preview@example.test"
@@ -49,16 +48,23 @@ def _seed(db, password: str):
     with db.connect() as conn:
         if conn.execute("SELECT 1 FROM crm_staff LIMIT 1").fetchone():
             return {"seeded": False, "reason": "already seeded"}
-    pw = hash_password(password)
+    # Synthetic accounts get CRM credentials (a separate store from the customer accounts). Specialists are seeded
+    # already active; no authenticator is enrolled (each person enrols on first sign-in).
     fid = db.get_or_create_user(FOUNDER_EMAIL)
-    db.set_user_password(fid, pw)
     db.add_super_admin_if_missing(fid)
+    t = datetime.now(timezone.utc).isoformat()
+    with db.connect() as conn:
+        credentials.set_password(conn, fid, password, set_by=fid)
+        mfa.ensure_row(conn, fid)
     founder = Actor(fid, "founder", FOUNDER_EMAIL, "Founder", True)
     ids = {}
     for email, name in SPECIALISTS:
         uid = db.get_or_create_user(email)
-        db.set_user_password(uid, pw)
-        store.activate_staff(db, founder, email, name)
+        with db.connect() as conn:
+            conn.execute("INSERT INTO crm_staff (user_id, display_name, active, activated_by, activated_at, created_at) "
+                         "VALUES (?, ?, 1, ?, ?, ?)", (uid, name, fid, t, t))
+            credentials.set_password(conn, uid, password, set_by=fid)
+            mfa.ensure_row(conn, uid)
         ids[email] = Actor(uid, "specialist", email, name, True)
     a, m, k, d = (ids[e] for e, _ in SPECIALISTS)
     spec = [

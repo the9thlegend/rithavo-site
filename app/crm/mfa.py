@@ -9,7 +9,7 @@ import time
 import config
 from fastapi import HTTPException
 
-from . import totp
+from . import audit, locking, totp
 
 
 def _now_iso():
@@ -107,6 +107,7 @@ def confirm_enrolment(db, user_id, code):
         raise HTTPException(status_code=401, detail="That code is not correct.")
     codes = totp.new_recovery_codes()
     with db.connect() as conn:
+        locking.lock_person(conn, user_id)
         cur = conn.execute(
             "UPDATE crm_mfa SET secret_enc = ?, pending_secret_enc = NULL, enrolled_at = ?, last_used_step = ?, "
             "fail_count = 0, locked_until = 0, updated_at = ? WHERE user_id = ? AND secret_enc IS NULL",
@@ -150,30 +151,47 @@ def verify_code(db, user_id, code):
     return epoch
 
 
-def use_recovery_code(db, user_id, code):
-    """A valid recovery code is single-use and forces re-enrolment: the authenticator
-    secret is removed and the session epoch bumped. Returns the new epoch."""
+def use_recovery_code(db, user_id, code, *, role="specialist"):
+    """A valid recovery code is single use. Everything below happens in ONE transaction, after `lock_person`:
+    the authenticator and all remaining codes are cleared, the MFA epoch is bumped (every session of the person,
+    on every instance, ends on its next request), the failure counters are reset, and a specialist who was active is
+    returned to the inactive state (scope 2.8b) so no CRM data is readable until they re-enrol AND the Founder
+    activates them again. Recovery never activates anyone. Returns
+    {"epoch": new MFA epoch, "returned_to_inactive": bool}."""
     with db.connect() as conn:
+        locking.lock_person(conn, user_id)
         row = get_row(conn, user_id)
-    if not is_enrolled(row):
-        raise HTTPException(status_code=401, detail="MFA setup required.")
-    _refuse_if_locked(row)
-    hashes = totp.recovery_hash_candidates(code)
-    with db.connect() as conn:
+        if not is_enrolled(row):
+            raise HTTPException(status_code=401, detail="MFA setup required.")
+        _refuse_if_locked(row)
+        hashes = totp.recovery_hash_candidates(code)
         marks = ",".join("?" for _ in hashes)
         cur = conn.execute(
             f"UPDATE crm_mfa_recovery_codes SET used_at = ? WHERE user_id = ? AND used_at IS NULL "
             f"AND code_hash IN ({marks})", (_now_iso(), user_id, *hashes))
         ok = cur.rowcount == 1
+        returned = False
+        epoch = None
         if ok:
-            conn.execute("DELETE FROM crm_mfa_recovery_codes WHERE user_id = ?", (user_id,))
-            conn.execute(
-                "UPDATE crm_mfa SET secret_enc = NULL, pending_secret_enc = NULL, enrolled_at = NULL, "
-                "last_used_step = 0, fail_count = 0, locked_until = 0, session_epoch = session_epoch + 1, "
-                "updated_at = ? WHERE user_id = ?", (_now_iso(), user_id))
+            reset_user(conn, user_id)                       # clears codes and authenticator, bumps the epoch
+            epoch = get_row(conn, user_id)["session_epoch"]
+            if role == "specialist":
+                returned = return_to_inactive(conn, user_id)
+            audit.write(conn, user_id, role, "mfa_recovery_used" if role == "specialist" else "founder_mfa_recovered",
+                        "staff", user_id)
+            if returned:
+                audit.write(conn, user_id, role, "staff_returned_to_awaiting_activation", "staff", user_id)
     if not ok:
         _record_failure(db, user_id)
         raise HTTPException(status_code=401, detail="That recovery code is not valid.")
+    return {"epoch": epoch, "returned_to_inactive": returned}
+
+
+def return_to_inactive(conn, user_id):
+    """Active specialist back to inactive after an MFA recovery or a Founder MFA reset. Returns True if it changed."""
+    cur = conn.execute("UPDATE crm_staff SET active = 0, activated_by = NULL, activated_at = NULL "
+                       "WHERE user_id = ? AND active = 1", (user_id,))
+    return cur.rowcount == 1
 
 
 def reset_user(conn, user_id, *, unlock_only=False):
