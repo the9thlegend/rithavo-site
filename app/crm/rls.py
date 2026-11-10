@@ -138,24 +138,62 @@ ALTER FUNCTION crm_append_only() SET search_path = public, pg_temp;
 """
 
 
-def assert_least_privilege(db) -> None:
-    """Fail closed: on PostgreSQL the application must not connect as a superuser, a BYPASSRLS role, or the owner of
-    the CRM tables, and the ownership policies must exist. Raises RuntimeError otherwise."""
+class LeastPrivilegeError(RuntimeError):
+    """The connected database role is not the verified least-privilege application role. Category-only message."""
+
+
+_LEAST_PRIVILEGE_SQL = (
+    "SELECT r.rolname AS name, r.rolsuper AS su, r.rolbypassrls AS bypass, r.rolcreaterole AS createrole, "
+    "r.rolcreatedb AS createdb, r.rolcanlogin AS canlogin, r.rolreplication AS replication, "
+    "(SELECT pg_get_userbyid(c.relowner) FROM pg_class c WHERE c.relname = 'crm_opportunities' "
+    " AND c.relnamespace = 'public'::regnamespace) AS owner, "
+    "(SELECT c.relforcerowsecurity FROM pg_class c WHERE c.relname = 'crm_opportunities' "
+    " AND c.relnamespace = 'public'::regnamespace) AS forced, "
+    "(SELECT count(*) FROM pg_policies WHERE left(tablename, 4) = 'crm_') AS policies, "
+    "has_table_privilege(current_user, 'public.crm_opportunities', 'SELECT') AS can_select, "
+    "has_table_privilege(current_user, 'public.crm_opportunities', 'INSERT') AS can_insert, "
+    "has_table_privilege(current_user, 'public.crm_opportunities', 'UPDATE') AS can_update, "
+    "has_table_privilege(current_user, 'public.crm_opportunities', 'TRUNCATE') AS can_truncate, "
+    "has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_in_schema, "
+    "(SELECT pg_has_role(current_user, pg_get_userbyid(c.relowner), 'USAGE') FROM pg_class c "
+    " WHERE c.relname = 'crm_opportunities' AND c.relnamespace = 'public'::regnamespace) AS inherits_owner, "
+    "has_function_privilege(current_user, 'public.crm_last_ref(text)', 'EXECUTE') AS can_run_ref_fn, "
+    "has_function_privilege(current_user, 'public.crm_dup_probe(text, text)', 'EXECUTE') AS can_run_probe_fn "
+    "FROM pg_roles r WHERE r.rolname = current_user"
+)
+
+
+def assert_least_privilege(db) -> dict:
+    """Fail closed. Ask PostgreSQL itself, over the live connection, to confirm every attribute and privilege the
+    application role must (and must not) have. Returns the confirmed facts, which are the only basis on which start-up
+    may report `least_privilege=verified`. Raises LeastPrivilegeError on anything else, including a non-PostgreSQL
+    database (SQLite can never verify this) and missing tables or policies."""
     if not getattr(db, "_is_postgres", False):
-        return
+        raise LeastPrivilegeError("least privilege cannot be verified: the database is not PostgreSQL")
     with db.connect() as conn:
-        me = conn.execute(
-            "SELECT r.rolname AS name, r.rolsuper AS su, r.rolbypassrls AS bypass, "
-            "(SELECT pg_get_userbyid(c.relowner) FROM pg_class c WHERE c.relname = 'crm_opportunities' "
-            " AND c.relnamespace = 'public'::regnamespace) AS owner, "
-            "(SELECT count(*) FROM pg_policies WHERE left(tablename, 4) = 'crm_') AS policies "
-            "FROM pg_roles r WHERE r.rolname = current_user").fetchone()
-    if me is not None and me["owner"] is None:
-        raise RuntimeError("CRM tables are not provisioned on this database.")
-    if me is None or me["su"] or me["bypass"] or me["owner"] == me["name"]:
-        raise RuntimeError("CRM database role must be a non-owner, non-superuser, non-BYPASSRLS role.")
-    if not me["policies"]:
-        raise RuntimeError("CRM ownership policies are not installed on this database.")
+        me = conn.execute(_LEAST_PRIVILEGE_SQL).fetchone()
+    if me is None:
+        raise LeastPrivilegeError("least privilege cannot be verified: the connected role was not found")
+    if me["owner"] is None:
+        raise LeastPrivilegeError("CRM tables are not provisioned on this database")
+    checks = {
+        "role_is_crm_app": me["name"] == "crm_app",
+        "not_superuser": not me["su"],
+        "not_bypassrls": not me["bypass"],
+        "no_createrole_createdb_replication": not (me["createrole"] or me["createdb"] or me["replication"]),
+        "can_login": bool(me["canlogin"]),
+        "not_table_owner": me["owner"] != me["name"] and not me["inherits_owner"],
+        "rls_forced_on_crm_tables": bool(me["forced"]),
+        "ownership_policies_present": (me["policies"] or 0) >= 9,
+        "has_required_dml": bool(me["can_select"] and me["can_insert"] and me["can_update"]),
+        "no_truncate": not me["can_truncate"],
+        "no_create_in_schema": not me["can_create_in_schema"],
+        "can_run_definer_functions": bool(me["can_run_ref_fn"] and me["can_run_probe_fn"]),
+    }
+    failed = [k for k, ok in checks.items() if not ok]
+    if failed:
+        raise LeastPrivilegeError("least privilege NOT verified: " + ", ".join(failed))
+    return {"role": me["name"], "checks": sorted(checks), "policies": me["policies"]}
 
 
 def is_active() -> bool:

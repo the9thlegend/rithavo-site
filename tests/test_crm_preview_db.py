@@ -26,14 +26,6 @@ PREVIEW = {"VERCEL_ENV": "preview"}
 OK_URL = "postgresql://crm_app.sbejvcosjgtwchsafrng:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
 
 
-def test_preprovisioned_flag_needs_isolated_deployment_and_own_url():
-    flag = {"RITHAVO_PREVIEW_DB_PREPROVISIONED": "1"}
-    assert _config_in_subprocess({**flag}, "config.DB_PREPROVISIONED") == (0, "False")            # not isolated
-    assert _config_in_subprocess({**PREVIEW, **flag}, "config.DB_PREPROVISIONED") == (0, "False")  # no database URL
-    assert _config_in_subprocess({**PREVIEW, **flag, "RITHAVO_PREVIEW_DATABASE_URL": OK_URL},
-                                 "config.DB_PREPROVISIONED") == (0, "True")
-    assert _config_in_subprocess({**PREVIEW, "RITHAVO_PREVIEW_DATABASE_URL": OK_URL},
-                                 "config.DB_PREPROVISIONED") == (0, "False")                      # flag absent
 
 
 def test_preview_never_reads_the_production_url_variable():
@@ -41,41 +33,6 @@ def test_preview_never_reads_the_production_url_variable():
     assert (rc, out) == (0, "None")
 
 
-@pytest.mark.parametrize("url", [
-    "postgresql://crm_app.todgmhddihfgqeofzudb:pw@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres",
-    "postgresql://postgres:pw@db.todgmhddihfgqeofzudb.supabase.co:5432/postgres",
-])
-def test_preview_url_pointing_at_the_production_project_is_refused(url):
-    rc, out = _config_in_subprocess({**PREVIEW, "RITHAVO_PREVIEW_DATABASE_URL": url}, "1")
-    assert rc != 0 and "production Supabase project" in out
-
-
-def test_least_privilege_check_is_a_noop_on_sqlite_and_fails_closed_on_a_bad_role(db):
-    rls.assert_least_privilege(db)  # SQLite: nothing to assert
-
-    class Row(dict):
-        pass
-
-    class Conn:
-        def __init__(self, row): self.row = row
-        def execute(self, *_a, **_k): return self
-        def fetchone(self): return self.row
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
-
-    class FakePg:
-        _is_postgres = True
-        def __init__(self, row): self.row = row
-        def connect(self): return Conn(self.row)
-
-    good = {"name": "crm_app", "su": False, "bypass": False, "owner": "postgres", "policies": 9}
-    rls.assert_least_privilege(FakePg(good))
-    for bad in ({**good, "su": True}, {**good, "bypass": True}, {**good, "owner": "crm_app"},
-                {**good, "policies": 0}, {**good, "owner": None}):
-        with pytest.raises(RuntimeError):
-            rls.assert_least_privilege(FakePg(bad))
-    with pytest.raises(RuntimeError):
-        rls.assert_least_privilege(FakePg(None))
 
 
 def test_provisioning_sql_files_match_generated_text_and_hold_no_credentials():

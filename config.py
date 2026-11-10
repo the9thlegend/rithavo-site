@@ -35,8 +35,69 @@ BASE_DIR = Path(__file__).parent
 # (VERCEL_ENV unset or "production") behave exactly as before.
 ISOLATED_DEPLOYMENT = os.environ.get("VERCEL_ENV") in ("preview", "development")
 
+from urllib.parse import urlparse as _urlparse
+
+
+class PreviewDatabaseUrlError(RuntimeError):
+    """The Preview database URL is unusable. The message names a category only: never the value, the user or the host."""
+
+
+# The Production Supabase project reference (not a secret) is refused outright for any Preview database URL.
+_FORBIDDEN_PROJECT_REFS = {"todgmhddihfgqeofzudb"}
+PREVIEW_APP_ROLE = "crm_app"
+
+
+def validate_preview_database_url(raw):
+    """Validate and normalise RITHAVO_PREVIEW_DATABASE_URL for a pre-provisioned Preview database.
+
+    Accepted: a PostgreSQL URL (`postgresql://` or `postgres://`), optionally with accidental leading/trailing
+    whitespace, which is trimmed. Rejected, with a category-only error and never silently treated as SQLite:
+    empty, surrounding quotes, internal whitespace (shell prefixes such as `psql ...`), any other scheme or a bare
+    file path, a malformed URL, the Production project, and any role other than `crm_app`."""
+    def fail(category):
+        raise PreviewDatabaseUrlError(
+            f"RITHAVO_PREVIEW_DATABASE_URL is not usable ({category}). Expected a postgresql:// URL for the "
+            f"{PREVIEW_APP_ROLE} role, with no quotes or shell prefix.")
+
+    if raw is None or not str(raw).strip():
+        fail("missing_or_empty")
+    url = str(raw).strip()
+    if url[0] in "\"'`" or url[-1] in "\"'`":
+        fail("surrounded_by_quotes")
+    if any(ch.isspace() for ch in url):
+        fail("contains_whitespace_or_shell_prefix")
+    if not url.startswith(("postgresql://", "postgres://")):
+        fail("scheme_is_not_postgresql")
+    try:
+        parsed = _urlparse(url)
+        _ = parsed.port
+    except ValueError:
+        fail("malformed_url")
+    if not parsed.hostname:
+        fail("malformed_url_no_host")
+    if not parsed.password:
+        fail("malformed_url_no_password")
+    if not (parsed.path or "").lstrip("/"):
+        fail("malformed_url_no_database")
+    user = parsed.username or ""
+    refs = {user.rsplit(".", 1)[-1]} if "." in user else set()
+    host = parsed.hostname
+    if host.startswith("db.") and host.endswith(".supabase.co"):
+        refs.add(host[3:-len(".supabase.co")])
+    if refs & _FORBIDDEN_PROJECT_REFS:
+        fail("production_project")
+    if user != PREVIEW_APP_ROLE and not user.startswith(PREVIEW_APP_ROLE + "."):
+        fail("role_must_be_crm_app")
+    return url
+
+
 if ISOLATED_DEPLOYMENT:
-    DATABASE_URL = os.environ.get("RITHAVO_PREVIEW_DATABASE_URL")  # never the production URL
+    _raw_preview_url = os.environ.get("RITHAVO_PREVIEW_DATABASE_URL")  # never the production URL
+    if os.environ.get("RITHAVO_PREVIEW_DB_PREPROVISIONED") == "1":
+        # Pre-provisioned mode never falls back to SQLite: a bad value stops start-up with a clear error.
+        DATABASE_URL = validate_preview_database_url(_raw_preview_url)
+    else:
+        DATABASE_URL = _raw_preview_url
     DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", str(Path(tempfile.gettempdir()) / "rithavo_preview.db")))
 else:
     DB_PATH = Path(os.environ.get("RITHAVO_WEB_DB_PATH", "./storage/web_platform.db"))
@@ -46,8 +107,6 @@ if ISOLATED_DEPLOYMENT and DATABASE_URL:
     # Fail closed if the "separate" Preview database is really the production one (same server,
     # port, database and user; a shared pooler host differs by user, so a different Supabase
     # project is accepted).
-    from urllib.parse import urlparse as _urlparse
-
     def _target(url):
         parsed = _urlparse(url)
         return (parsed.hostname, parsed.port, (parsed.path or "").lstrip("/"), parsed.username)
@@ -57,9 +116,8 @@ if ISOLATED_DEPLOYMENT and DATABASE_URL:
         raise RuntimeError("RITHAVO_PREVIEW_DATABASE_URL must not point at the production database")
 
     # A different role in the SAME Supabase project would pass the comparison above (the pooler username
-    # differs), so the project reference is checked too: it is the `.<ref>` suffix of the pooler username or the
-    # `db.<ref>.supabase.co` host. The Production project's reference (not a secret) is refused outright.
-    _FORBIDDEN_PROJECT_REFS = {"todgmhddihfgqeofzudb"}
+    # differs), so the project reference is checked too (the `.<ref>` suffix of the pooler username or the
+    # `db.<ref>.supabase.co` host).
     _p = _urlparse(DATABASE_URL)
     _refs = {(_p.username or "").rsplit(".", 1)[-1] if "." in (_p.username or "") else ""}
     _h = _p.hostname or ""
@@ -69,8 +127,8 @@ if ISOLATED_DEPLOYMENT and DATABASE_URL:
         raise RuntimeError("RITHAVO_PREVIEW_DATABASE_URL must not point at the production Supabase project")
 
 # The Preview database is provisioned out of band (tables, role, policies). When this is set, the application
-# connects as a non-owner role, never runs DDL at start-up, and refuses to start the CRM unless the role is
-# least-privilege. Honoured only on an isolated deployment that has its own database URL.
+# connects as a non-owner role, never runs DDL at start-up, and refuses to start the CRM unless PostgreSQL itself
+# confirms the role is least-privilege. Honoured only on an isolated deployment; its URL was validated above.
 DB_PREPROVISIONED = bool(ISOLATED_DEPLOYMENT and DATABASE_URL and os.environ.get("RITHAVO_PREVIEW_DB_PREPROVISIONED") == "1")
 
 # Phase 1 correction (Phase 0.75 finding): the shared Supabase pooler does

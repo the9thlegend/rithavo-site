@@ -79,10 +79,16 @@ def state(db, user_id):
         return None, None
 
 
-def boot(db, provisioned):
-    logger.info("crm_boot instance=%s pid=%s db=%s provisioned=%s least_privilege=%s",
-                INSTANCE_ID, os.getpid(), db_identity(db), str(bool(provisioned)).lower(),
-                "verified" if provisioned else "not_required")
+def boot(db, provisioned, verified=None):
+    """`least_privilege=verified` is written only when `verified` carries PostgreSQL's own confirmation
+    (the dict returned by rls.assert_least_privilege); anything else is reported as `not_verified`/`not_required`."""
+    if provisioned:
+        lp = "verified" if (verified and getattr(db, "_is_postgres", False)) else "not_verified"
+        role = verified["role"] if verified else "unknown"
+    else:
+        lp, role = "not_required", "n/a"
+    logger.info("crm_boot instance=%s pid=%s db=%s provisioned=%s least_privilege=%s role=%s",
+                INSTANCE_ID, os.getpid(), db_identity(db), str(bool(provisioned)).lower(), lp, role)
 
 
 def _b(v):

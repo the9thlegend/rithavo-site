@@ -24,14 +24,17 @@ def init_crm(app) -> None:
     db = app.state.db
     try:
         if config.DB_PREPROVISIONED:
-            rls.assert_least_privilege(db)   # raises unless role is least-privilege and the tables/policies exist
+            verified = rls.assert_least_privilege(db)   # PostgreSQL confirms the role; raises otherwise (never SQLite)
             rls.install(db)
-            diag.boot(db, provisioned=True)
+            diag.boot(db, provisioned=True, verified=verified)
         else:
             ensure_schema(db)
             diag.boot(db, provisioned=False)
-    except Exception:
-        logger.exception("CRM schema/role could not be verified or prepared; CRM stays disabled.")
+    except Exception as e:
+        # Category only: database errors can echo host or role names, so no traceback and no exception text
+        # unless it is one of our own category-only errors.
+        safe = str(e) if isinstance(e, (rls.LeastPrivilegeError, config.PreviewDatabaseUrlError)) else type(e).__name__
+        logger.error("CRM stays disabled: %s", safe)
         config.CRM_ENABLED = False
         return
     if config.CRM_SEED_ENABLED and config.ISOLATED_DEPLOYMENT:
