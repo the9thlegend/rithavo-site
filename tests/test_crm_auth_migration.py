@@ -421,3 +421,62 @@ def test_the_runner_aborts_before_any_sql_on_a_mismatch_and_never_runs_it_itself
     assert real.returncode == 0 and "DROP TABLE crm_rate_limits, crm_invites, crm_credentials;" in real.stdout
     src = (ROOT / "scripts" / "crm_drop_preview_tables.py").read_text(encoding="utf-8")
     assert "psycopg2" not in src and "connect(" not in src                                        # it only generates SQL
+
+
+# ---- audit inserts must not need the SELECT policy (found by the live PostgreSQL run) -------------------------
+
+def test_audit_inserts_never_ask_postgresql_to_return_the_row(crm):
+    """The database layer appends `RETURNING id` to inserts unless the statement has ON CONFLICT. Under RLS the returned
+    row must pass the audit SELECT policy, which hides it from a caller with no actor context, so the audit insert
+    itself must not use RETURNING."""
+    from app import db as dbmod
+    from app.crm import audit as audit_mod
+
+    class Cur:
+        def __init__(self):
+            self.sql = None
+
+        def execute(self, sql, params=()):
+            self.sql = sql
+
+        def fetchone(self):
+            return {"id": 1}
+
+    cur = Cur()
+    proxy = dbmod._PGCursorProxy(cur)
+
+    class Conn:
+        def execute(self, sql, params=()):
+            return proxy.execute(sql, params)
+
+    audit_mod.write(Conn(), None, "owner_db", "x", "staff", 1)
+    assert "RETURNING" not in cur.sql and "ON CONFLICT DO NOTHING" in cur.sql
+    # the same statement still works on SQLite (the test database) and writes exactly one row
+    audit_mod.write(_sqlite_conn(crm), None, "owner_db", "probe", "staff", 1)
+    with crm.db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) AS n FROM crm_audit_log WHERE action = 'probe'").fetchone()["n"] == 1
+
+
+def _sqlite_conn(crm):
+    import sqlite3
+    c = sqlite3.connect(crm.db.db_path)
+    c.row_factory = sqlite3.Row
+    orig_execute = c.execute
+
+    class W:
+        def execute(self, *a, **k):
+            r = orig_execute(*a, **k)
+            c.commit()
+            return r
+    return W()
+
+
+def test_every_audit_insert_in_the_crm_package_suppresses_returning():
+    """A RETURNING on crm_audit_log needs the SELECT policy to pass, which fails for a caller with no actor context."""
+    import re
+    for p in (ROOT / "app" / "crm").glob("*.py"):
+        if p.name in ("schema.py", "authmigration.py", "rls.py"):
+            continue
+        src = p.read_text(encoding="utf-8")
+        for m in re.finditer(r'INSERT INTO crm_audit_log[^"]*"\s*\n?\s*"VALUES[^"]*"', src):
+            assert "ON CONFLICT DO NOTHING" in m.group(0), (p.name, m.group(0)[:80])

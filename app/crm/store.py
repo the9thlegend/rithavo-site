@@ -98,7 +98,7 @@ def parse_day(value, name):
 def audit(conn, actor, action, entity=None, entity_id=None, detail=None, outcome="ok"):
     conn.execute(
         "INSERT INTO crm_audit_log (at, actor_user_id, actor_role, action, entity, entity_id, outcome, detail) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",     # no RETURNING: see audit.write
         (now_iso(), actor.user_id if actor else None, actor.role if actor else None, action, entity, entity_id,
          outcome, detail))
 
