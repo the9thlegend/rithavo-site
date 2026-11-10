@@ -229,7 +229,9 @@ def assert_auth_objects(db, extra_required=()):
                 bad = conn.execute("SELECT has_table_privilege(current_user, 'public.' || ?, ?) AS ok", (t, priv)).fetchone()["ok"]
                 if bad:
                     problems.append(f"excess_privilege:{t}:{priv}")
-        seq = conn.execute("SELECT has_sequence_privilege(current_user, 'public.crm_invites_id_seq', 'USAGE') AS ok").fetchone()
+        seq = conn.execute(
+            "SELECT CASE WHEN to_regclass('public.crm_invites_id_seq') IS NULL THEN false "
+            "ELSE has_sequence_privilege(current_user, 'public.crm_invites_id_seq', 'USAGE') END AS ok").fetchone()
         if not seq["ok"]:
             problems.append("missing_privilege:crm_invites_id_seq:USAGE")
         mk = conn.execute(
