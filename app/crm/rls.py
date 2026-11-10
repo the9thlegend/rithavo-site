@@ -196,7 +196,7 @@ def assert_least_privilege(db) -> dict:
     return {"role": me["name"], "checks": sorted(checks), "policies": me["policies"]}
 
 
-def assert_auth_objects(db, extra_required=()):
+def assert_auth_objects(db, extra_required=(), expected_ref=None):
     """Fail closed (CP-M3): the CRM authentication tables must exist with RLS enabled, a `crm_app` policy, exactly the
     planned privileges for the connected role (no DELETE on credentials or invites, no TRUNCATE, no REFERENCES or
     TRIGGER), and the database identity marker must be present. `extra_required` lets a read-only probe name a
@@ -237,9 +237,11 @@ def assert_auth_objects(db, extra_required=()):
         mk = conn.execute(
             "SELECT shobj_description((SELECT oid FROM pg_database WHERE datname = current_database()), 'pg_database') AS db, "
             "shobj_description((SELECT oid FROM pg_roles WHERE rolname = 'crm_app'), 'pg_authid') AS role").fetchone()
-    marker = next((m for m in (mk["db"], mk["role"]) if m and m.startswith(am.MARKER_PREFIX)), None)
+    marker = next((m for m in (mk["role"], mk["db"]) if m and m.startswith(am.MARKER_PREFIX)), None)
     if marker is None:
         problems.append("identity_marker_missing")
+    elif expected_ref and not marker.endswith(":" + expected_ref):
+        problems.append("identity_marker_project_mismatch")        # the marker names a different project than the connection
     if problems:
         raise LeastPrivilegeError("auth objects NOT verified: " + ", ".join(problems))
     return {"tables": list(am.AUTH_TABLES), "marker": marker}

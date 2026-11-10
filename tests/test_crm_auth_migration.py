@@ -38,16 +38,63 @@ def test_marker_plan_never_overwrites_an_unexpected_non_empty_comment(db, role, 
         assert p["conflict"] and (db if p["target"] == "database" else role) in p["conflict"]       # the exact conflict is reported
 
 
-def test_a_conflicting_comment_aborts_before_anything_else_in_the_migration():
+DEFAULT_DB_COMMENT = "default administrative connection database"
+
+
+def test_the_preview_default_writes_only_the_role_comment_and_never_touches_the_database_comment():
     sql = am.migration_sql()
+    assert "COMMENT ON DATABASE" not in sql and "COMMENT ON ROLE crm_app IS %L" in sql
+    assert DEFAULT_DB_COMMENT not in sql and "pg_database" not in sql          # it does not even read the database comment
     assert sql.index("DO $marker$") < sql.index("CREATE TABLE IF NOT EXISTS crm_credentials")
-    assert "identity marker conflict: unexpected database comment: %" in sql
     assert "identity marker conflict: unexpected role comment: %" in sql
-    # only an explicit privilege refusal moves to the role path; a conflict is never "worked around" by switching target
+    assert "rcur <> ''" in sql and "<> expected" in sql                         # empty or exactly-expected only
+    assert "EXCEPTION WHEN insufficient_privilege" not in sql                  # no silent switching between targets
+
+
+def test_the_database_comment_path_remains_a_supported_alternative():
+    sql = am.migration_sql("database")
+    assert sql.index("DO $marker$") < sql.index("CREATE TABLE IF NOT EXISTS crm_credentials")
+    assert "identity marker conflict: unexpected database comment: %" in sql and "COMMENT ON DATABASE" in sql
     db_part, role_part = sql.split("EXCEPTION WHEN insufficient_privilege THEN")
     assert db_part.count("unexpected database comment") == 1 and "unexpected role comment" in role_part
-    assert "COMMENT ON DATABASE" in db_part and "COMMENT ON ROLE" in role_part
-    assert "cur <> ''" in sql and "rcur <> ''" in sql and "<> expected" in sql                     # empty or exactly-expected only
+    assert "cur <> ''" in sql and "rcur <> ''" in sql and "<> expected" in sql
+    with pytest.raises(ValueError):
+        am.migration_sql("somewhere-else")
+
+
+def test_with_the_real_preview_metadata_the_database_path_aborts_and_the_role_path_sets():
+    real_db, real_role = DEFAULT_DB_COMMENT, None                                 # recorded before the migration
+    assert am.plan_marker(real_db, real_role, db_comment_allowed=True)["action"] == "abort"
+    assert real_db in am.plan_marker(real_db, real_role, db_comment_allowed=True)["conflict"]
+    rec = am.record_before(real_db, real_role, target="role")
+    assert rec["plan"] == {"action": "set", "target": "role", "conflict": None}
+    assert rec["database_comment"] == DEFAULT_DB_COMMENT and rec["crm_app_role_comment"] is None
+
+
+def test_rollback_restores_the_original_role_comment_null_exactly_and_never_mentions_the_database():
+    rec = am.record_before(DEFAULT_DB_COMMENT, None, target="role")
+    sql = am.rollback_sql_from_record(rec)
+    assert sql == "COMMENT ON ROLE crm_app IS NULL;\n"
+    assert "DATABASE" not in sql
+    # an already-present identical role marker was not changed, so nothing is restored
+    noop = am.record_before(DEFAULT_DB_COMMENT, E, target="role")
+    assert noop["plan"]["action"] == "noop" and "nothing to restore" in am.rollback_sql_from_record(noop)
+    # an unexpected role comment aborts and there is nothing to restore either
+    bad = am.record_before(DEFAULT_DB_COMMENT, "someone elses", target="role")
+    assert bad["plan"]["action"] == "abort" and "nothing to restore" in am.rollback_sql_from_record(bad)
+    # the database alternative restores a recorded original exactly (only possible when it was empty)
+    dbrec = am.record_before(None, None, target="database")
+    assert am.rollback_sql_from_record(dbrec) == "COMMENT ON DATABASE postgres IS NULL;\n"
+
+
+def test_the_recorded_evidence_matches_the_real_preview_metadata():
+    import json
+    rec = json.loads((Path("C:/Rithavo/crm-lite-preview/evidence/marker-before.json")).read_text(encoding="utf-8")) \
+        if Path("C:/Rithavo/crm-lite-preview/evidence/marker-before.json").exists() else None
+    if rec is None:
+        pytest.skip("evidence file not present on this machine")
+    assert rec["database_comment"] == DEFAULT_DB_COMMENT and rec["crm_app_role_comment"] is None
+    assert rec["target"] == "role" and rec["plan"]["action"] == "set"
 
 
 def test_marker_value_is_exactly_the_preview_identity():
@@ -94,6 +141,8 @@ def test_selftests_cannot_keep_anything(case):
 def test_migration_files_are_generated_text_and_hold_no_credentials():
     on_disk = (ROOT / "app" / "crm" / "sql" / "preview" / "030_crm_auth.sql").read_text(encoding="utf-8")
     assert on_disk == am.migration_sql()
+    alt = (ROOT / "app" / "crm" / "sql" / "preview" / "030_crm_auth_ALT_database_marker.sql").read_text(encoding="utf-8")
+    assert alt == am.migration_sql("database")
     for forbidden in ("PASSWORD", "SCRAM", "postgresql://", "sb_", "eyJ"):
         assert forbidden not in on_disk
     drop = (ROOT / "app" / "crm" / "sql" / "preview" / "031_crm_auth_DROP_preview_only.sql").read_text(encoding="utf-8")
@@ -177,6 +226,29 @@ def test_the_checker_confirms_a_correct_database():
     facts = rls.assert_auth_objects(FakePg())
     assert facts["marker"] == E and set(facts["tables"]) == set(am.AUTH_TABLES)
     assert rls.assert_auth_objects(FakePg(FakeCatalog(marker=(None, E))))["marker"] == E               # the role-comment path
+
+
+def test_the_checker_reads_the_role_marker_and_ignores_the_default_database_comment():
+    facts = rls.assert_auth_objects(FakePg(FakeCatalog(marker=(DEFAULT_DB_COMMENT, E))), expected_ref="sbejvcosjgtwchsafrng")
+    assert facts["marker"] == E
+    # the database default alone is not an identity marker
+    with pytest.raises(rls.LeastPrivilegeError, match="identity_marker_missing"):
+        rls.assert_auth_objects(FakePg(FakeCatalog(marker=(DEFAULT_DB_COMMENT, None))))
+    # a marker naming a different project than the connection is refused
+    with pytest.raises(rls.LeastPrivilegeError, match="identity_marker_project_mismatch"):
+        rls.assert_auth_objects(FakePg(FakeCatalog(marker=(None, "rithavo-crm-preview:otherprojectref00000"))),
+                                expected_ref="sbejvcosjgtwchsafrng")
+    # the role marker wins when both exist and the connected project is matched
+    assert rls.assert_auth_objects(FakePg(FakeCatalog(marker=("rithavo-crm-preview:zzz", E))), expected_ref="sbejvcosjgtwchsafrng")["marker"] == E
+
+
+def test_setup_derives_the_connected_project_reference_from_the_url(monkeypatch):
+    monkeypatch.setattr(config, "DATABASE_URL", "postgresql://crm_app.sbejvcosjgtwchsafrng:pw@aws-0-us-east-1.pooler.supabase.com:6543/postgres")
+    assert setup._connected_project_ref() == "sbejvcosjgtwchsafrng"
+    monkeypatch.setattr(config, "DATABASE_URL", "postgresql://crm_app:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres")
+    assert setup._connected_project_ref() == "abcdefghijklmnopqrst"
+    monkeypatch.setattr(config, "DATABASE_URL", None)
+    assert setup._connected_project_ref() is None
 
 
 def test_sqlite_can_never_pass_the_checker(crm):
@@ -275,6 +347,16 @@ def test_the_drop_sql_has_every_guard_group_and_one_transaction():
     assert "DRY RUN OK" not in sql
     assert re.findall(r"DROP\s+\w+", sql) == ["DROP TABLE"]                       # nothing else is ever dropped
     assert "todgmhddihfgqeofzudb" not in sql
+
+
+def test_the_drop_script_verifies_the_role_marker_and_refuses_without_one():
+    sql = am.drop_sql(expected_credentials=0, expected_invites=0, expected_rate_limits=0, max_companies=1, max_opportunities=1,
+                      approved_at_epoch=1, approved_at_iso="x")
+    assert "rcur := shobj_description((SELECT oid FROM pg_roles WHERE rolname = 'crm_app'), 'pg_authid')" in sql
+    assert "IF dbc IS DISTINCT FROM expected AND rcur IS DISTINCT FROM expected THEN" in sql       # either comment may carry it, one must
+    assert "RAISE EXCEPTION 'drop refused: identity marker is not %', expected" in sql
+    assert DEFAULT_DB_COMMENT not in sql                                                            # the default text is never accepted
+    assert am.EXPECTED_MARKER in sql
 
 
 def test_a_dry_run_cannot_drop_and_an_unfilled_script_refuses():

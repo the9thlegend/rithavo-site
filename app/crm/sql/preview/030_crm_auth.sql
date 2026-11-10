@@ -1,25 +1,17 @@
 -- CRM 030: independent authentication tables (Preview project rithavo-crm-preview ONLY).
 -- Additive. No existing table is altered. The identity marker is checked first and never overwrites an
--- unexpected non-empty comment. Never run against Production.
+-- unexpected non-empty comment. Marker target: role comment. Never run against Production.
 DO $marker$
 DECLARE expected text; cur text; rcur text; role_oid oid;
 BEGIN
   expected := 'rithavo-crm-preview:sbejvcosjgtwchsafrng';
-  cur := shobj_description((SELECT oid FROM pg_database WHERE datname = current_database()), 'pg_database');
-  IF cur IS NOT NULL AND cur <> '' AND cur <> expected THEN
-    RAISE EXCEPTION 'identity marker conflict: unexpected database comment: %', cur;
-  END IF;
-  BEGIN
-    EXECUTE format('COMMENT ON DATABASE %I IS %L', current_database(), expected);
-  EXCEPTION WHEN insufficient_privilege THEN
-      role_oid := (SELECT oid FROM pg_roles WHERE rolname = 'crm_app');
-      IF role_oid IS NULL THEN RAISE EXCEPTION 'identity marker: role crm_app does not exist'; END IF;
-      rcur := shobj_description(role_oid, 'pg_authid');
-      IF rcur IS NOT NULL AND rcur <> '' AND rcur <> expected THEN
-        RAISE EXCEPTION 'identity marker conflict: unexpected role comment: %', rcur;
-      END IF;
-      EXECUTE format('COMMENT ON ROLE crm_app IS %L', expected);
-  END;
+    role_oid := (SELECT oid FROM pg_roles WHERE rolname = 'crm_app');
+    IF role_oid IS NULL THEN RAISE EXCEPTION 'identity marker: role crm_app does not exist'; END IF;
+    rcur := shobj_description(role_oid, 'pg_authid');
+    IF rcur IS NOT NULL AND rcur <> '' AND rcur <> expected THEN
+      RAISE EXCEPTION 'identity marker conflict: unexpected role comment: %', rcur;
+    END IF;
+    EXECUTE format('COMMENT ON ROLE crm_app IS %L', expected);
 END
 $marker$;
 

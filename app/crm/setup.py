@@ -20,6 +20,22 @@ from .schema import ensure_schema
 logger = logging.getLogger("rithavo_web.crm")
 
 
+def _connected_project_ref():
+    """The Supabase project reference of the configured connection (pooler username suffix or db.<ref> host)."""
+    from urllib.parse import urlparse
+    try:
+        u = urlparse(config.DATABASE_URL or "")
+    except Exception:
+        return None
+    user = u.username or ""
+    if "." in user:
+        return user.rsplit(".", 1)[-1]
+    host = u.hostname or ""
+    if host.startswith("db.") and host.endswith(".supabase.co"):
+        return host[3:-len(".supabase.co")]
+    return None
+
+
 def _preflight():
     ratelimit.validate()                       # RateLimitKeyError("rate_limit_key_invalid") fails closed
     if not config.CRM_FOUNDER_EMAILS:
@@ -35,7 +51,7 @@ def init_crm(app) -> None:
         _preflight()
         if config.DB_PREPROVISIONED:
             verified = rls.assert_least_privilege(db)   # PostgreSQL confirms the role; raises otherwise (never SQLite)
-            rls.assert_auth_objects(db)
+            rls.assert_auth_objects(db, expected_ref=_connected_project_ref())
             rls.install(db)
             diag.boot(db, provisioned=True, verified=verified)
         else:

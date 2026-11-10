@@ -3,10 +3,13 @@ Preview migration 030 (CRM independent authentication): generated text, the data
 start-up object checker's expectations. Nothing here runs by itself; SQL is applied only by the owner with the
 migration tool, and only to the Preview project.
 
-Identity marker (scope 4, mandatory requirement 2): the marker is `COMMENT ON DATABASE` (fallback `COMMENT ON ROLE
-crm_app` if the platform refuses a database comment). It is NEVER written over an unexpected non-empty comment: the
-migration aborts with the exact conflict, before anything else in the transaction. The original comments are
-recorded before applying, and the restore statements below put back exactly what was there.
+Identity marker (scope 4, mandatory requirement 2). For the Preview project the marker is the `crm_app` ROLE comment
+(`COMMENT ON ROLE crm_app`), chosen because the `postgres` database already carries PostgreSQL's default comment
+("default administrative connection database") which must stay untouched. The database-comment path
+(`marker_target="database"`) remains a supported alternative for an environment whose database comment is empty and
+safe to use. In both paths the marker is NEVER written over an unexpected non-empty comment: the migration aborts with
+the exact conflict, before anything else in the transaction. The original comments are recorded before applying
+(`evidence/marker-before.json`) and the restore statements below put back exactly what was there.
 """
 
 from . import schema
@@ -82,10 +85,6 @@ def marker_body(expected=EXPECTED_MARKER, *, force_role=False):
 MARKER_DECLARE = "expected text; cur text; rcur text; role_oid oid;"
 
 
-def marker_block(expected=EXPECTED_MARKER):
-    return f"DO $marker$\nDECLARE {MARKER_DECLARE}\nBEGIN\n  {marker_body(expected)}END\n$marker$;\n"
-
-
 def tables_and_grants_sql():
     pg = schema._pg(schema.AUTH_TABLES)
     t = ", ".join(AUTH_TABLES)
@@ -101,13 +100,36 @@ def tables_and_grants_sql():
     return "".join(out)
 
 
-def migration_sql():
+def migration_sql(marker_target="role"):
     """030: the marker check FIRST (a conflict aborts before any change), then the three tables, RLS, policies, grants.
-    No BEGIN/COMMIT: the migration tool wraps the text in one transaction. Additive only."""
+    `marker_target` is "role" (the Preview default: only the crm_app role comment is written; the database comment is
+    never touched) or "database" (alternative for a database whose comment is empty). No BEGIN/COMMIT: the migration
+    tool wraps the text in one transaction. Additive only."""
+    if marker_target not in ("role", "database"):
+        raise ValueError(marker_target)
+    block = marker_block(force_role=(marker_target == "role"))
     return ("-- CRM 030: independent authentication tables (Preview project rithavo-crm-preview ONLY).\n"
             "-- Additive. No existing table is altered. The identity marker is checked first and never overwrites an\n"
-            "-- unexpected non-empty comment. Never run against Production.\n"
-            + marker_block() + tables_and_grants_sql())
+            f"-- unexpected non-empty comment. Marker target: {marker_target} comment. Never run against Production.\n"
+            + block + tables_and_grants_sql())
+
+
+def marker_block(expected=EXPECTED_MARKER, *, force_role=False):
+    return f"DO $marker$\nDECLARE {MARKER_DECLARE}\nBEGIN\n  {marker_body(expected, force_role=force_role)}END\n$marker$;\n"
+
+
+def record_before(db_comment, role_comment, *, target="role", expected=EXPECTED_MARKER):
+    """The metadata to record BEFORE applying, with the decision. `target` "role" never looks at the database comment."""
+    plan = plan_marker(db_comment, role_comment, expected, db_comment_allowed=(target == "database"))
+    return {"database_comment": db_comment, "crm_app_role_comment": role_comment, "target": target,
+            "expected_marker": expected, "plan": plan}
+
+
+def rollback_sql_from_record(rec):
+    """Restore statement built from the recorded metadata (exact original, including NULL)."""
+    plan = rec["plan"]
+    before = {"database": rec["database_comment"], "role": rec["crm_app_role_comment"]}
+    return restore_sql(before, plan)
 
 
 # ---- what the start-up checker requires (see rls.assert_auth_objects) -----------------------------------------
