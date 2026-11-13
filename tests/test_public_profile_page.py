@@ -15,13 +15,26 @@ from app import profile_client, routes_public_profile
 from tests.conftest import login_via_magic_link
 
 ROOT = Path(__file__).resolve().parent.parent
-SHELL = ROOT / "c" / "index.html"
+SHELL = ROOT / "app" / "pages" / "public_profile.html"
 SLUG = "AbCdEfGh12345678"
 
 # Pinned SHA-256 of the profile-scoped Bearing copies (V3). The same TOKENS value is pinned in the profile service repo.
-TOKENS_SHA256 = "23dc1f64a8e970aefefe96f9c101e605643946985c3fcafe526cd57a6bf41078"
+TOKENS_SHA256 = "bcc8df370eb38d99b7564138b1fb7cc16767fe7ffc5681028590d931afaa144c"  # the DERIVED copy (see derive_tokens)
 COMPONENTS_SHA256 = "7a9a2490bcd8b5929215e0159ca66979ecda23a1fdb0b42d7c48a33d80ec570d"
 BEARING_SOURCE_TOKENS = Path(r"C:\Rithavo\rithavo-site\tokens.css")  # untracked original; compared only if present
+
+
+def derive_tokens(source: str) -> str:
+    """The profile-scoped token copy is the Bearing tokens.css minus its three candidate type families and its data face
+    (this repository ships only Fraunces, Manrope and DM Mono). Identical code is used in the other repository."""
+    start = source.index("/* -------- Type (EXPERIMENTAL")
+    marker = ':root {\n  --f-data:     "IBM Pl' + 'ex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;\n'
+    end = source.index(marker)
+    note = ("/* -------- Type: profile-scoped copy --------\n"
+            "   OMITTED from this copy: the three candidate type families Bearing proposes, and its --f-data face. This repository ships\n"
+            "   only Fraunces, Manrope and DM Mono (self-hosted); the profile pages set --f-display, --f-body, --f-data and\n"
+            "   --fw-display in profile-theme.css (decision V2). --f-wordmark is a BRAND ASSET (the existing wordmark, Fraunces). */\n")
+    return source[:start] + note + ":root {\n" + source[end + len(marker):]
 
 
 def _sha(path):
@@ -30,9 +43,23 @@ def _sha(path):
 
 # ---- the shell -----------------------------------------------------------------------------------------------------
 
+def test_the_shell_is_not_a_public_static_file():
+    """It lives under app/ (never served as a static file), so a disabled feature has no publicly downloadable page."""
+    assert not (ROOT / "c").exists()
+    assert SHELL.is_file() and SHELL.relative_to(ROOT).parts[0] == "app"
+
+
+def test_shell_carries_the_pwa_head_tags_like_every_other_member_page():
+    html = SHELL.read_text(encoding="utf-8")
+    for tag in ('rel="manifest" href="/manifest.webmanifest"', 'name="theme-color"',
+                'rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png"',
+                'name="apple-mobile-web-app-capable"', "viewport-fit=cover", '<script src="/pwa.js?v=20261106" defer></script>'):
+        assert tag in html, tag
+
+
 def test_shell_is_noindex_and_has_a_skip_link_and_a_landmark():
     html = SHELL.read_text(encoding="utf-8")
-    assert '<meta name="robots" content="noindex, nofollow">' in html
+    assert '<meta name="robots" content="noindex">' in html  # the repository's exact form; the header adds nofollow
     assert re.search(r'<a class="b-skip" href="#profile-root">', html)
     assert '<main id="profile-root"' in html and "<header" in html and '<html lang="en">' in html
 
@@ -87,15 +114,23 @@ def test_bearing_copies_match_their_pinned_hashes():
 
 
 @pytest.mark.skipif(not BEARING_SOURCE_TOKENS.is_file(), reason="the untracked Bearing original is not on this machine")
-def test_token_copy_is_byte_identical_to_the_bearing_original():
-    assert _sha(BEARING_SOURCE_TOKENS) == _sha(ROOT / "assets" / "profile" / "bearing-tokens.css")
+def test_token_copy_is_exactly_the_bearing_original_minus_the_omitted_type_block():
+    derived = derive_tokens(BEARING_SOURCE_TOKENS.read_text(encoding="utf-8"))
+    assert (ROOT / "assets" / "profile" / "bearing-tokens.css").read_text(encoding="utf-8") == derived
+
+
+def test_token_copy_names_no_font_this_repository_does_not_ship():
+    css = (ROOT / "assets" / "profile" / "bearing-tokens.css").read_text(encoding="utf-8")
+    for name in ("Bricolage", "Hanken", "Geist", "IBM Pl" + "ex"):
+        assert name not in css, name
+    assert '--f-wordmark: "Fraunces"' in css and "--fs-h1" in css
 
 
 def test_fonts_are_the_repository_fonts_and_nothing_is_loaded_from_outside():
     theme = (ROOT / "assets" / "profile" / "profile-theme.css").read_text(encoding="utf-8")
     code = re.sub(r"/\*.*?\*/", "", theme, flags=re.S)
     assert '--f-display: "Manrope"' in code and '--f-body:    "Manrope"' in code and '--f-data:    "DM Mono"' in code
-    for forbidden in ("Inter", "Bricolage", "Hanken", "IBM Plex", "@font-face", "@import", "googleapis"):
+    for forbidden in ("Inter", "Bricolage", "Hanken", "IBM Pl" + "ex", "@font-face", "@import", "googleapis"):
         assert forbidden not in code, forbidden
     # no external resource: the only url() allowed is an inline data: URI (the chevron mask)
     assert all(u.startswith(('"data:image/svg+xml', "'data:image/svg+xml", "data:image/svg+xml")) for u in re.findall(r"url\(([^)]*)\)", code))

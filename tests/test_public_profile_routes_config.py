@@ -39,17 +39,17 @@ def test_the_new_rule_does_not_capture_unrelated_public_pages():
         assert rule is None or "/c/" not in rule["src"], path
 
 
-def test_the_new_rule_sits_before_the_generic_static_rules():
+def test_the_new_rule_sits_after_the_percent_encoding_rule_and_before_the_generic_static_rules():
     srcs = [r["src"] for r in _routes()]
-    new = next(i for i, s in enumerate(srcs) if s.startswith("/c/"))
-    generic_static = next(i for i, s in enumerate(srcs) if s == "/((?:[^./]+/)*[^./]*)")
-    assert new < generic_static
+    new = srcs.index("/c/([^/]+)/?")
+    assert srcs.index("/(.*%.*)") < new < srcs.index("/((?:[^./]+/)*[^./]*)")
+    assert srcs[1:4] == ["/api/(.*)", "/profile/edit(/.*)?", "/(.*%.*)"]   # the existing exposure guard's order is intact
 
 
-def test_the_page_shell_is_packaged_with_the_function():
+def test_function_configuration_is_unchanged_and_the_shell_ships_inside_app():
     cfg = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
-    assert cfg["functions"]["api/index.py"]["includeFiles"] == "c/index.html"
-    assert cfg["functions"]["api/index.py"]["maxDuration"] == 60
+    assert cfg["functions"] == {"api/index.py": {"maxDuration": 60}}
+    assert (ROOT / "app" / "pages" / "public_profile.html").is_file()
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
@@ -62,6 +62,7 @@ def test_no_existing_route_was_removed_or_reordered():
     base_routes = json.loads(base)["routes"]
     current = _routes()
     assert [r for r in current if r["src"] != "/c/([^/]+)/?"] == base_routes
+    assert json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))["functions"] == json.loads(base)["functions"]
 
 
 def test_robots_disallows_the_member_profile_and_keeps_the_rest():

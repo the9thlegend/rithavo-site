@@ -23,7 +23,7 @@
    old versions are deleted when a new worker activates. A new worker waits until the person accepts the
    "update available" prompt (SKIP_WAITING) so a page is never swapped under someone mid-task. */
 
-const VERSION = "v3";   // v3: /c/ (member profiles) is never handled; v2: signed-in app pages are no longer cached; older caches are deleted on activate
+const VERSION = "v2";   // v2: signed-in app pages are no longer cached; v1 caches are deleted on activate
 const SHELL_CACHE = "rithavo-shell-" + VERSION;
 const PAGES_CACHE = "rithavo-pages-" + VERSION;
 const ASSETS_CACHE = "rithavo-assets-" + VERSION;

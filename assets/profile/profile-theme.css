@@ -3,14 +3,11 @@
    Loaded AFTER bearing-tokens.css and bearing-components.css.
 
    V2 (Founder, 2026-11-13): Manrope for headings and body, DM Mono for numbers, dates and labels, Fraunces for the
-   wordmark only. Bearing's candidate families (Bricolage Grotesque, Hanken Grotesk, IBM Plex Mono) are NOT used and no
-   font file is added: these three families are already self-hosted in /assets/fonts and loaded by /assets/fonts/fonts.css.
+   wordmark only. Bearing's candidate type families are NOT used and no font file is added: these three families are
+   already self-hosted in /assets/fonts and loaded by /assets/fonts/fonts.css.
    ========================================================================== */
 
-:root,
-[data-type="a"],
-[data-type="b"],
-[data-type="c"] {
+:root {
   --f-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --f-body:    "Manrope", ui-sans-serif, system-ui, sans-serif;
   --f-data:    "DM Mono", "Manrope", ui-monospace, "SFMono-Regular", Menlo, monospace;

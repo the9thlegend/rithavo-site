@@ -117,30 +117,11 @@
   --elev-overlay: 0 14px 32px -10px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
-/* -------- Type (EXPERIMENTAL: three candidate families, see DESIGN.md) --------
-   Option A (default, PROPOSED): Bricolage Grotesque + Hanken Grotesk + IBM Plex Mono
-   Option B: Geist (single family) + IBM Plex Mono
-   Option C: Manrope (current body face) + IBM Plex Mono
-   --f-wordmark is a BRAND ASSET (the existing wordmark is set in Fraunces).
-   It is not a UI typeface and does not change with the option. */
-:root,
-[data-type="a"] {
-  --f-display: "Bricolage Grotesque", "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --f-body:    "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --fw-display: 600;
-}
-[data-type="b"] {
-  --f-display: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --f-body:    "Geist", ui-sans-serif, system-ui, sans-serif;
-  --fw-display: 600;
-}
-[data-type="c"] {
-  --f-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --f-body:    "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --fw-display: 700;
-}
+/* -------- Type: profile-scoped copy --------
+   OMITTED from this copy: the three candidate type families Bearing proposes, and its --f-data face. This repository ships
+   only Fraunces, Manrope and DM Mono (self-hosted); the profile pages set --f-display, --f-body, --f-data and
+   --fw-display in profile-theme.css (decision V2). --f-wordmark is a BRAND ASSET (the existing wordmark, Fraunces). */
 :root {
-  --f-data:     "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --f-wordmark: "Fraunces", ui-serif, Georgia, serif;
 
   /* Scale: fluid between 375px and 1280px. Display is for marketing only. */

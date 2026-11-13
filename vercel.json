@@ -1,7 +1,7 @@
 {
   "framework": null,
   "functions": {
-    "api/index.py": { "maxDuration": 60, "includeFiles": "c/index.html" }
+    "api/index.py": { "maxDuration": 60 }
   },
   "routes": [
     {
@@ -12,8 +12,8 @@
     },
     { "src": "/api/(.*)", "dest": "api/index.py" },
     { "src": "/profile/edit(/.*)?", "dest": "api/index.py" },
-    { "src": "/c/([^/]+)/?", "dest": "api/index.py" },
     { "src": "/(.*%.*)", "dest": "api/index.py" },
+    { "src": "/c/([^/]+)/?", "dest": "api/index.py" },
     { "src": "/(?:design-lab|ritanya-handoff|tests|app|\\.claude)(?:/.*)?", "dest": "api/index.py" },
     { "src": "/((?:[^./]+/)*[^./]*)", "dest": "/$1" },
     { "src": "/((?:[^./]+/)*[^./][^/]*\\.(?:html|css|js|png|docx|ico|svg|webp|jpg|jpeg|gif|woff|woff2|webmanifest))", "dest": "/$1" },

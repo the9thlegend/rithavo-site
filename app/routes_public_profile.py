@@ -33,7 +33,7 @@ logger = logging.getLogger("rithavo_web.profile")
 router = APIRouter()
 
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
-SHELL_PATH = Path(__file__).resolve().parent.parent / "c" / "index.html"
+SHELL_PATH = Path(__file__).resolve().parent / "pages" / "public_profile.html"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
 MAX_BODY_BYTES = 10_000
 

@@ -38,8 +38,8 @@ test("the profile APIs fall under /api and are never handled", () => {
   }
 });
 
-test("the worker version was bumped so older caches are dropped", () => {
-  assert.equal(sw.VERSION, "v3");
+test("the worker version and the private-page list are untouched; /c is only added to the never-handle list", () => {
+  assert.equal(sw.VERSION, "v2");
   assert.ok(sw.NEVER_HANDLE_PREFIXES.includes("/c"));
   assert.ok(!sw.PRIVATE_PAGE_PREFIXES.includes("/c"));
 });
