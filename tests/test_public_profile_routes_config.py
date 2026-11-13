@@ -49,7 +49,7 @@ def test_the_new_rule_sits_after_the_percent_encoding_rule_and_before_the_generi
 def test_function_configuration_is_unchanged_and_the_shell_ships_inside_app():
     cfg = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     assert cfg["functions"] == {"api/index.py": {"maxDuration": 60}}
-    assert (ROOT / "app" / "pages" / "public_profile.html").is_file()
+    assert (ROOT / "app" / "pages" / "public_profile_shell.py").is_file()
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")

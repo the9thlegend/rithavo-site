@@ -19,13 +19,13 @@ import logging
 import re
 import time
 from collections import defaultdict
-from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 import config
 from app import profile_client
+from app.pages.public_profile_shell import HTML as SHELL_HTML
 from app.profile_client import ProfileNotConfigured, ProfileUnavailable
 from app.security import require_user
 
@@ -33,7 +33,6 @@ logger = logging.getLogger("rithavo_web.profile")
 router = APIRouter()
 
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
-SHELL_PATH = Path(__file__).resolve().parent / "pages" / "public_profile.html"
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
 MAX_BODY_BYTES = 10_000
 
@@ -202,9 +201,7 @@ def public_profile_page(request: Request, slug: str):
         return _not_found()
     if not request.session.get("user_id"):
         return RedirectResponse(f"/sign-in/?next=/c/{slug}", status_code=302, headers=NO_STORE)
-    if not SHELL_PATH.is_file():
-        return _not_found()
-    return FileResponse(SHELL_PATH, media_type="text/html", headers=PAGE_HEADERS)
+    return HTMLResponse(SHELL_HTML, headers=PAGE_HEADERS)
 
 
 # ---- public profile APIs -------------------------------------------------------------------------------------------------

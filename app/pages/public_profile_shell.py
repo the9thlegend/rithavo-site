@@ -1,4 +1,11 @@
-<!DOCTYPE html>
+"""
+The member-profile page shell (profile redesign, R1), kept as a Python string on purpose: Python modules are always
+bundled with the Vercel function, so the page never depends on a non-Python file being packaged.
+It is returned by GET /c/{slug} (app/routes_public_profile.py) only while RITHAVO_PUBLIC_PROFILE_ENABLED is on.
+Everything it references is same-origin; it has no inline script and no external host.
+"""
+
+HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -50,3 +57,4 @@
 <script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>
+"""

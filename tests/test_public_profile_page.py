@@ -10,12 +10,13 @@ from pathlib import Path
 
 import pytest
 
+from app.pages.public_profile_shell import HTML as SHELL_HTML
+
 import config
 from app import profile_client, routes_public_profile
 from tests.conftest import login_via_magic_link
 
 ROOT = Path(__file__).resolve().parent.parent
-SHELL = ROOT / "app" / "pages" / "public_profile.html"
 SLUG = "AbCdEfGh12345678"
 
 # Pinned SHA-256 of the profile-scoped Bearing copies (V3). The same TOKENS value is pinned in the profile service repo.
@@ -43,14 +44,16 @@ def _sha(path):
 
 # ---- the shell -----------------------------------------------------------------------------------------------------
 
-def test_the_shell_is_not_a_public_static_file():
-    """It lives under app/ (never served as a static file), so a disabled feature has no publicly downloadable page."""
+def test_the_shell_is_a_python_module_not_a_file_that_must_be_packaged():
+    """Python modules are always bundled with the function, so packaging cannot silently drop the page; and no public
+    static file exists for a disabled feature."""
     assert not (ROOT / "c").exists()
-    assert SHELL.is_file() and SHELL.relative_to(ROOT).parts[0] == "app"
+    assert not list((ROOT / "app" / "pages").glob("*.html"))
+    assert (ROOT / "app" / "pages" / "public_profile_shell.py").is_file()
 
 
 def test_shell_carries_the_pwa_head_tags_like_every_other_member_page():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     for tag in ('rel="manifest" href="/manifest.webmanifest"', 'name="theme-color"',
                 'rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png"',
                 'name="apple-mobile-web-app-capable"', "viewport-fit=cover", '<script src="/pwa.js?v=20261106" defer></script>'):
@@ -58,14 +61,14 @@ def test_shell_carries_the_pwa_head_tags_like_every_other_member_page():
 
 
 def test_shell_is_noindex_and_has_a_skip_link_and_a_landmark():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     assert '<meta name="robots" content="noindex">' in html  # the repository's exact form; the header adds nofollow
     assert re.search(r'<a class="b-skip" href="#profile-root">', html)
     assert '<main id="profile-root"' in html and "<header" in html and '<html lang="en">' in html
 
 
 def test_shell_has_no_inline_script_no_inline_style_and_no_external_host():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html), "inline script"
     # the verbatim logo markup carries exactly one inline style attribute; the CSP permits that exact value by hash only
     assert re.findall(r' style="([^"]*)"', html) == ["position:absolute"] and "<style" not in html
@@ -74,13 +77,13 @@ def test_shell_has_no_inline_script_no_inline_style_and_no_external_host():
 
 
 def test_theme_script_loads_first_so_the_theme_applies_before_first_paint():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     head = html[html.index("<head>"):html.index("</head>")]
     assert head.index("/assets/profile/theme.js") < head.index("rel=\"stylesheet\"")
 
 
 def test_every_asset_the_shell_references_exists():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     for ref in re.findall(r'(?:href|src)="(/[^"#?]+)"', html):
         if ref == "/":
             continue
@@ -91,7 +94,7 @@ def test_logo_is_the_existing_inline_svg_verbatim():
     home = (ROOT / "index.html").read_text(encoding="utf-8").splitlines()
     defs = "\n".join(home[39:51])
     lockup = home[54].strip()
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     assert defs in html, "gradient definitions differ from index.html:40-51"
     assert lockup in html, "wordmark lockup differs from index.html:55"
     for path_data in re.findall(r'<path d="([^"]+)"', lockup):
@@ -100,7 +103,7 @@ def test_logo_is_the_existing_inline_svg_verbatim():
 
 
 def test_brand_gradient_names_appear_only_inside_the_logo_definitions():
-    html = SHELL.read_text(encoding="utf-8")
+    html = SHELL_HTML
     outside = html.replace("\n".join((ROOT / "index.html").read_text(encoding="utf-8").splitlines()[39:51]), "")
     assert "var(--g1)" not in outside and "var(--g2)" not in outside and "var(--g3)" not in outside
     assert "gradient" not in outside.lower().replace("lineargradient", "")
@@ -183,7 +186,3 @@ def test_invalid_slugs_never_get_the_shell(served):
     for bad in ("short", "bad slug!", "a" * 65, "x" * 7):
         assert served.get(f"/c/{bad}", follow_redirects=False).status_code == 404
 
-
-def test_the_shell_is_not_served_when_it_is_missing(served, monkeypatch, tmp_path):
-    monkeypatch.setattr(routes_public_profile, "SHELL_PATH", tmp_path / "nope.html")
-    assert served.get(f"/c/{SLUG}").status_code == 404
