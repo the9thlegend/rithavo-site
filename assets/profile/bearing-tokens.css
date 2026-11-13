@@ -1,0 +1,199 @@
+/* ==========================================================================
+   RITHAVO "BEARING" DESIGN TOKENS
+   Status: PROPOSED (Design Lab, Phase 0). Not linked from any production page.
+   Source of truth for meaning and usage: /DESIGN.md
+
+   Naming
+   - Every token here is NEW and deliberately does not collide with the legacy
+     tokens in styles.css (--bg, --surface, --ink, --line, --g1..g3, --r-*,
+     --shadow-*, --font-*). Both can be loaded together during a migration.
+   - Components built on these tokens use the "b-" class prefix (Bearing) for
+     the same reason.
+
+   Mirroring
+   - rithavo-career-profile (app.rithavo.com) has its own static/style.css.
+     These tokens are meant to be COPIED there when that repo is approved for
+     work, with a drift check. No cross-origin stylesheet dependency.
+
+   Themes
+   - Light is the default. Dark follows prefers-color-scheme unless the page
+     sets data-theme="light" or data-theme="dark" (on <html> or on any wrapper).
+   ========================================================================== */
+
+/* -------- Light (default) -------- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Surfaces (APPROVED values from the Bearing brief) */
+  --c-canvas: #F3F4F1;          /* page background ("paper")            */
+  --c-sheet:  #FBFBF9;          /* primary raised content surface       */
+  --c-well:   #E9EBE6;          /* inset: inputs, data wells            */
+  --c-rule:   #D9DCD5;          /* hairlines and structure              */
+
+  /* Derived (PROPOSED) */
+  --c-rule-strong:     #C3C7BE; /* decorative emphasis rule, 1.55:1     */
+  --c-control-border:  #7A7F92; /* boundary of interactive controls, >=3:1 */
+
+  /* Text */
+  --c-ink:      #11142A;        /* primary text (APPROVED)              */
+  --c-ink-soft: #4A4E63;        /* secondary text (APPROVED)            */
+  --c-muted:    #626779;        /* metadata. Brief said ~#656A7E; nudged so it
+                                   holds 4.5:1 on Well (4.68). PROPOSED  */
+
+  /* Signal: the single accent */
+  --c-signal:      #E4572E;     /* graphics only: chevron, marker, rule (3.3:1) */
+  --c-signal-text: #B33E1B;     /* any Signal-coloured TEXT (5.25:1)           */
+
+  /* Ink panel: high-emphasis dark surface */
+  --c-panel:          #11142A;
+  --c-on-panel:       #F3F4F1;
+  --c-on-panel-soft:  #B3B7CC;
+  --c-on-panel-muted: #9297AE;
+  --c-panel-rule:     #2B2F52;
+
+  /* Primary action (ink fill, Signal chevron) */
+  --c-primary-bg:       #11142A;
+  --c-primary-bg-hover: #262A4D;
+  --c-primary-fg:       #F3F4F1;
+  --c-primary-chevron:  #FF7A52;
+
+  --c-focus: #11142A;           /* 2px ring, 2px offset, 16:1           */
+
+  /* Semantic. Marks are fills/graphics (>=3:1); -text is for text on sheet or tint (>=4.5:1).
+     Used ONLY for Scale zones, status, validation. Never decoration. */
+  --c-strong: #2E7D5B;  --c-strong-text: #256B4B;  --c-strong-tint: #E3F0E8;
+  --c-mid:    #B9801F;  --c-mid-text:    #85590C;  --c-mid-tint:    #F5EBD6;
+  --c-weak:   #C8503F;  --c-weak-text:   #A83A27;  --c-weak-tint:   #F6E2DC;
+  --c-success: var(--c-strong);
+  --c-warning: var(--c-mid);
+  --c-error:   var(--c-weak);
+
+  --c-scrim: rgba(17, 20, 42, 0.45);
+
+  /* Brand asset colours: LOGO ONLY. The gradient is retired as UI language
+     but the wordmark keeps it. Never use these for components. */
+  --brand-g1: #4b3bd4;
+  --brand-g2: #a24bd6;
+  --brand-g3: #f2734a;
+
+  /* Elevation: ONE treatment, for menus and dialogs only */
+  --elev-overlay: 0 14px 32px -10px rgba(17, 20, 42, 0.22), 0 2px 6px rgba(17, 20, 42, 0.08);
+}
+
+/* -------- Dark (follows OS unless the page opts out) -------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    color-scheme: dark;
+    --c-canvas: #0D0F1E;  --c-sheet: #151833;  --c-well: #1B1F3D;  --c-rule: #262A47;
+    --c-rule-strong: #363B5E;  --c-control-border: #70769A;
+    --c-ink: #EEF0F6;  --c-ink-soft: #B3B7CC;  --c-muted: #8D92AA;
+    --c-signal: #FF7A52;  --c-signal-text: #FF7A52;
+    --c-panel: #20244B;  --c-on-panel: #EEF0F6;  --c-on-panel-soft: #B3B7CC;  --c-on-panel-muted: #9297AE;  --c-panel-rule: #363B5E;
+    --c-primary-bg: #EEF0F6;  --c-primary-bg-hover: #D5D9E8;  --c-primary-fg: #0D0F1E;  --c-primary-chevron: #C23B13;
+    --c-focus: #EEF0F6;
+    --c-strong: #5FBF92;  --c-strong-text: #5FBF92;  --c-strong-tint: #17301F;
+    --c-mid:    #E0A94F;  --c-mid-text:    #E0A94F;  --c-mid-tint:    #33291A;
+    --c-weak:   #F08A75;  --c-weak-text:   #F08A75;  --c-weak-tint:   #35201F;
+    --c-scrim: rgba(5, 6, 14, 0.62);
+    --brand-g1: #7c6bf0;  --brand-g2: #c46be8;  --brand-g3: #ff9166;
+    --elev-overlay: 0 14px 32px -10px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --c-canvas: #0D0F1E;  --c-sheet: #151833;  --c-well: #1B1F3D;  --c-rule: #262A47;
+  --c-rule-strong: #363B5E;  --c-control-border: #70769A;
+  --c-ink: #EEF0F6;  --c-ink-soft: #B3B7CC;  --c-muted: #8D92AA;
+  --c-signal: #FF7A52;  --c-signal-text: #FF7A52;
+  --c-panel: #20244B;  --c-on-panel: #EEF0F6;  --c-on-panel-soft: #B3B7CC;  --c-on-panel-muted: #9297AE;  --c-panel-rule: #363B5E;
+  --c-primary-bg: #EEF0F6;  --c-primary-bg-hover: #D5D9E8;  --c-primary-fg: #0D0F1E;  --c-primary-chevron: #C23B13;
+  --c-focus: #EEF0F6;
+  --c-strong: #5FBF92;  --c-strong-text: #5FBF92;  --c-strong-tint: #17301F;
+  --c-mid:    #E0A94F;  --c-mid-text:    #E0A94F;  --c-mid-tint:    #33291A;
+  --c-weak:   #F08A75;  --c-weak-text:   #F08A75;  --c-weak-tint:   #35201F;
+  --c-scrim: rgba(5, 6, 14, 0.62);
+  --brand-g1: #7c6bf0;  --brand-g2: #c46be8;  --brand-g3: #ff9166;
+  --elev-overlay: 0 14px 32px -10px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* -------- Type (EXPERIMENTAL: three candidate families, see DESIGN.md) --------
+   Option A (default, PROPOSED): Bricolage Grotesque + Hanken Grotesk + IBM Plex Mono
+   Option B: Geist (single family) + IBM Plex Mono
+   Option C: Manrope (current body face) + IBM Plex Mono
+   --f-wordmark is a BRAND ASSET (the existing wordmark is set in Fraunces).
+   It is not a UI typeface and does not change with the option. */
+:root,
+[data-type="a"] {
+  --f-display: "Bricolage Grotesque", "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --f-body:    "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --fw-display: 600;
+}
+[data-type="b"] {
+  --f-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --f-body:    "Geist", ui-sans-serif, system-ui, sans-serif;
+  --fw-display: 600;
+}
+[data-type="c"] {
+  --f-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --f-body:    "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --fw-display: 700;
+}
+:root {
+  --f-data:     "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-wordmark: "Fraunces", ui-serif, Georgia, serif;
+
+  /* Scale: fluid between 375px and 1280px. Display is for marketing only. */
+  --fs-display: clamp(2.5rem, 1.5rem + 4.4vw, 4.75rem);
+  --fs-h1:      clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  --fs-h2:      clamp(1.625rem, 1.2rem + 1.3vw, 2.25rem);
+  --fs-h3:      clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --fs-body-lg: 1.125rem;
+  --fs-body:    1rem;
+  --fs-small:   0.875rem;
+  --fs-meta:    0.8125rem;
+  --fs-label:   0.75rem;
+
+  --lh-display: 1.02;  --lh-h1: 1.08;  --lh-h2: 1.15;  --lh-h3: 1.25;
+  --lh-body: 1.6;      --lh-small: 1.5;
+
+  --ls-display: -0.03em;  --ls-h1: -0.025em;  --ls-h2: -0.02em;  --ls-h3: -0.01em;
+  --ls-label: 0.08em;
+
+  --measure: 62ch;      /* maximum reading line length */
+}
+
+/* -------- Space: 4px base -------- */
+:root {
+  --s-1: 4px;   --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 24px;
+  --s-6: 32px;  --s-7: 48px;  --s-8: 72px;  --s-9: 112px;
+
+  --gutter: 16px;              /* 375 */
+  --container: 1200px;         /* marketing */
+  --container-app: 1040px;     /* logged-in */
+  --note-w: 16rem;             /* Margin Note column */
+}
+@media (min-width: 768px)  { :root { --gutter: 24px; } }
+@media (min-width: 1280px) { :root { --gutter: 32px; } }
+
+/* -------- Shape, line, layers -------- */
+:root {
+  --radius-control:   4px;     /* buttons, inputs, tags */
+  --radius-container: 8px;     /* sheets, panels, menus, dialogs */
+  --radius-pill:      999px;   /* STATUS only */
+  --bw: 1px;
+  --bw-strong: 2px;
+
+  --z-nav: 50;
+  --z-menu: 60;
+  --z-dialog: 100;
+}
+
+/* -------- Motion (APPROVED values) -------- */
+:root {
+  --dur-1: 120ms;   /* press, underline, small colour shifts */
+  --dur-2: 200ms;   /* hover, focus, menus, dialogs          */
+  --dur-3: 320ms;   /* entrances                              */
+  --dur-4: 560ms;   /* data: Scale marker travel              */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}

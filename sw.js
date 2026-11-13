@@ -23,7 +23,7 @@
    old versions are deleted when a new worker activates. A new worker waits until the person accepts the
    "update available" prompt (SKIP_WAITING) so a page is never swapped under someone mid-task. */
 
-const VERSION = "v2";   // v2: signed-in app pages are no longer cached; v1 caches are deleted on activate
+const VERSION = "v3";   // v3: /c/ (member profiles) is never handled; v2: signed-in app pages are no longer cached; older caches are deleted on activate
 const SHELL_CACHE = "rithavo-shell-" + VERSION;
 const PAGES_CACHE = "rithavo-pages-" + VERSION;
 const ASSETS_CACHE = "rithavo-assets-" + VERSION;
@@ -47,7 +47,7 @@ const SHELL_URLS = [
 // Matched against the decoded, lower-cased, slash-collapsed path, so an encoded spelling of a private path
 // (/%61pi/me, //api/me, /API/me) is treated exactly like the plain one.
 const NEVER_HANDLE_PREFIXES = [
-  "/api", "/profile/edit", "/profile/photo", "/admin", "/auth", "/payments", "/card", "/resume",
+  "/api", "/c", "/profile/edit", "/profile/photo", "/admin", "/auth", "/payments", "/card", "/resume",
   "/diagnosis", "/career-intelligence/resume", "/onboarding/resume", "/sw.js",
 ];
 // Pages that need a signed-in session. Keep in step with the pages that load app-shell.js

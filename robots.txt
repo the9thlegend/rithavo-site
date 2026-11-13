@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /c/
 Disallow: /admin/
 Disallow: /home/
 Disallow: /account/

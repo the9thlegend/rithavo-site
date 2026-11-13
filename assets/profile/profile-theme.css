@@ -1,0 +1,81 @@
+/* ==========================================================================
+   RITHAVO PROFILE: profile-scoped overrides on top of the Bearing copies (this file is ours, not copied).
+   Loaded AFTER bearing-tokens.css and bearing-components.css.
+
+   V2 (Founder, 2026-11-13): Manrope for headings and body, DM Mono for numbers, dates and labels, Fraunces for the
+   wordmark only. Bearing's candidate families (Bricolage Grotesque, Hanken Grotesk, IBM Plex Mono) are NOT used and no
+   font file is added: these three families are already self-hosted in /assets/fonts and loaded by /assets/fonts/fonts.css.
+   ========================================================================== */
+
+:root,
+[data-type="a"],
+[data-type="b"],
+[data-type="c"] {
+  --f-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --f-body:    "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --f-data:    "DM Mono", "Manrope", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --fw-display: 700;
+}
+
+/* The logo's gradient stops. The logo markup is copied verbatim from the home page, where the stops read --g1..--g3.
+   Bearing allows the brand colours for the logo ONLY, so these names exist solely to resolve those stops and must never
+   be used by any component. */
+:root {
+  --g1: var(--brand-g1);
+  --g2: var(--brand-g2);
+  --g3: var(--brand-g3);
+}
+
+/* V1 (hybrid): the one contained, static backdrop behind the portrait may use the brand gradient. Nothing else may. */
+:root {
+  --portrait-backdrop: linear-gradient(115deg, var(--brand-g1) 0%, var(--brand-g2) 52%, var(--brand-g3) 100%);
+}
+
+/* Wordmark: mirrors styles.css .wordmark (the existing logo implementation). The logo markup keeps its original class
+   names (wordmark, mark) because it is copied verbatim; these rules supply the styling styles.css supplies on other pages. */
+.wordmark {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--f-wordmark); font-weight: 500; font-size: 1.2rem; letter-spacing: -0.01em;
+  text-decoration: none; color: var(--c-ink);
+  min-height: 44px;   /* Bearing: standalone links are at least 44px tall; the SVG markup itself is untouched */
+}
+.wordmark .mark { width: 21px; height: 21px; flex-shrink: 0; }
+
+/* Skip link (Bearing requires one on every page; the lab's own is lab chrome and is not copied). */
+.b-skip {
+  position: absolute; left: var(--s-3); top: -80px; z-index: 200;
+  padding: var(--s-3) var(--s-4); background: var(--c-ink); color: var(--c-canvas);
+  border-radius: var(--radius-control); text-decoration: none; font-weight: 600;
+}
+.b-skip:focus { top: var(--s-3); }
+
+/* Visually hidden, still available to assistive technology. */
+.b-sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Theme selector (Light / Dark / System): a segmented control built from Bearing controls. */
+.b-theme { display: inline-flex; border: var(--bw) solid var(--c-control-border); border-radius: var(--radius-control); }
+.b-theme button {
+  min-width: 44px; min-height: 44px; padding: 0 var(--s-3); border: 0; border-right: var(--bw) solid var(--c-control-border);
+  background: transparent; color: var(--c-ink); cursor: pointer;
+}
+.b-theme button:last-child { border-right: 0; }
+.b-theme button[aria-pressed="true"] { background: var(--c-ink); color: var(--c-canvas); font-weight: 600; }
+.b-theme button:focus-visible { outline: 2px solid var(--c-focus); outline-offset: -4px; }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; } }
+
+/* In-page section links: the correct ARIA value is aria-current="location". Bearing styles only aria-current="page"
+   (the 9px Signal chevron = "you are here"); this mirrors that rule exactly, with the same chevron mask, for location. */
+.b-navlink[aria-current="location"] { color: var(--c-ink); font-weight: 600; padding-left: 16px; }
+.b-navlink[aria-current="location"]::after { display: none; }
+.b-navlink[aria-current="location"]::before {
+  content: ""; position: absolute; left: 0; top: 50%; width: 9px; height: 12px; margin-top: -6px;
+  background: var(--c-signal);
+  -webkit-mask: var(--chev-nav) center / contain no-repeat; mask: var(--chev-nav) center / contain no-repeat;
+  --chev-nav: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 3 L18 12 L7 21' fill='none' stroke='black' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+
+/* A short section name must still be a 44px-wide target (Bearing touch rule). */
+.b-navlink { min-width: 44px; /* short link text */ justify-content: center; }

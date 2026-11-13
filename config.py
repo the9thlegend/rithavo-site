@@ -145,6 +145,15 @@ INTERNAL_SERVICE_SECRET = os.environ.get("RITHAVO_INTERNAL_SERVICE_SECRET")
 # purpose so the two are never confused when read independently.
 INTERNAL_SERVICE_BASE_URL = os.environ.get("RITHAVO_INTERNAL_SERVICE_URL", CARD_APP_BASE_URL)
 
+# Profile redesign (R1) -- the public profile and its management panel. Both are OFF unless explicitly enabled, so deploying
+# the code changes nothing a customer can see (the page and every API answer 404). Server-to-server calls to the profile
+# service use a DEDICATED secret that is NOT interchangeable with INTERNAL_SERVICE_SECRET and must be the same value as the
+# service's RITHAVO_PROFILE_SERVICE_SECRET. Unset (or shorter than 32 characters) means the feature behaves as disabled.
+# Founder-provisioned; never generated, logged or echoed by this code (see app/profile_client.py).
+PROFILE_SERVICE_SECRET = os.environ.get("RITHAVO_PROFILE_SERVICE_SECRET")
+PUBLIC_PROFILE_ENABLED = os.environ.get("RITHAVO_PUBLIC_PROFILE_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+PROFILE_MANAGEMENT_ENABLED = os.environ.get("RITHAVO_PROFILE_MANAGEMENT_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+
 # One dedicated Rithavo Super Admin account. Bootstrapped idempotently
 # at startup (see app/super_admin.py) only when BOTH are set — a
 # missing password never creates a passwordless admin account. The
