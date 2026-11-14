@@ -89,7 +89,8 @@
     fetch(photoUrl, { credentials: "same-origin", cache: "no-store" }).then(function (r) {
       if (r.status !== 200) { hasPhoto = false; build(false, null); return; }
       var alpha = r.headers.get("X-Rithavo-Photo-Alpha") === "1";
-      return r.blob().then(function (b) { build(alpha, URL.createObjectURL(b)); });
+      build(alpha, "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==");  // draw the hero now; the photograph fills in as it arrives
+      return r.blob().then(function (b) { var img = main.querySelector(".ph-photo"); if (img) { img.src = URL.createObjectURL(b); } });
     }).catch(function () { hasPhoto = false; build(false, null); });
   }).catch(function () { /* the page works exactly as before */ });
 })();
