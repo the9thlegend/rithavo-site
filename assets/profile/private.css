@@ -1,0 +1,87 @@
+/* Private profile page (/profile/), release R3: the existing page restyled in place with the same visual language as the public
+   profile (profile.css): premium dark by default, gradient accents, glass cards, pill actions. Markup, ids, forms and scripts of
+   the page are unchanged; this file only re-skins the classes it already uses. Scoped to .pf-private-root body so no other page is
+   affected. Tokens are copied from profile.css on purpose (that file is not loaded here: it would override the logo's --g1..--g3). */
+
+.pf-private-root body {
+  --pf-bg: #0a0912; --pf-bg-2: #110e1f; --pf-surface: rgba(255, 255, 255, 0.045); --pf-surface-strong: rgba(255, 255, 255, 0.075);
+  --pf-border: rgba(255, 255, 255, 0.11); --pf-border-strong: rgba(255, 255, 255, 0.22);
+  --pf-text: #f5f3ff; --pf-text-soft: #cfcae6; --pf-muted: #a49fc0; --pf-focus: #ffd24d;
+  --pf-grad: linear-gradient(95deg, #6d44f2 0%, #a63bd0 52%, #d0452d 100%);
+  --pf-grad-text: linear-gradient(95deg, #a98bff 0%, #e266d8 55%, #ff9a72 100%);
+  --pf-glow: rgba(139, 92, 246, 0.35);
+  --pf-ok: #5ee0a0; --pf-err: #ff8f8f; --pf-coral: #ff7b5c;
+  --pf-art: radial-gradient(900px 520px at 78% -6%, rgba(124, 77, 255, 0.26), transparent 62%), radial-gradient(700px 480px at 4% 30%, rgba(197, 66, 208, 0.12), transparent 60%);
+  background: var(--pf-bg); background-image: var(--pf-art); color: var(--pf-text);
+}
+:root.pf-private-root[data-theme="light"] body {
+  --pf-bg: #f6f4fc; --pf-bg-2: #ece8f8; --pf-surface: rgba(255, 255, 255, 0.86); --pf-surface-strong: #ffffff;
+  --pf-border: rgba(40, 24, 90, 0.14); --pf-border-strong: rgba(40, 24, 90, 0.32);
+  --pf-text: #17122e; --pf-text-soft: #3b3560; --pf-muted: #5d577f; --pf-focus: #5a2fe0;
+  --pf-grad-text: linear-gradient(95deg, #5a2fe0 0%, #a62cb8 55%, #d4472c 100%); --pf-glow: rgba(124, 77, 255, 0.2);
+  --pf-ok: #0f7a4a; --pf-err: #b3261e;
+  --pf-art: radial-gradient(900px 520px at 78% -6%, rgba(124, 77, 255, 0.14), transparent 62%);
+}
+@media (prefers-color-scheme: light) {
+  :root.pf-private-root:not([data-theme]) body {
+    --pf-bg: #f6f4fc; --pf-bg-2: #ece8f8; --pf-surface: rgba(255, 255, 255, 0.86); --pf-surface-strong: #fff;
+    --pf-border: rgba(40, 24, 90, 0.14); --pf-border-strong: rgba(40, 24, 90, 0.32); --pf-text: #17122e; --pf-text-soft: #3b3560; --pf-muted: #5d577f;
+    --pf-focus: #5a2fe0; --pf-grad-text: linear-gradient(95deg, #5a2fe0 0%, #a62cb8 55%, #d4472c 100%); --pf-ok: #0f7a4a; --pf-err: #b3261e;
+    --pf-art: radial-gradient(900px 520px at 78% -6%, rgba(124, 77, 255, 0.14), transparent 62%);
+  }
+}
+
+.pf-private-root { font-family: "Manrope", ui-sans-serif, system-ui, sans-serif; }
+.pf-private-root .app-topbar { background: color-mix(in srgb, var(--pf-bg) 80%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--pf-border); }
+.pf-private-root .app-topbar a, .pf-private-root .app-topbar button { color: var(--pf-text-soft); }
+.pf-private-root .app-topbar a[aria-current="page"], .pf-private-root .app-topbar a:hover { color: var(--pf-text); }
+.pf-private-root .app-main { max-width: 980px; padding: clamp(28px, 5vw, 56px) clamp(16px, 4vw, 40px) 120px; color: var(--pf-text); }
+.pf-private-root .app-main p { color: var(--pf-text-soft); }
+.pf-private-root .app-main .label { font: 700 0.78rem/1.2 "DM Mono", ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--pf-coral); }
+:root.pf-private-root[data-theme="light"] .app-main .label { color: #c2411f; }
+.pf-private-root .app-main h1.h2 { font: 800 clamp(2rem, 1.4rem + 3vw, 3.4rem)/1.08 "Manrope", sans-serif; letter-spacing: -0.03em; color: var(--pf-text); background: none; }
+.pf-private-root .app-main h2.h3 { font: 800 clamp(1.4rem, 1.2rem + 1vw, 1.9rem)/1.2 "Manrope", sans-serif; letter-spacing: -0.02em; color: var(--pf-text); display: flex; align-items: center; gap: 12px; }
+.pf-private-root .app-main h2.h3::before { content: ""; width: 5px; height: 1.1em; border-radius: 3px; background: var(--pf-grad); flex: none; }
+
+/* actions */
+.pf-private-root .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 22px; border-radius: 999px; font: 700 0.95rem/1 "Manrope", sans-serif;
+  text-decoration: none; border: 1px solid transparent; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.pf-private-root .btn:active { transform: translateY(1px) scale(0.99); }
+.pf-private-root .btn-primary { background: var(--pf-grad); color: #fff; box-shadow: 0 8px 26px rgba(160, 70, 220, 0.34); }
+.pf-private-root .btn-primary:hover { box-shadow: 0 10px 32px rgba(190, 80, 220, 0.5); transform: translateY(-1px); }
+.pf-private-root .btn-ghost { background: var(--pf-surface); color: var(--pf-text); border-color: var(--pf-border-strong); }
+.pf-private-root .btn-ghost:hover { border-color: #8b5cf6; background: var(--pf-surface-strong); }
+.pf-private-root summary.btn { cursor: pointer; list-style: none; }
+.pf-private-root summary.btn::-webkit-details-marker { display: none; }
+.pf-private-root .app-list-row .btn { min-height: 44px; padding: 0 18px; font-size: 0.85rem; }
+
+/* glass cards, the identity card as a hero, entries as a timeline */
+.pf-private-root .card { background: var(--pf-surface); border: 1px solid var(--pf-border); border-radius: 18px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: none; color: var(--pf-text); }
+.pf-private-root #shared-profile .card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px 28px; padding: clamp(20px, 3vw, 32px); border-color: var(--pf-border-strong); box-shadow: 0 24px 60px var(--pf-glow); }
+.pf-private-root #shared-profile .card p { font: 800 1.15rem/1.3 "Manrope", sans-serif !important; color: var(--pf-text) !important; overflow-wrap: anywhere; }
+.pf-private-root #shared-profile .card > div:first-child p { font-size: clamp(1.6rem, 1.2rem + 2vw, 2.4rem) !important; background: var(--pf-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; }
+.pf-private-root #shared-profile .label, .pf-private-root .card .label { font: 600 0.72rem/1.2 "DM Mono", ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--pf-muted); }
+.pf-private-root .app-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; position: relative; }
+.pf-private-root .app-list-row { position: relative; padding: 18px 22px 18px 34px; gap: 16px; color: var(--pf-text); }
+.pf-private-root .app-list-row::before { content: ""; position: absolute; left: 14px; top: 24px; width: 10px; height: 10px; border-radius: 50%; background: var(--pf-grad); box-shadow: 0 0 0 4px color-mix(in srgb, #8b5cf6 24%, transparent); }
+.pf-private-root .app-list-row strong { font-weight: 800; }
+.pf-private-root .app-list-row .meta { color: var(--pf-muted); font: 500 0.8rem/1.4 "DM Mono", ui-monospace, monospace; }
+.pf-private-root .app-empty { border: 1px dashed var(--pf-border-strong); border-radius: 18px; background: var(--pf-surface); color: var(--pf-text-soft); }
+
+/* forms */
+.pf-private-root .app-field label { color: var(--pf-text-soft); font-weight: 700; }
+.pf-private-root .app-field input, .pf-private-root .app-field textarea, .pf-private-root .app-field select { min-height: 48px; border-radius: 12px; border: 1px solid var(--pf-border-strong); background: var(--pf-surface); color: var(--pf-text); }
+.pf-private-root details > form { padding: 22px; border: 1px solid var(--pf-border); border-radius: 18px; background: var(--pf-surface); }
+.pf-private-root .app-banner { border-radius: 14px; }
+
+/* the new entry points (public profile and business), shown only while the management feature is on */
+.pf-private-root .pf-entry { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 24px; }
+.pf-private-root .pf-theme { display: inline-flex; padding: 3px; border: 1px solid var(--pf-border-strong); border-radius: 999px; background: var(--pf-surface); margin-bottom: 18px; }
+.pf-private-root .pf-theme button { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--pf-text-soft); font: 700 0.82rem/1 "Manrope", sans-serif; cursor: pointer; }
+.pf-private-root .pf-theme button[aria-pressed="true"] { background: var(--pf-grad); color: #fff; }
+
+.pf-private-root a:focus-visible, .pf-private-root button:focus-visible, .pf-private-root summary:focus-visible, .pf-private-root input:focus-visible, .pf-private-root textarea:focus-visible, .pf-private-root select:focus-visible {
+  outline: 3px solid var(--pf-focus); outline-offset: 3px; }
+@media (max-width: 560px) { .pf-private-root .app-list-row { padding-left: 32px; } .pf-private-root .app-list-row .btn { width: 100%; } .pf-private-root .pf-entry .btn { flex: 1 1 100%; } }
+@media (prefers-reduced-motion: reduce) { .pf-private-root *, .pf-private-root *::before { transition: none !important; animation: none !important; } }
+@media (forced-colors: active) { .pf-private-root .btn-primary { border: 2px solid ButtonText; } }

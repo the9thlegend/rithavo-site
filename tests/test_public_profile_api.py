@@ -30,6 +30,9 @@ MANAGEMENT_ROUTES = [
     ("POST", "/my-public-profile"),
     ("GET", "/my-photos"),
     ("POST", "/my-photo"),
+    ("GET", "/my-business"),
+    ("POST", "/my-business"),
+    ("GET", "/my-photos/3/image"),
 ]
 
 
@@ -343,3 +346,50 @@ def test_client_never_calls_the_service_when_not_configured(env, monkeypatch):
     for bad in (0, -1, True, "5", None):
         with pytest.raises(ValueError):
             profile_client.call("GET", "/internal/api/me/card", bad)
+
+
+# ---- release R2: the owner's business --------------------------------------------------------------------------------
+
+def test_business_management_is_relayed_with_only_the_existing_business_fields(env):
+    payload = {"exists": True, "slug": SLUG, "name": "Northfield", "industries": [{"id": 3, "name": "Software"}], "logo_photo_id": 7}
+    env.fake.responses[("GET", "/internal/api/me/business")] = httpx.Response(200, json=payload)
+    r = env.client.get("/my-business")
+    assert r.status_code == 200 and r.json() == payload and r.headers["cache-control"] == "private, no-store"
+    env.client.post("/my-business", json={"name": "Northfield", "industry_id": 3, "intents": ["HIRING"], "is_discoverable": True})
+    call = env.fake.calls[-1]
+    assert call["path"] == "/internal/api/me/business" and call["method"] == "POST"
+    assert call["json"] == {"name": "Northfield", "industry_id": 3, "intents": ["HIRING"], "is_discoverable": True}
+
+
+def test_business_save_refuses_unknown_or_client_supplied_owner_fields_before_any_service_call(env):
+    for bad in ({"owner_user_id": 2, "name": "x"}, {"id": 4}, {"business_id": 9}, {"theme": "x"}):
+        assert env.client.post("/my-business", json=bad).status_code == 422
+    assert env.client.post("/my-business", content=b"[1]", headers={"content-type": "application/json"}).status_code == 422
+    assert env.fake.calls == []
+
+
+def test_business_errors_are_relayed_as_detail_and_code_only(env):
+    env.fake.responses[("POST", "/internal/api/me/business")] = httpx.Response(
+        422, json={"detail": "A business needs a name.", "code": "name_required", "trace": "secret internals"})
+    r = env.client.post("/my-business", json={"location": "Pune"})
+    assert r.status_code == 422 and r.json() == {"detail": "A business needs a name.", "code": "name_required"}
+
+
+def test_a_business_public_payload_passes_the_same_privacy_filter(env):
+    clean = {"kind": "business", "slug": SLUG, "name": "Northfield", "logo": {"present": True}, "relationship": {"is_self": False}}
+    env.fake.responses[("GET", f"/internal/api/cards/{SLUG}")] = httpx.Response(200, json=clean)
+    assert env.client.get(f"/public-profile/{SLUG}").json() == clean
+    leaky = {**clean, "owner_user_id": 4}
+    env.fake.responses[("GET", f"/internal/api/cards/{SLUG}")] = httpx.Response(200, json=leaky)
+    assert env.client.get(f"/public-profile/{SLUG}").status_code == 502
+
+
+def test_photo_thumbnail_is_relayed_for_the_owner_only_path(env):
+    env.fake.responses[("GET", "/internal/api/me/photos/3/image")] = httpx.Response(200, content=bytes([255, 216]) + b"jpeg", headers={"content-type": "image/jpeg"})
+    r = env.client.get("/my-photos/3/image")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg" and r.headers["cache-control"] == "private, no-store"
+    assert "sandbox" in r.headers["content-security-policy"]
+    env.fake.responses[("GET", "/internal/api/me/photos/4/image")] = httpx.Response(200, content=b"<svg/>", headers={"content-type": "image/svg+xml"})
+    assert env.client.get("/my-photos/4/image").status_code == 404
+    env.fake.responses[("GET", "/internal/api/me/photos/5/image")] = httpx.Response(404, json={"detail": "Not found."})
+    assert env.client.get("/my-photos/5/image").status_code == 404

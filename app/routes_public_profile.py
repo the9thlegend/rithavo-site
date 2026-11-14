@@ -374,3 +374,28 @@ def my_photo_image(request: Request, photo_id: str):
         return _not_found()
     return Response(content=result.content, media_type=content_type,
                     headers={**NO_STORE, "Content-Security-Policy": "default-src 'none'; sandbox"})
+
+
+# ---- the owner's business (release R2) ----------------------------------------------------------------------------------
+
+@router.get("/my-business")
+def read_my_business(request: Request):
+    viewer, early = _management_gate(request)
+    return early or _manage(viewer, "GET", "/internal/api/me/business")
+
+
+@router.post("/my-business")
+async def save_my_business(request: Request):
+    """Creates the member's single business or updates it. Only the existing business fields are relayed; the owner is the
+    session's user, never a client-supplied id."""
+    viewer, early = _management_gate(request)
+    if early:
+        return early
+    payload, bad = await _read_object(request, required=True)
+    if bad:
+        return bad
+    allowed = {"name", "industry_id", "clear_industry", "location", "description", "products_services", "areas_of_expertise",
+               "intents", "logo_photo_id", "clear_logo", "is_discoverable", "contact_email", "contact_phone"}
+    if set(payload) - allowed:
+        return _json({"detail": "Request not allowed."}, 422)
+    return _manage(viewer, "POST", "/internal/api/me/business", payload)

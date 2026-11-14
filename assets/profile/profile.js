@@ -26,6 +26,11 @@
     stateView("This profile isn't available", "It may have been hidden, or the link may be wrong. The page never says which.", [homeLink()]);
   }
 
+  function who() {
+    var d = state.data;
+    return d.kind === "business" ? d.name : firstName(d.name);
+  }
+
   function firstName(name) { return (name || "").trim().split(/\s+/)[0] || "this member"; }
 
   /* ---------- actions ---------- */
@@ -51,7 +56,7 @@
       if (res.status === 429) { say("You're going a little fast. Please wait a minute and try again.", "error"); }
       else if (res.status === 404) { unavailable(); state.busy = false; return; }
       else if (res.status !== 200) { say("We couldn't update that. Please try again.", "error"); }
-      else { say(on ? "You now follow " + firstName(state.data.name) : "You no longer follow " + firstName(state.data.name)); }
+      else { say(on ? "You now follow " + who() : "You no longer follow " + who()); }
       return refresh();
     }).then(function () { state.busy = false; renderActions(); });
   }
@@ -59,7 +64,7 @@
   function shareCard(email, phone) {
     PF.api("POST", "/public-profile/" + slug + "/share", { share_email: !!email, share_phone: !!phone }).then(function (res) {
       var code = res.data && res.data.code;
-      if (res.status === 200) { say("Card shared with " + firstName(state.data.name)); state.showShare = false; return refresh().then(renderAll); }
+      if (res.status === 200) { say("Card shared with " + who()); state.showShare = false; return refresh().then(renderAll); }
       var map = { no_email: "No email is set on your Card. Add one in Public profile.", no_phone: "No phone is set on your Card. Add one in Public profile.",
         already_shared: "You already shared your Card with this member. You can only share once.", not_allowed: "Sharing needs a mutual follow and a confirmed photograph." };
       say(map[code] || "We couldn't share your Card. Please try again.", "error");
@@ -85,7 +90,7 @@
 
   function cardShareControl(rel) {
     if (rel.is_self || !rel.mutual) { return null; }
-    if (rel.shared) { return el("p", { class: "pf-direction", text: "You both follow each other. You shared your Card with " + firstName(state.data.name) + "." }); }
+    if (rel.shared) { return el("p", { class: "pf-direction", text: "You both follow each other. You shared your Card with " + who() + "." }); }
     var b = el("button", { type: "button", class: "pf-btn pf-btn--ghost", disabled: !rel.can_share, "aria-disabled": !rel.can_share ? "true" : false }, [svg("card"), "Share Card"]);
     b.addEventListener("click", function () { state.showShare = state.showShare === "card" ? false : "card"; renderAll(); });
     var wrap = el("div", { class: "pf-actions" }, [b]);
@@ -106,7 +111,7 @@
     var go = el("button", { type: "button", class: "pf-btn pf-btn--primary", }, [svg("card"), "Share Card"]);
     go.addEventListener("click", function () { shareCard(email.checked, phone.checked); });
     return el("div", { class: "pf-panel" }, [
-      el("h3", { text: "Share your Card with " + firstName(state.data.name) }),
+      el("h3", { text: "Share your Card with " + who() }),
       el("label", { class: "pf-check", for: "pf-sh-email" }, [email, "My contact email"]),
       el("label", { class: "pf-check", for: "pf-sh-phone" }, [phone, "My contact phone"]),
       el("p", { class: "pf-direction", text: "Nothing is shared by default. You can only share once." }), go
@@ -203,6 +208,73 @@
     return { nodes: nodes, links: links };
   }
 
+  /* ---------- business composition (release R2): the same components, existing business fields only ---------- */
+  function splitList(text) {
+    var items = (text || "").split(/[,;\n]+/).map(function (x) { return x.trim(); }).filter(function (x) { return x && x.length <= 48; });
+    return items.length >= 2 ? items.slice(0, 12) : [];
+  }
+
+  function buildBusiness() {
+    var d = state.data, rel = d.relationship || {};
+    var nodes = [], links = [["pf-overview", "Overview"]];
+    var expertise = splitList(d.areas_of_expertise);
+    var chips = expertise.slice(0, 4).map(function (name, i) {
+      return el("div", { class: "pf-chip pf-chip--" + (i + 1) }, [svg(PF.CHIP_ICONS[i % PF.CHIP_ICONS.length]), el("span", { text: name })]);
+    });
+    var face = state.photo
+      ? el("img", { class: "pf-logo-card__img", src: state.photo.url, alt: "Logo of " + (d.name || "this business") })
+      : el("span", { class: "pf-logo-card__initial", "aria-hidden": "true", text: (d.name || "B").trim().charAt(0).toUpperCase() });
+    var stage = el("div", { class: "pf-stage pf-stage--biz" }, [el("div", { class: "pf-blob", "aria-hidden": "true" }), el("div", { class: "pf-logo-card" }, [face])].concat(chips));
+
+    var meta = [];
+    if (d.location) { meta.push(el("span", {}, [svg("pin"), d.location])); }
+    var actions = el("div", { class: "pf-actions", id: "pf-actions", "data-action-surface": "" });
+    nodes.push(el("section", { class: "pf-hero", id: "pf-overview", "aria-labelledby": "pf-name" }, [
+      el("div", { class: "pf-hero__copy" }, [
+        el("p", { class: "pf-eyebrow", text: "Business on Rithavo" }),
+        el("h1", { class: "pf-name", id: "pf-name", text: d.name || "Business" }),
+        d.industry ? el("p", { class: "pf-headline pf-gradtext", text: d.industry }) : null,
+        d.summary ? el("p", { class: "pf-lede", text: d.summary.length >= 90 ? d.summary + "…" : d.summary }) : null,
+        actions,
+        meta.length ? el("div", { class: "pf-meta" }, meta) : null,
+        rel.is_self ? el("div", { class: "pf-owner-note" }, [
+          el("span", { text: d.visible_to_members ? "This is how signed-in members see your business." : "Only you can see this business right now." }),
+          el("a", { class: "pf-btn pf-btn--ghost pf-btn--sm", href: "/c/manage?view=business", text: "Edit business" })]) : null,
+        cardShareControl(rel), sharePanel()
+      ]),
+      el("div", { class: "pf-hero__portrait" }, [stage])
+    ]));
+
+    var tiles = [];
+    if (d.industry) { tiles.push(el("div", { class: "pf-tile" }, [el("span", { class: "pf-tile__icon" }, [svg("layers")]), el("div", {}, [el("p", { class: "pf-tile__label", text: "Industry" }), el("p", { class: "pf-tile__value", text: d.industry })])])); }
+    if (d.location) { tiles.push(el("div", { class: "pf-tile" }, [el("span", { class: "pf-tile__icon" }, [svg("pin")]), el("div", {}, [el("p", { class: "pf-tile__label", text: "Location" }), el("p", { class: "pf-tile__value", text: d.location })])])); }
+    if (tiles.length) { nodes.push(el("section", { class: "pf-facts", "aria-label": "Highlights" }, tiles)); }
+
+    var secs = [];
+    if (d.products_services) {
+      secs.push(el("section", { class: "pf-section", id: "pf-offer", "aria-labelledby": "pf-h-offer" }, [
+        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-offer", text: "Products and services" })]),
+        el("div", { class: "pf-card pf-prose" }, [el("p", { text: d.products_services })])]));
+      links.push(["pf-offer", "What they offer"]);
+    }
+    if (d.areas_of_expertise) {
+      var body = expertise.length
+        ? el("ul", { class: "pf-pills" }, expertise.map(function (c, i) { return el("li", { class: "pf-pill" }, [svg(PF.CHIP_ICONS[i % 4]), c]); }))
+        : el("div", { class: "pf-card pf-prose" }, [el("p", { text: d.areas_of_expertise })]);
+      secs.push(el("section", { class: "pf-section", id: "pf-expertise", "aria-labelledby": "pf-h-exp" }, [
+        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-exp", text: "Areas of expertise" })]), body]));
+      links.push(["pf-expertise", "Expertise"]);
+    }
+    if (secs.length) { nodes.push(el("div", { class: "pf-sections" }, secs)); }
+
+    nodes.push(el("section", { class: "pf-cta", "aria-label": "Follow", "data-action-surface": "" }, [
+      el("div", {}, [el("h2", { text: rel.is_self ? "Your business, as members see it" : "Let's stay in touch" }),
+        el("p", { text: rel.is_self ? "Only signed-in Rithavo members can open this page, and only while your business is visible."
+          : "Follow " + (d.name || "this business") + " to keep up with its profile. Only signed-in Rithavo members can see it." })]),
+      el("div", { class: "pf-actions", id: "pf-cta-actions" })]));
+    return { nodes: nodes, links: links };
+  }
+
   function renderActions() {
     var d = state.data; if (!d) { return; }
     var rel = d.relationship || {};
@@ -220,7 +292,7 @@
 
   function renderAll() {
     var d = state.data;
-    var built = build();
+    var built = d.kind === "business" ? buildBusiness() : build();
     PF.clear(root);
     built.nodes.forEach(function (n) { root.appendChild(n); });
     var links = document.getElementById("pf-links"), menu = document.getElementById("pf-menu-links");
@@ -256,7 +328,8 @@
 
   function loadPhoto(d) {
     if (state.photo) { URL.revokeObjectURL(state.photo.url); state.photo = null; }
-    if (!d.photo || !d.photo.present) { return Promise.resolve(); }
+    var has = d.kind === "business" ? (d.logo && d.logo.present) : (d.photo && d.photo.present);
+    if (!has) { return Promise.resolve(); }
     return fetch("/public-profile/" + slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (res) {
       if (!res.ok) { return; }
       var alpha = res.headers.get("X-Rithavo-Photo-Alpha") === "1";

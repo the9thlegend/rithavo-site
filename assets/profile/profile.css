@@ -17,7 +17,7 @@
   --pf-violet: #8b5cf6;
   --pf-magenta: #d046c4;
   --pf-coral: #ff7b5c;
-  --pf-grad: linear-gradient(95deg, #6d44f2 0%, #b940d2 50%, #e8503f 100%); /* white text on every stop >= 3.7:1 */
+  --pf-grad: linear-gradient(95deg, #6d44f2 0%, #a63bd0 52%, #d0452d 100%); /* white text on every point >= 4.5:1 (normal-size button text) */
   --pf-grad-text: linear-gradient(95deg, #a98bff 0%, #e266d8 55%, #ff9a72 100%);
   --pf-blob: linear-gradient(150deg, #5b3cf0 0%, #a53fe0 48%, #ff6f6a 100%);
   --pf-glow: rgba(139, 92, 246, 0.35);
@@ -209,12 +209,12 @@ body.pf.has-bar { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 .pf-direction b { color: var(--pf-text); }
 
 /* ---------- closing band ---------- */
-.pf-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px; padding: clamp(22px, 3vw, 34px) clamp(22px, 3.5vw, 44px); border-radius: 22px; background: linear-gradient(100deg, #4b2fd0 0%, #9a3bd8 55%, #e8503f 120%); color: #fff; box-shadow: 0 24px 70px rgba(150, 60, 220, 0.38); margin-bottom: clamp(32px, 5vw, 64px); }
+.pf-cta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px; padding: clamp(22px, 3vw, 34px) clamp(22px, 3.5vw, 44px); border-radius: 22px; background: linear-gradient(100deg, #4b2fd0 0%, #8f37cc 55%, #cf442f 118%); color: #fff; box-shadow: 0 24px 70px rgba(150, 60, 220, 0.38); margin-bottom: clamp(32px, 5vw, 64px); }
 .pf-cta h2 { font: 800 clamp(1.4rem, 1.1rem + 1.2vw, 2rem)/1.15 var(--pf-display); }
 .pf-cta p { color: rgba(255, 255, 255, 0.88); max-width: 52ch; margin-top: 6px; }
 .pf-cta .pf-actions { margin: 0; }
-.pf-cta .pf-btn--ghost { color: #fff; border-color: rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.1); }
-.pf-cta .pf-btn--ghost:hover { background: rgba(255, 255, 255, 0.2); border-color: #fff; }
+.pf-cta .pf-btn--ghost { color: #fff; border-color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.14); }
+.pf-cta .pf-btn--ghost:hover { background: rgba(0, 0, 0, 0.26); border-color: #fff; }
 .pf-cta .pf-btn--primary { background: #fff; color: #2a1470; box-shadow: none; }
 .pf-cta .pf-btn--primary[aria-pressed="true"] { background: rgba(255, 255, 255, 0.16); color: #fff; border-color: rgba(255, 255, 255, 0.7); }
 .pf-cta .pf-feedback { color: #fff; flex-basis: 100%; }
@@ -326,3 +326,22 @@ body.bar-on .pf-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .pf-theme button { min-height: 44px; }
   .pf-btn--sm { min-height: 44px; }
 }
+
+/* ---------- business profile (release R2): same system, a logo card instead of a portrait ---------- */
+.pf-stage--biz { aspect-ratio: 1 / 1; max-width: 460px; }
+.pf-stage--biz .pf-blob { inset: 8% 6% 8% 6%; }
+.pf-logo-card { position: absolute; inset: 20% 20%; display: grid; place-items: center; padding: 14%; border-radius: 28px; border: 1px solid var(--pf-border-strong);
+  background: color-mix(in srgb, var(--pf-bg-2) 70%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: var(--pf-shadow); }
+.pf-logo-card__img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+.pf-logo-card__initial { font: 800 clamp(4rem, 3rem + 6vw, 8rem)/1 var(--pf-display); background: var(--pf-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+.pf-prose { padding: clamp(18px, 3vw, 28px); max-width: 78ch; }
+.pf-prose p { color: var(--pf-text-soft); white-space: pre-line; overflow-wrap: anywhere; font-size: 1.05rem; }
+.pf-stage--biz .pf-chip--1 { left: 0; top: 8%; } .pf-stage--biz .pf-chip--2 { left: -2%; top: 72%; } .pf-stage--biz .pf-chip--3 { right: 0; top: 14%; } .pf-stage--biz .pf-chip--4 { right: -2%; top: 78%; }
+
+.pf-tabs { display: inline-flex; gap: 6px; padding: 4px; border: 1px solid var(--pf-border-strong); border-radius: 999px; background: var(--pf-surface); justify-self: start; }
+.pf-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; text-decoration: none; font-weight: 700; color: var(--pf-text-soft); }
+.pf-tab[aria-current="page"] { background: var(--pf-grad); color: #fff; }
+.pf-textarea { min-height: 112px; padding: 12px 16px; resize: vertical; line-height: 1.5; }
+select.pf-input { appearance: auto; }
+.pf-preview__img--logo { object-fit: contain; background: var(--pf-surface-strong); padding: 6px; }
+.pf-tabs { margin-bottom: 10px; }

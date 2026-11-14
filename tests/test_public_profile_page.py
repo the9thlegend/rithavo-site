@@ -247,3 +247,26 @@ def test_photo_thumbnail_route_is_gated_and_validated_by_hand(managed, monkeypat
     login_via_magic_link(client, app, "member@example.test")
     for bad in ("abc", "1.5", "-1", "9" * 30):
         assert client.get(f"/my-photos/{bad}/image").status_code == 404
+
+
+# ---- release R3 and the entry point on the private /profile/ page -------------------------------------------------------
+
+def test_private_profile_page_gets_the_entry_point_script_and_no_unconditional_management_link():
+    html = (ROOT / "profile" / "index.html").read_text(encoding="utf-8")
+    assert 'id="public-profile-entry"' in html and "private-class.js" in html and 'src="/assets/profile/entry.js"' in html
+    assert "/c/manage" not in html, "the link is created by script only when the management API answers 200 (flag on)"
+    assert 'href="/profile/edit"' in html and "RithavoApp.requireSession" in html  # existing behaviour preserved
+
+
+def test_entry_script_adds_links_only_on_a_200_and_never_on_failure():
+    js = (ROOT / "assets" / "profile" / "entry.js").read_text(encoding="utf-8")
+    assert 'res.status !== 200) { return; }' in js and ".catch(" in js and "innerHTML" not in js
+    assert "/c/manage" in js and "view=business" in js
+
+
+def test_private_profile_restyle_is_scoped_and_markup_data_is_escaped():
+    css = (ROOT / "assets" / "profile" / "private.css").read_text(encoding="utf-8")
+    selectors = [line.split("{")[0].strip() for line in css.splitlines() if "{" in line and not line.startswith((" ", "/*", "@"))]
+    assert selectors and all(sel.startswith((".pf-private-root", ":root.pf-private-root")) for sel in selectors), selectors
+    html = (ROOT / "profile" / "index.html").read_text(encoding="utf-8")
+    assert "${r.degree}" not in html and "${r.company}" not in html and "esc(r.degree)" in html
