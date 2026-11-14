@@ -234,7 +234,7 @@
         el("p", { class: "pf-eyebrow", text: "Business on Rithavo" }),
         el("h1", { class: "pf-name", id: "pf-name", text: d.name || "Business" }),
         d.industry ? el("p", { class: "pf-headline pf-gradtext", text: d.industry }) : null,
-        d.summary ? el("p", { class: "pf-lede", text: d.summary.length >= 90 ? d.summary + "…" : d.summary }) : null,
+        d.summary ? el("p", { class: "pf-lede", text: d.summary }) : null,
         actions,
         meta.length ? el("div", { class: "pf-meta" }, meta) : null,
         rel.is_self ? el("div", { class: "pf-owner-note" }, [

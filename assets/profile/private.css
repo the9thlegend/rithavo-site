@@ -85,3 +85,7 @@
 @media (max-width: 560px) { .pf-private-root .app-list-row { padding-left: 32px; } .pf-private-root .app-list-row .btn { width: 100%; } .pf-private-root .pf-entry .btn { flex: 1 1 100%; } }
 @media (prefers-reduced-motion: reduce) { .pf-private-root *, .pf-private-root *::before { transition: none !important; animation: none !important; } }
 @media (forced-colors: active) { .pf-private-root .btn-primary { border: 2px solid ButtonText; } }
+
+/* fixed bottom navigation (phones): content and keyboard focus are always scrolled clear of it */
+.pf-private-root { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px); }
+.pf-private-root body.has-bottom-nav { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 48px); }
