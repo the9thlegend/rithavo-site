@@ -52,7 +52,7 @@
   function follow(on) {
     if (state.busy) { return; }
     state.busy = true; renderActions();
-    PF.api("POST", "/public-profile/" + slug + (on ? "/follow" : "/unfollow")).then(function (res) {
+    PF.api("POST", "/api/public-profile/" + slug + (on ? "/follow" : "/unfollow")).then(function (res) {
       if (res.status === 429) { say("You're going a little fast. Please wait a minute and try again.", "error"); }
       else if (res.status === 404) { unavailable(); state.busy = false; return; }
       else if (res.status !== 200) { say("We couldn't update that. Please try again.", "error"); }
@@ -62,7 +62,7 @@
   }
 
   function shareCard(email, phone) {
-    PF.api("POST", "/public-profile/" + slug + "/share", { share_email: !!email, share_phone: !!phone }).then(function (res) {
+    PF.api("POST", "/api/public-profile/" + slug + "/share", { share_email: !!email, share_phone: !!phone }).then(function (res) {
       var code = res.data && res.data.code;
       if (res.status === 200) { say("Card shared with " + who()); state.showShare = false; return refresh().then(renderAll); }
       var map = { no_email: "No email is set on your Card. Add one in Public profile.", no_phone: "No phone is set on your Card. Add one in Public profile.",
@@ -330,7 +330,7 @@
     if (state.photo) { URL.revokeObjectURL(state.photo.url); state.photo = null; }
     var has = d.kind === "business" ? (d.logo && d.logo.present) : (d.photo && d.photo.present);
     if (!has) { return Promise.resolve(); }
-    return fetch("/public-profile/" + slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (res) {
+    return fetch("/api/public-profile/" + slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (res) {
       if (!res.ok) { return; }
       var alpha = res.headers.get("X-Rithavo-Photo-Alpha") === "1";
       return res.blob().then(function (blob) { state.photo = { url: URL.createObjectURL(blob), alpha: alpha }; });
@@ -338,7 +338,7 @@
   }
 
   function refresh() {
-    return PF.api("GET", "/public-profile/" + slug).then(function (res) {
+    return PF.api("GET", "/api/public-profile/" + slug).then(function (res) {
       if (res.status === 200 && res.data) { state.data = res.data; }
       return res;
     });
@@ -346,7 +346,7 @@
 
   function start() {
     if (!slug) { unavailable(); return; }
-    PF.api("GET", "/public-profile/" + slug).then(function (res) {
+    PF.api("GET", "/api/public-profile/" + slug).then(function (res) {
       if (res.status === 401) { window.location.replace("/sign-in/?next=/c/" + encodeURIComponent(slug)); return; }
       if (res.status === 404) { unavailable(); return; }
       if (res.status === 429) { stateView("Too many requests", "You're going a little fast. Please wait a minute and try again.", [homeLink()]); return; }

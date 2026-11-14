@@ -101,9 +101,9 @@
     S.photos.forEach(function (p, i) {
       var label = (p.selectable ? "Photograph " + (i + 1) : "Photograph " + (i + 1) + ", not confirmed");
       var b = el("button", { type: "button", class: "pf-photo-opt", role: "radio", "aria-checked": p.selected ? "true" : "false", "aria-label": label + (p.selected ? ", selected" : ""), disabled: !p.selectable, "data-selected": p.selected ? "1" : false }, [
-        p.selectable ? el("img", { src: "/my-photos/" + p.id + "/image", alt: "" }) : el("span", { class: "pf-photo-ph", "aria-hidden": "true" }), el("span", { text: p.selectable ? (p.selected ? "Selected" : "Use this") : "Not confirmed" })]);
+        p.selectable ? el("img", { src: "/api/my-photos/" + p.id + "/image", alt: "" }) : el("span", { class: "pf-photo-ph", "aria-hidden": "true" }), el("span", { text: p.selectable ? (p.selected ? "Selected" : "Use this") : "Not confirmed" })]);
       b.addEventListener("click", function () {
-        PF.api("POST", "/my-photo", { photo_id: p.id }).then(function (res) {
+        PF.api("POST", "/api/my-photo", { photo_id: p.id }).then(function (res) {
           if (res.status === 200 && res.data) { S.photos = res.data.photos; PF.toast("Photograph selected"); S.card.has_selected_photo = true; refreshPreview().then(redraw); }
           else { PF.toast("We couldn't select that photograph.", "error"); }
         });
@@ -148,7 +148,7 @@
     var body = { is_discoverable: work.is_discoverable, headline_override: work.headline, contact_email: work.email, contact_phone: work.phone, photo_focus_x: work.fx, photo_focus_y: work.fy, section_order: work.order, capability_ids: work.caps };
     SHOW_LABELS.forEach(function (p) { body["show_" + p[0]] = !!work.show[p[0]]; });
     var btn = document.getElementById("pf-save"); btn.setAttribute("disabled", ""); btn.setAttribute("aria-busy", "true"); document.getElementById("pf-save-msg").textContent = "";
-    PF.api("POST", "/my-public-profile", body).then(function (res) {
+    PF.api("POST", "/api/my-public-profile", body).then(function (res) {
       btn.removeAttribute("aria-busy");
       var msg = document.getElementById("pf-save-msg");
       if (res.status === 200 && res.data) { S.card = res.data; copyFromServer(); PF.toast("Saved"); msg.textContent = ""; refreshPreview().then(redraw); return; }
@@ -160,11 +160,11 @@
 
   function refreshPreview() {
     if (!S.card.is_discoverable && !S.card.has_selected_photo) { S.preview = null; return Promise.resolve(); }
-    return PF.api("GET", "/public-profile/" + S.card.slug).then(function (res) {
+    return PF.api("GET", "/api/public-profile/" + S.card.slug).then(function (res) {
       S.preview = res.status === 200 ? res.data : null;
       if (S.previewPhoto) { URL.revokeObjectURL(S.previewPhoto); S.previewPhoto = null; }
       if (!S.preview || !S.preview.photo || !S.preview.photo.present) { return; }
-      return fetch("/public-profile/" + S.card.slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.blob() : null; })
+      return fetch("/api/public-profile/" + S.card.slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.blob() : null; })
         .then(function (b) { if (b) { S.previewPhoto = URL.createObjectURL(b); } }).catch(function () {});
     });
   }
@@ -241,7 +241,7 @@
     S.photos.forEach(function (p, i) {
       var b = el("button", { type: "button", class: "pf-photo-opt", role: "radio", "aria-checked": bw.logo === p.id ? "true" : "false", "aria-label": "Photograph " + (i + 1) + (p.selectable ? "" : ", not confirmed") + (bw.logo === p.id ? ", selected" : ""),
         disabled: !p.selectable, "data-selected": bw.logo === p.id ? "1" : false }, [
-        p.selectable ? el("img", { src: "/my-photos/" + p.id + "/image", alt: "" }) : el("span", { class: "pf-photo-ph", "aria-hidden": "true" }), el("span", { text: p.selectable ? (bw.logo === p.id ? "Selected" : "Use this") : "Not confirmed" })]);
+        p.selectable ? el("img", { src: "/api/my-photos/" + p.id + "/image", alt: "" }) : el("span", { class: "pf-photo-ph", "aria-hidden": "true" }), el("span", { text: p.selectable ? (bw.logo === p.id ? "Selected" : "Use this") : "Not confirmed" })]);
       b.addEventListener("click", function () { bw.logo = p.id; bTouch(); bDraw(); });
       logos.appendChild(b);
     });
@@ -300,7 +300,7 @@
     if (bw.logo) { body.logo_photo_id = bw.logo; } else { body.clear_logo = true; }
     var btn = document.getElementById("pf-bsave"), msg = document.getElementById("pf-bsave-msg");
     btn.setAttribute("disabled", ""); btn.setAttribute("aria-busy", "true"); msg.textContent = "";
-    PF.api("POST", "/my-business", body).then(function (res) {
+    PF.api("POST", "/api/my-business", body).then(function (res) {
       btn.removeAttribute("aria-busy");
       if (res.status === 200 && res.data) { BS.data = res.data; bCopy(); PF.toast("Saved"); bPreview().then(bDraw); return; }
       btn.removeAttribute("disabled");
@@ -313,16 +313,16 @@
     if (BS.previewLogo) { URL.revokeObjectURL(BS.previewLogo); BS.previewLogo = null; }
     BS.preview = null;
     if (!BS.data.exists) { return Promise.resolve(); }
-    return PF.api("GET", "/public-profile/" + BS.data.slug).then(function (res) {
+    return PF.api("GET", "/api/public-profile/" + BS.data.slug).then(function (res) {
       BS.preview = res.status === 200 ? res.data : null;
       if (!BS.preview || !BS.preview.logo || !BS.preview.logo.present) { return; }
-      return fetch("/public-profile/" + BS.data.slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.blob() : null; })
+      return fetch("/api/public-profile/" + BS.data.slug + "/photo", { credentials: "same-origin", cache: "no-store" }).then(function (r) { return r.ok ? r.blob() : null; })
         .then(function (b) { if (b) { BS.previewLogo = URL.createObjectURL(b); } }).catch(function () {});
     });
   }
 
   function startBusiness() {
-    Promise.all([PF.api("GET", "/my-business"), PF.api("GET", "/my-photos")]).then(function (r) {
+    Promise.all([PF.api("GET", "/api/my-business"), PF.api("GET", "/api/my-photos")]).then(function (r) {
       var c = r[0], p = r[1];
       if (c.status === 401) { window.location.replace("/sign-in/?next=" + encodeURIComponent("/c/manage?view=business")); return; }
       if (c.status !== 200 || !c.data) {
@@ -338,7 +338,7 @@
 
   function start() {
     if (view === "business") { startBusiness(); return; }
-    Promise.all([PF.api("GET", "/my-public-profile"), PF.api("GET", "/my-photos")]).then(function (r) {
+    Promise.all([PF.api("GET", "/api/my-public-profile"), PF.api("GET", "/api/my-photos")]).then(function (r) {
       var c = r[0], p = r[1];
       if (c.status === 401) { window.location.replace("/sign-in/?next=/c/manage"); return; }
       if (c.status !== 200 || !c.data) {

@@ -5,7 +5,7 @@
   "use strict";
   var host = document.getElementById("public-profile-entry");
   if (!host || !window.fetch) { return; }
-  fetch("/my-public-profile", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } }).then(function (res) {
+  fetch("/api/my-public-profile", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } }).then(function (res) {
     if (res.status !== 200) { return; }
     [["/c/manage", "Public profile: preview and settings", "btn btn-ghost"], ["/c/manage?view=business", "Business profile", "btn btn-ghost"]].forEach(function (l) {
       var a = document.createElement("a");
