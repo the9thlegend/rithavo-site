@@ -6,7 +6,7 @@
   var root = document.getElementById("pf-root");
   var main = document.getElementById("pf-main");
   var S = { card: null, photos: [], preview: null, previewPhoto: null, dirty: false };
-  var SHOW_LABELS = [["current_role", "Current role"], ["location", "Location"], ["industries", "Industries"], ["capabilities", "Capabilities"], ["career_direction", "Career direction"], ["professional_intent", "Open to"]];
+  var SHOW_LABELS = [["current_role", "Current role, experience and education"], ["location", "Location"], ["industries", "Industries"], ["capabilities", "Capabilities and skills"], ["career_direction", "Career direction"], ["professional_intent", "Open to"]];
 
   function stateView(title, text, actions) {
     PF.clear(root);

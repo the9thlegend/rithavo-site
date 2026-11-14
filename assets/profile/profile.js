@@ -175,6 +175,7 @@
       industries: ["layers", "Industries", function () { return (s.industries || []).join(", "); }],
       career_direction: ["compass", "Career direction", function () { return s.career_direction; }] };
     var tiles = [];
+    if (s.years_of_experience) { tiles.push(el("div", { class: "pf-tile" }, [el("span", { class: "pf-tile__icon" }, [svg("target")]), el("div", {}, [el("p", { class: "pf-tile__label", text: "Years of experience" }), el("p", { class: "pf-tile__value", text: s.years_of_experience })])])); }
     order.forEach(function (k) {
       var def = tileDefs[k];
       if (!def) { return; }
@@ -197,6 +198,32 @@
         links.push(["pf-open", "Open to"]);
       }
     });
+    // the owner's own experience, education and skills (shown after the ordered sections; same visibility switches)
+    if ((s.experience || []).length) {
+      secs.push(el("section", { class: "pf-section", id: "pf-experience", "aria-labelledby": "pf-h-xp" }, [
+        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-xp", text: "Professional journey" })]),
+        el("ol", { class: "pf-timeline" }, s.experience.map(function (x) {
+          var who = [x.company, x.location].filter(Boolean).join(" • ");
+          return el("li", { class: "pf-timeline__item" }, [
+            el("h3", { class: "pf-timeline__title", text: x.title }),
+            who ? el("p", { class: "pf-timeline__who", text: who }) : null,
+            x.period ? el("p", { class: "pf-timeline__period", text: x.period }) : null,
+            (x.highlights || []).length ? el("ul", { class: "pf-timeline__points" }, x.highlights.map(function (h) { return el("li", { text: h }); })) : null]);
+        }))]));
+      links.push(["pf-experience", "Experience"]);
+    }
+    if ((s.education || []).length) {
+      secs.push(el("section", { class: "pf-section", id: "pf-education", "aria-labelledby": "pf-h-ed" }, [
+        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-ed", text: "Education and certifications" })]),
+        el("ul", { class: "pf-edu" }, s.education.map(function (e) { return el("li", { class: "pf-card pf-edu__item" }, [svg("check"), el("span", { text: e })]); }))]));
+      links.push(["pf-education", "Education"]);
+    }
+    if ((s.skills || []).length) {
+      secs.push(el("section", { class: "pf-section", id: "pf-skills", "aria-labelledby": "pf-h-sk" }, [
+        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-sk", text: "Skills" })]),
+        el("ul", { class: "pf-pills pf-pills--sm" }, s.skills.map(function (k) { return el("li", { class: "pf-pill" }, [k]); }))]));
+      links.push(["pf-skills", "Skills"]);
+    }
     if (secs.length) { nodes.push(el("div", { class: "pf-sections" }, secs)); }
 
     // closing band

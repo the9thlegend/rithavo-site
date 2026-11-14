@@ -345,3 +345,15 @@ body.bar-on .pf-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 select.pf-input { appearance: auto; }
 .pf-preview__img--logo { object-fit: contain; background: var(--pf-surface-strong); padding: 6px; }
 .pf-tabs { margin-bottom: 10px; }
+
+/* Experience timeline, education and skills (from the owner's own records) */
+.pf-timeline { list-style: none; margin: 0; padding: 0 0 0 22px; display: grid; gap: 22px; border-left: 2px solid var(--pf-border); }
+.pf-timeline__item { position: relative; display: grid; gap: 4px; min-width: 0; }
+.pf-timeline__item::before { content: ""; position: absolute; left: -29px; top: 7px; width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #6d44f2, #d0452d); box-shadow: 0 0 0 4px rgba(109, 68, 242, 0.18); }
+.pf-timeline__title { font: 700 1.05rem/1.3 var(--pf-display); overflow-wrap: anywhere; }
+.pf-timeline__who { margin: 0; color: var(--pf-text); opacity: 0.92; overflow-wrap: anywhere; }
+.pf-timeline__period { margin: 0; font-size: 0.85rem; color: var(--pf-muted, inherit); opacity: 0.8; }
+.pf-timeline__points { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.92rem; opacity: 0.9; }
+.pf-edu { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.pf-edu__item { display: flex; align-items: center; gap: 12px; padding: 16px 20px; overflow-wrap: anywhere; }
+.pf-edu__item svg { flex: none; width: 20px; height: 20px; }
