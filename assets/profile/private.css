@@ -150,3 +150,9 @@
   .pf-private-root .ph-chip svg { width: 18px; height: 18px; }
   .pf-private-root .ph-hero__copy { text-align: left; }
 }
+
+.pf-private-root .ph-skel { border-radius: 12px; background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.12), rgba(255,255,255,0.05)); background-size: 200% 100%; animation: ph-shimmer 1.6s linear infinite; }
+.pf-private-root .ph-skel--name { height: clamp(48px, 8vw, 72px); width: min(100%, 360px); }
+.pf-private-root .ph-skel--line { height: 26px; width: min(100%, 260px); }
+@keyframes ph-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .pf-private-root .ph-skel { animation: none; } }

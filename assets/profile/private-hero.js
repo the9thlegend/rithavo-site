@@ -33,64 +33,77 @@
     return fetch(url, { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } }).then(function (r) { return r.status === 200 ? r.json() : null; });
   }
 
-  getJson("/api/my-public-profile").then(function (mine) {
-    if (!mine || !mine.slug) { return null; }
-    return getJson("/api/public-profile/" + encodeURIComponent(mine.slug)).then(function (d) { return d ? { d: d, slug: mine.slug } : null; });
-  }).then(function (got) {
-    if (!got) { return; }
-    var d = got.d, s = d.sections || {};
-    var hasPhoto = !!(d.photo && d.photo.present), hasPhotoNow = hasPhoto;
-    var photoUrl = "/api/public-profile/" + encodeURIComponent(got.slug) + "/photo";
+  // The slug is remembered after the first successful load so repeat visits can start every request at once and show a skeleton
+  // straight away. Nothing else is stored.
+  var SLUG_KEY = "rithavo-own-profile-slug", cached = null;
+  try { cached = window.localStorage.getItem(SLUG_KEY); } catch (e) { cached = null; }
+  if (cached && !/^[A-Za-z0-9_-]{6,40}$/.test(cached)) { cached = null; }
+  var skeleton = null;
+  if (cached) {
+    skeleton = el("section", { "class": "ph-hero ph-skeleton", "aria-hidden": "true" }, [
+      el("div", { "class": "ph-hero__copy" }, [el("p", { "class": "ph-eyebrow", text: "Hello, I'm" }), el("div", { "class": "ph-skel ph-skel--name" }), el("div", { "class": "ph-skel ph-skel--line" })]),
+      el("div", { "class": "ph-hero__portrait" }, [el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob" })])])
+    ]);
+    main.insertBefore(skeleton, main.querySelector("p.label") || main.firstChild);
+  }
+  function dropSkeleton() { if (skeleton && skeleton.parentNode) { skeleton.parentNode.removeChild(skeleton); } skeleton = null; }
+
+  var slugP = cached ? Promise.resolve(cached) : getJson("/api/my-public-profile").then(function (m) { return m && m.slug ? m.slug : null; });
+  slugP.then(function (slug) {
+    if (!slug) { dropSkeleton(); return; }
+    var base = "/api/public-profile/" + encodeURIComponent(slug);
+    var photoReq = fetch(base + "/photo", { credentials: "same-origin", cache: "no-store" }).catch(function () { return null; });
+    return getJson(base).then(function (d) {
+      if (!d) { try { window.localStorage.removeItem(SLUG_KEY); } catch (e) { /* ignore */ } dropSkeleton(); return; }
+      try { window.localStorage.setItem(SLUG_KEY, slug); } catch (e) { /* ignore */ }
+      var hasPhoto = !!(d.photo && d.photo.present);
+      return (hasPhoto ? photoReq : Promise.resolve(null)).then(function (r) {
+        var ok = hasPhoto && r && r.status === 200;
+        hero(d, slug, ok, ok && r.headers.get("X-Rithavo-Photo-Alpha") === "1");
+        if (ok) { r.blob().then(function (b) { var img = main.querySelector(".ph-photo"); if (img) { img.src = URL.createObjectURL(b); } }); }
+      });
+    });
+  }).catch(function () { dropSkeleton(); /* the page works exactly as before */ });
+
+  function hero(d, slug, hasPhoto, alpha) {
+    var s = d.sections || {};
     var names = (s.capabilities && s.capabilities.length ? s.capabilities : (s.skills || [])).slice(0, 4);
     var chips = names.map(function (n, i) { return el("div", { "class": "ph-chip ph-chip--" + (i + 1) }, [svg(CHIP_ICONS[i % 4]), el("span", { text: n })]); });
-
-    function build(alpha, src) {
-      var stage;
-      if (hasPhoto) {
-        var img = el("img", { "class": "ph-photo", src: src, alt: "Your confirmed photograph" });
-        if (alpha) { stage = el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-ring", "aria-hidden": "true" }), img].concat(chips)); }
-        else {
-          stage = el("div", { "class": "ph-stage ph-stage--framed" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-frame" }, [img])].concat(chips));
-          var f = d.photo.focus;
-          if (f) { stage.style.setProperty("--pf-fx", f.x + "%"); stage.style.setProperty("--pf-fy", f.y + "%"); }
-        }
-      } else {
-        stage = el("div", { "class": "ph-stage ph-stage--initial" }, [el("div", { "class": "ph-initial", "aria-hidden": "true", text: (d.name || "R").trim().charAt(0).toUpperCase() })].concat(chips));
+    var stage;
+    if (hasPhoto) {
+      var img = el("img", { "class": "ph-photo", src: "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==", alt: "Your confirmed photograph" });
+      if (alpha) { stage = el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-ring", "aria-hidden": "true" }), img].concat(chips)); }
+      else {
+        stage = el("div", { "class": "ph-stage ph-stage--framed" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-frame" }, [img])].concat(chips));
+        var f = d.photo.focus;
+        if (f) { stage.style.setProperty("--pf-fx", f.x + "%"); stage.style.setProperty("--pf-fy", f.y + "%"); }
       }
-      var meta = [];
-      if (s.location) { meta.push(el("span", {}, [svg("pin"), s.location])); }
-      if ((s.professional_intent || []).length) { meta.push(el("span", {}, [el("i", { "class": "ph-dot", "aria-hidden": "true" }), "Open to " + s.professional_intent.join(", ")])); }
-      var badges = [];
-      if (d.trust && d.trust.label && d.trust.label !== "Unverified") { badges.push(el("span", { "class": "ph-badge" }, [svg("check"), d.trust.label])); }
-      var headline = d.headline || s.current_role || "";
-      var hero = el("section", { "class": "ph-hero", "aria-labelledby": "ph-name" }, [
-        el("div", { "class": "ph-hero__copy" }, [
-          el("p", { "class": "ph-eyebrow", text: "Hello, I'm" }),
-          el("h1", { "class": "ph-name", id: "ph-name", text: d.name || "Your profile" }),
-          headline ? el("p", { "class": "ph-headline ph-gradtext", text: headline }) : null,
-          badges.length ? el("div", { "class": "ph-badges" }, badges) : null,
-          el("div", { "class": "ph-actions" }, [
-            el("a", { "class": "btn btn-primary", href: "/profile/edit", text: "Edit your profile" }),
-            el("a", { "class": "btn btn-ghost", href: "/c/" + got.slug, text: "View public profile" }),
-            el("a", { "class": "btn btn-ghost", href: "/c/manage", text: "Public profile settings" })
-          ]),
-          meta.length ? el("div", { "class": "ph-meta" }, meta) : null
-        ]),
-        el("div", { "class": "ph-hero__portrait" }, [stage])
-      ]);
-      var anchor = main.querySelector("p.label");
-      main.insertBefore(hero, anchor || main.firstChild);
-      document.documentElement.classList.add("ph-on");
+    } else {
+      stage = el("div", { "class": "ph-stage ph-stage--initial" }, [el("div", { "class": "ph-initial", "aria-hidden": "true", text: (d.name || "R").trim().charAt(0).toUpperCase() })].concat(chips));
     }
-
-    if (!hasPhoto) { hasPhoto = false; build(false, null); return; }
-    // one request: the same response gives the transparency flag and the image. A cut-out is used only when the owner's image
-    // really has transparency; otherwise it is framed.
-    fetch(photoUrl, { credentials: "same-origin", cache: "no-store" }).then(function (r) {
-      if (r.status !== 200) { hasPhoto = false; build(false, null); return; }
-      var alpha = r.headers.get("X-Rithavo-Photo-Alpha") === "1";
-      build(alpha, "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==");  // draw the hero now; the photograph fills in as it arrives
-      return r.blob().then(function (b) { var img = main.querySelector(".ph-photo"); if (img) { img.src = URL.createObjectURL(b); } });
-    }).catch(function () { hasPhoto = false; build(false, null); });
-  }).catch(function () { /* the page works exactly as before */ });
+    var meta = [];
+    if (s.location) { meta.push(el("span", {}, [svg("pin"), s.location])); }
+    if ((s.professional_intent || []).length) { meta.push(el("span", {}, [el("i", { "class": "ph-dot", "aria-hidden": "true" }), "Open to " + s.professional_intent.join(", ")])); }
+    var badges = [];
+    if (d.trust && d.trust.label && d.trust.label !== "Unverified") { badges.push(el("span", { "class": "ph-badge" }, [svg("check"), d.trust.label])); }
+    var headline = d.headline || s.current_role || "";
+    var node = el("section", { "class": "ph-hero", "aria-labelledby": "ph-name" }, [
+      el("div", { "class": "ph-hero__copy" }, [
+        el("p", { "class": "ph-eyebrow", text: "Hello, I'm" }),
+        el("h1", { "class": "ph-name", id: "ph-name", text: d.name || "Your profile" }),
+        headline ? el("p", { "class": "ph-headline ph-gradtext", text: headline }) : null,
+        badges.length ? el("div", { "class": "ph-badges" }, badges) : null,
+        el("div", { "class": "ph-actions" }, [
+          el("a", { "class": "btn btn-primary", href: "/profile/edit", text: "Edit your profile" }),
+          el("a", { "class": "btn btn-ghost", href: "/c/" + slug, text: "View public profile" }),
+          el("a", { "class": "btn btn-ghost", href: "/c/manage", text: "Public profile settings" })
+        ]),
+        meta.length ? el("div", { "class": "ph-meta" }, meta) : null
+      ]),
+      el("div", { "class": "ph-hero__portrait" }, [stage])
+    ]);
+    if (skeleton && skeleton.parentNode) { skeleton.parentNode.replaceChild(node, skeleton); skeleton = null; }
+    else { main.insertBefore(node, main.querySelector("p.label") || main.firstChild); }
+    document.documentElement.classList.add("ph-on");
+  }
 })();
