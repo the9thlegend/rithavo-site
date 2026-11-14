@@ -39,15 +39,15 @@
   }).then(function (got) {
     if (!got) { return; }
     var d = got.d, s = d.sections || {};
-    var hasPhoto = !!(d.photo && d.photo.present);
+    var hasPhoto = !!(d.photo && d.photo.present), hasPhotoNow = hasPhoto;
     var photoUrl = "/api/public-profile/" + encodeURIComponent(got.slug) + "/photo";
     var names = (s.capabilities && s.capabilities.length ? s.capabilities : (s.skills || [])).slice(0, 4);
     var chips = names.map(function (n, i) { return el("div", { "class": "ph-chip ph-chip--" + (i + 1) }, [svg(CHIP_ICONS[i % 4]), el("span", { text: n })]); });
 
-    function build(alpha) {
+    function build(alpha, src) {
       var stage;
       if (hasPhoto) {
-        var img = el("img", { "class": "ph-photo", src: photoUrl, alt: "Your confirmed photograph" });
+        var img = el("img", { "class": "ph-photo", src: src, alt: "Your confirmed photograph" });
         if (alpha) { stage = el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-ring", "aria-hidden": "true" }), img].concat(chips)); }
         else {
           stage = el("div", { "class": "ph-stage ph-stage--framed" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-frame" }, [img])].concat(chips));
@@ -83,10 +83,13 @@
       document.documentElement.classList.add("ph-on");
     }
 
-    if (!hasPhoto) { build(false); return; }
-    // the photo is shown as a cut-out only when the owner's image really has transparency; otherwise it is framed
+    if (!hasPhoto) { hasPhoto = false; build(false, null); return; }
+    // one request: the same response gives the transparency flag and the image. A cut-out is used only when the owner's image
+    // really has transparency; otherwise it is framed.
     fetch(photoUrl, { credentials: "same-origin", cache: "no-store" }).then(function (r) {
-      build(r.status === 200 && r.headers.get("X-Rithavo-Photo-Alpha") === "1");
-    }).catch(function () { build(false); });
+      if (r.status !== 200) { hasPhoto = false; build(false, null); return; }
+      var alpha = r.headers.get("X-Rithavo-Photo-Alpha") === "1";
+      return r.blob().then(function (b) { build(alpha, URL.createObjectURL(b)); });
+    }).catch(function () { hasPhoto = false; build(false, null); });
   }).catch(function () { /* the page works exactly as before */ });
 })();
