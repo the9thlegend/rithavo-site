@@ -25,7 +25,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 import config
 from app import profile_client
-from app.pages.public_profile_shell import HTML as SHELL_HTML
+from app.pages.public_profile_shell import HTML as SHELL_HTML, MANAGE_HTML
 from app.profile_client import ProfileNotConfigured, ProfileUnavailable
 from app.security import require_user
 
@@ -195,6 +195,17 @@ async def _read_object(request: Request, required: bool):
 
 # ---- page ---------------------------------------------------------------------------------------------------------------
 
+@router.get("/c/manage")
+def manage_profile_page(request: Request):
+    """The owner panel. 'manage' is shorter than the 8-character minimum of a slug, so it can never shadow a profile.
+    Declared before /c/{slug} so the literal route wins."""
+    if not _enabled(config.PROFILE_MANAGEMENT_ENABLED):
+        return _not_found()
+    if not request.session.get("user_id"):
+        return RedirectResponse("/sign-in/?next=/c/manage", status_code=302, headers=NO_STORE)
+    return HTMLResponse(MANAGE_HTML, headers=PAGE_HEADERS)
+
+
 @router.get("/c/{slug}")
 def public_profile_page(request: Request, slug: str):
     if not _enabled(config.PUBLIC_PROFILE_ENABLED) or not _valid_slug(slug):
@@ -341,3 +352,25 @@ async def select_my_photo(request: Request):
     if isinstance(photo_id, bool) or not isinstance(photo_id, int):
         return _json({"detail": "Request not allowed."}, 422)
     return _manage(viewer, "POST", "/internal/api/me/photo/select", {"photo_id": photo_id})
+
+
+@router.get("/my-photos/{photo_id}/image")
+def my_photo_image(request: Request, photo_id: str):
+    """Thumbnail for the owner's photo picker: only the member's OWN confirmed photographs. Parsed by hand after the
+    feature gate so a disabled feature never answers a validation error."""
+    viewer, early = _management_gate(request)
+    if early:
+        return early
+    if reads.blocked(viewer):
+        return _too_many()
+    if not photo_id.isdigit() or len(photo_id) > 12:
+        return _not_found()
+    reads.hit(viewer)
+    result, err = _call("GET", f"/internal/api/me/photos/{int(photo_id)}/image", viewer)
+    if err:
+        return err
+    content_type = (result.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if result.status != 200 or content_type not in ALLOWED_IMAGE_TYPES or not result.content:
+        return _not_found()
+    return Response(content=result.content, media_type=content_type,
+                    headers={**NO_STORE, "Content-Security-Policy": "default-src 'none'; sandbox"})

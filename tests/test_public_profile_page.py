@@ -1,7 +1,8 @@
 """
-R1: the member-profile page shell (scaffold) and the profile-scoped design assets. The shell is served only while
-RITHAVO_PUBLIC_PROFILE_ENABLED is on. The page composition itself is built to the signed-off specimens (V6) and is not part
-of this scaffold; these tests pin the properties every later version must keep.
+R1: the member-profile page shells (public profile and owner panel) and the profile-scoped design assets. The pages are served
+only while their feature flags are on. The visual direction is the Founder's approved dark references; these tests pin the
+properties that must survive any later restyle: security headers, no inline script or style, same-origin assets, the existing
+logo verbatim, shipped fonts only, and text inserted without markup.
 """
 
 import hashlib
@@ -10,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.pages.public_profile_shell import HTML as SHELL_HTML
+from app.pages.public_profile_shell import HTML as SHELL_HTML, MANAGE_HTML
 
 import config
 from app import profile_client, routes_public_profile
@@ -21,7 +22,6 @@ SLUG = "AbCdEfGh12345678"
 
 # Pinned SHA-256 of the profile-scoped Bearing copies (V3). The same TOKENS value is pinned in the profile service repo.
 TOKENS_SHA256 = "bcc8df370eb38d99b7564138b1fb7cc16767fe7ffc5681028590d931afaa144c"  # the DERIVED copy (see derive_tokens)
-COMPONENTS_SHA256 = "7a9a2490bcd8b5929215e0159ca66979ecda23a1fdb0b42d7c48a33d80ec570d"
 BEARING_SOURCE_TOKENS = Path(r"C:\Rithavo\rithavo-site\tokens.css")  # untracked original; compared only if present
 
 
@@ -63,8 +63,8 @@ def test_shell_carries_the_pwa_head_tags_like_every_other_member_page():
 def test_shell_is_noindex_and_has_a_skip_link_and_a_landmark():
     html = SHELL_HTML
     assert '<meta name="robots" content="noindex">' in html  # the repository's exact form; the header adds nofollow
-    assert re.search(r'<a class="b-skip" href="#profile-root">', html)
-    assert '<main id="profile-root"' in html and "<header" in html and '<html lang="en">' in html
+    assert re.search(r'<a class="pf-skip" href="#pf-main">', html)
+    assert '<main id="pf-main"' in html and "<header" in html and '<html lang="en"' in html
 
 
 def test_shell_has_no_inline_script_no_inline_style_and_no_external_host():
@@ -85,8 +85,8 @@ def test_theme_script_loads_first_so_the_theme_applies_before_first_paint():
 def test_every_asset_the_shell_references_exists():
     html = SHELL_HTML
     for ref in re.findall(r'(?:href|src)="(/[^"#?]+)"', html):
-        if ref == "/":
-            continue
+        if ref.endswith("/"):
+            continue  # a page link (the sign-in and home pages), not an asset
         assert (ROOT / ref.lstrip("/")).is_file(), ref
 
 
@@ -113,7 +113,6 @@ def test_brand_gradient_names_appear_only_inside_the_logo_definitions():
 
 def test_bearing_copies_match_their_pinned_hashes():
     assert _sha(ROOT / "assets" / "profile" / "bearing-tokens.css") == TOKENS_SHA256
-    assert _sha(ROOT / "assets" / "profile" / "bearing-components.css") == COMPONENTS_SHA256
 
 
 @pytest.mark.skipif(not BEARING_SOURCE_TOKENS.is_file(), reason="the untracked Bearing original is not on this machine")
@@ -130,29 +129,50 @@ def test_token_copy_names_no_font_this_repository_does_not_ship():
 
 
 def test_fonts_are_the_repository_fonts_and_nothing_is_loaded_from_outside():
-    theme = (ROOT / "assets" / "profile" / "profile-theme.css").read_text(encoding="utf-8")
-    code = re.sub(r"/\*.*?\*/", "", theme, flags=re.S)
-    assert '--f-display: "Manrope"' in code and '--f-body:    "Manrope"' in code and '--f-data:    "DM Mono"' in code
+    css = (ROOT / "assets" / "profile" / "profile.css").read_text(encoding="utf-8")
+    code = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert '--pf-display: "Manrope"' in code and '--pf-data: "DM Mono"' in code and '--pf-wordmark: "Fraunces"' in code
     for forbidden in ("Inter", "Bricolage", "Hanken", "IBM Pl" + "ex", "@font-face", "@import", "googleapis"):
         assert forbidden not in code, forbidden
-    # no external resource: the only url() allowed is an inline data: URI (the chevron mask)
-    assert all(u.startswith(('"data:image/svg+xml', "'data:image/svg+xml", "data:image/svg+xml")) for u in re.findall(r"url\(([^)]*)\)", code))
-    for css in (ROOT / "assets" / "profile").glob("*.css"):
-        text = css.read_text(encoding="utf-8")
+    assert not re.findall(r"url\(", code), "no external or inline resource in the profile CSS"
+    for f in (ROOT / "assets" / "profile").glob("*.css"):
+        text = f.read_text(encoding="utf-8")
         assert "googleapis" not in text and "@import" not in text and "http://" not in text.replace("http://www.w3.org", "")
 
 
-def test_the_gradient_is_confined_to_one_portrait_backdrop_token_and_the_logo():
-    """V1 (hybrid): the brand gradient is allowed only in the logo and as ONE contained, static backdrop behind the portrait."""
-    theme = (ROOT / "assets" / "profile" / "profile-theme.css").read_text(encoding="utf-8")
-    code = re.sub(r"/\*.*?\*/", "", theme, flags=re.S)
-    assert code.count("linear-gradient(") == 1
-    assert "--portrait-backdrop: linear-gradient(115deg, var(--brand-g1) 0%, var(--brand-g2) 52%, var(--brand-g3) 100%)" in code
-    assert "animation" not in code.split("--portrait-backdrop")[1].split(";")[0]
-    # the Bearing component CSS uses gradients only as hard-stop drawing for Scale ticks, never as colour
-    components = (ROOT / "assets" / "profile" / "bearing-components.css").read_text(encoding="utf-8")
-    for match in re.findall(r"linear-gradient\(([^)]*)\)", components):
-        assert "brand" not in match and "--g1" not in match
+def test_the_profile_css_keeps_its_accessibility_rules():
+    code = (ROOT / "assets" / "profile" / "profile.css").read_text(encoding="utf-8")
+    assert "prefers-reduced-motion: reduce" in code and "animation: none !important" in code
+    assert ":focus-visible" in code and "outline: 3px solid var(--pf-focus)" in code
+    assert "min-height: 44px" in code and "forced-colors: active" in code
+    # the floating indicators only animate when motion is allowed
+    anim = code.index("animation: pf-float")
+    assert "@media (prefers-reduced-motion: no-preference)" in code[:anim]
+
+
+def test_profile_scripts_never_turn_server_text_into_markup():
+    for name in ("common.js", "profile.js", "manage.js"):
+        js = (ROOT / "assets" / "profile" / name).read_text(encoding="utf-8")
+        for banned in ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function", "setAttribute(\"style\"", "localStorage"):
+            assert banned not in js, f"{name}: {banned}"
+        # the SVG namespace identifier is not a network address; nothing else may look like one
+        assert "http://" not in js.replace("http://www.w3.org/2000/svg", "") and "https://" not in js, name
+
+
+def test_the_profile_pages_use_the_same_logo_and_the_dark_default():
+    for html in (SHELL_HTML, MANAGE_HTML):
+        assert 'data-theme-default="dark"' in html and 'href="/assets/profile/profile.css"' in html
+        assert html.count('class="wordmark"') == 1 and "pf-theme" in html
+    assert 'src="/assets/profile/profile.js"' in SHELL_HTML and 'src="/assets/profile/manage.js"' in MANAGE_HTML
+    assert 'src="/assets/profile/common.js"' in SHELL_HTML and 'src="/assets/profile/common.js"' in MANAGE_HTML
+
+
+def test_manage_shell_has_no_inline_script_no_inline_style_and_no_external_host():
+    html = MANAGE_HTML
+    assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html)
+    assert re.findall(r' style="([^"]*)"', html) == ["position:absolute"] and "<style" not in html
+    assert not re.search(r"https?://", html) and not re.search(r"\bon[a-z]+\s*=", html)
+    assert '<meta name="robots" content="noindex">' in html
 
 
 # ---- serving the shell ---------------------------------------------------------------------------------------------
@@ -186,3 +206,44 @@ def test_invalid_slugs_never_get_the_shell(served):
     for bad in ("short", "bad slug!", "a" * 65, "x" * 7):
         assert served.get(f"/c/{bad}", follow_redirects=False).status_code == 404
 
+
+
+# ---- the owner panel page --------------------------------------------------------------------------------------------
+
+@pytest.fixture
+def managed(app_and_client, monkeypatch):
+    app, client = app_and_client
+    monkeypatch.setattr(config, "PROFILE_SERVICE_SECRET", "page-test-secret-" + "p" * 24)
+    monkeypatch.setattr(config, "PROFILE_MANAGEMENT_ENABLED", True)
+    routes_public_profile.reset_limiters()
+    return app, client
+
+
+def test_manage_page_is_a_literal_route_that_cannot_shadow_a_slug():
+    assert not routes_public_profile.SLUG_RE.match("manage")
+    paths = [r.path for r in routes_public_profile.router.routes]
+    assert paths.index("/c/manage") < paths.index("/c/{slug}")
+
+
+def test_manage_page_needs_its_flag_then_a_session(managed, monkeypatch):
+    app, client = managed
+    anon = client.get("/c/manage", follow_redirects=False)
+    assert anon.status_code == 302 and anon.headers["location"] == "/sign-in/?next=/c/manage"
+    monkeypatch.setattr(config, "PROFILE_MANAGEMENT_ENABLED", False)
+    assert client.get("/c/manage", follow_redirects=False).status_code == 404  # flag first, even for anonymous callers
+    monkeypatch.setattr(config, "PROFILE_MANAGEMENT_ENABLED", True)
+    login_via_magic_link(client, app, "member@example.test")
+    r = client.get("/c/manage")
+    assert r.status_code == 200 and r.headers["cache-control"] == "private, no-store" and r.headers["x-robots-tag"] == "noindex, nofollow"
+    assert "manage.js" in r.text and "unsafe-inline" not in r.headers["content-security-policy"]
+
+
+def test_photo_thumbnail_route_is_gated_and_validated_by_hand(managed, monkeypatch):
+    app, client = managed
+    monkeypatch.setattr(config, "PROFILE_MANAGEMENT_ENABLED", False)
+    assert client.get("/my-photos/1/image").status_code == 404  # disabled: 404 for anonymous callers, never a 422/401
+    monkeypatch.setattr(config, "PROFILE_MANAGEMENT_ENABLED", True)
+    assert client.get("/my-photos/1/image").status_code == 401
+    login_via_magic_link(client, app, "member@example.test")
+    for bad in ("abc", "1.5", "-1", "9" * 30):
+        assert client.get(f"/my-photos/{bad}/image").status_code == 404

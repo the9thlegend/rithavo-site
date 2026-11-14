@@ -1,5 +1,12 @@
 # Profile redesign (release R1): design copies, limits and packaging
 
+> **Update (implementation phase).** The Founder approved a dark, gradient-led visual direction (desktop and mobile references) that supersedes
+> the flat Bearing restrictions below. The profile pages now use `assets/profile/profile.css` (self-contained; Manrope, DM Mono, Fraunces
+> only) plus the derived `bearing-tokens.css` (read by `theme.js` for the browser theme colour). `bearing-components.css` and
+> `profile-theme.css` were removed. The sections below record what the earlier phase copied and why; the pinned token hash and the
+> excluded declarations are unchanged. Original Bearing files remain untouched.
+
+
 Maintained with the code. Everything below is generated from, and checked against, the files in this repository.
 
 ## 1. What was copied from Bearing, and what was not

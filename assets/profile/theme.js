@@ -9,12 +9,18 @@
   var KEY = "rithavo-theme";
   var root = document.documentElement;
 
+  /* A page may declare its own default (the member profile pages are dark-first); everything else follows the system. */
+  function fallback() {
+    var d = root.getAttribute("data-theme-default");
+    return d === "light" || d === "dark" ? d : "system";
+  }
+
   function read() {
     try {
       var v = window.localStorage.getItem(KEY);
-      return v === "light" || v === "dark" ? v : "system";
+      return v === "light" || v === "dark" || v === "system" ? v : fallback();
     } catch (e) {
-      return "system";
+      return fallback();
     }
   }
 
@@ -39,7 +45,7 @@
   function set(choice) {
     var value = choice === "light" || choice === "dark" ? choice : "system";
     try {
-      if (value === "system") { window.localStorage.removeItem(KEY); } else { window.localStorage.setItem(KEY, value); }
+      if (value === "system" && !root.getAttribute("data-theme-default")) { window.localStorage.removeItem(KEY); } else { window.localStorage.setItem(KEY, value); }
     } catch (e) { /* the choice still applies for this page view */ }
     apply(value);
   }

@@ -20,6 +20,7 @@ function load({ stored, storageThrows = false, canvas = "#F3F4F1" } = {}) {
   });
   const root = {
     setAttribute(k, v) { attrs[k] = v; }, removeAttribute(k) { delete attrs[k]; },
+    getAttribute(k) { return k in attrs ? attrs[k] : null; },
   };
   const storage = {
     getItem() { if (storageThrows) throw new Error("blocked"); return stored === undefined ? null : stored; },
