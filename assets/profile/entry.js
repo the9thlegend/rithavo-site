@@ -5,8 +5,11 @@
   "use strict";
   var host = document.getElementById("public-profile-entry");
   if (!host || !window.fetch) { return; }
+  var shared = window.__rithavoOwnProfile = {};
+  shared.promise = new Promise(function (resolve) { shared.resolve = resolve; });
   fetch("/api/my-public-profile", { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } }).then(function (res) {
-    if (res.status !== 200) { return; }
+    if (res.status !== 200) { shared.resolve(null); return; }
+    res.clone().json().then(shared.resolve, function () { shared.resolve(null); });
     [["/c/manage", "Public profile: preview and settings", "btn btn-ghost"], ["/c/manage?view=business", "Business profile", "btn btn-ghost"]].forEach(function (l) {
       var a = document.createElement("a");
       a.className = l[2];
@@ -14,5 +17,5 @@
       a.textContent = l[1];
       host.appendChild(a);
     });
-  }).catch(function () { /* the page works exactly as before */ });
+  }).catch(function () { shared.resolve(null); /* the page works exactly as before */ });
 })();

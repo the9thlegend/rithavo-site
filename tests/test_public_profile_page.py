@@ -253,14 +253,14 @@ def test_photo_thumbnail_route_is_gated_and_validated_by_hand(managed, monkeypat
 
 def test_private_profile_page_gets_the_entry_point_script_and_no_unconditional_management_link():
     html = (ROOT / "profile" / "index.html").read_text(encoding="utf-8")
-    assert 'id="public-profile-entry"' in html and "private-class.js" in html and 'src="/assets/profile/entry.js"' in html
+    assert 'id="public-profile-entry"' in html and "private-class.js" in html and 'src="/assets/profile/entry.js?v=' in html
     assert "/c/manage" not in html, "the link is created by script only when the management API answers 200 (flag on)"
     assert 'href="/profile/edit"' in html and "RithavoApp.requireSession" in html  # existing behaviour preserved
 
 
 def test_entry_script_adds_links_only_on_a_200_and_never_on_failure():
     js = (ROOT / "assets" / "profile" / "entry.js").read_text(encoding="utf-8")
-    assert 'res.status !== 200) { return; }' in js and ".catch(" in js and "innerHTML" not in js
+    assert 'res.status !== 200) { shared.resolve(null); return; }' in js and ".catch(" in js and "innerHTML" not in js
     assert "/c/manage" in js and "view=business" in js
 
 

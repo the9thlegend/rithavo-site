@@ -33,7 +33,7 @@ logger = logging.getLogger("rithavo_web.profile")
 router = APIRouter()
 
 SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png"}
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BODY_BYTES = 10_000
 
 LOGO_STYLE_ATTR_HASH = "/3kWSXHts8LrwfemLzY9W0tOv5I4eLIhrf0pT8cU0WI="  # base64 SHA-256 of: position:absolute

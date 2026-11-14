@@ -13,6 +13,11 @@
     check: "M5 12.5l4.5 4.5L19 7.5"
   };
   var CHIP_ICONS = ["layers", "target", "users", "chart"];
+  // A designed personal-branding portrait (a transparent cut-out in the site's own assets) can replace the confirmed photograph in
+  // this hero for the member it was made for; the owner API says which one (hero_portrait). The confirmed photograph itself, its
+  // status and the trust level are untouched, and nothing is requested from the profile service for the portrait: it comes
+  // straight from the CDN. Members without one keep their own photograph.
+  var PORTRAIT_RE = /^\/assets\/profile\/hero\/[a-z0-9-]{1,60}$/;
   var main = document.querySelector(".app-main");
   if (!main || !window.fetch) { return; }
 
@@ -29,48 +34,61 @@
     (kids || []).forEach(function (c) { if (c) { n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); } });
     return n;
   }
+  function portraitStage(base, name, chips) {
+    var img = el("img", { "class": "ph-photo", src: base + "-800.webp", srcset: base + "-480.webp 480w, " + base + "-800.webp 800w", sizes: "(max-width: 860px) 80vw, 420px", alt: name ? "Portrait of " + name : "Your portrait", width: "800", height: "1200", decoding: "async", fetchpriority: "high" });
+    return el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-ring", "aria-hidden": "true" }), img].concat(chips || []));
+  }
   function getJson(url) {
     return fetch(url, { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } }).then(function (r) { return r.status === 200 ? r.json() : null; });
   }
 
-  // The slug is remembered after the first successful load so repeat visits can start every request at once and show a skeleton
-  // straight away. Nothing else is stored.
-  var SLUG_KEY = "rithavo-own-profile-slug", cached = null;
-  try { cached = window.localStorage.getItem(SLUG_KEY); } catch (e) { cached = null; }
+  // The slug and portrait are remembered after the first successful load so repeat visits can start every request at once and show
+  // the hero frame (with the portrait, when there is one) straight away. Nothing else is stored.
+  var SLUG_KEY = "rithavo-own-profile-slug", PORTRAIT_KEY = "rithavo-own-profile-portrait", cached = null, cachedPortrait = null;
+  try { cached = window.localStorage.getItem(SLUG_KEY); cachedPortrait = window.localStorage.getItem(PORTRAIT_KEY); } catch (e) { cached = null; }
   if (cached && !/^[A-Za-z0-9_-]{6,40}$/.test(cached)) { cached = null; }
+  if (cachedPortrait && !PORTRAIT_RE.test(cachedPortrait)) { cachedPortrait = null; }
   var skeleton = null;
   if (cached) {
     skeleton = el("section", { "class": "ph-hero ph-skeleton", "aria-hidden": "true" }, [
       el("div", { "class": "ph-hero__copy" }, [el("p", { "class": "ph-eyebrow", text: "Hello, I'm" }), el("div", { "class": "ph-skel ph-skel--name" }), el("div", { "class": "ph-skel ph-skel--line" })]),
-      el("div", { "class": "ph-hero__portrait" }, [el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob" })])])
+      el("div", { "class": "ph-hero__portrait" }, [cachedPortrait ? portraitStage(cachedPortrait, "", []) : el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob" })])])
     ]);
     main.insertBefore(skeleton, main.querySelector("p.label") || main.firstChild);
   }
   function dropSkeleton() { if (skeleton && skeleton.parentNode) { skeleton.parentNode.removeChild(skeleton); } skeleton = null; }
 
-  var slugP = cached ? Promise.resolve(cached) : getJson("/api/my-public-profile").then(function (m) { return m && m.slug ? m.slug : null; });
+  // entry.js already asks for /api/my-public-profile: reuse that one request instead of making a second.
+  var own = window.__rithavoOwnProfile ? window.__rithavoOwnProfile.promise : getJson("/api/my-public-profile");
+  var slugP = cached ? Promise.resolve(cached) : own.then(function (m) { return m && m.slug ? m.slug : null; });
   slugP.then(function (slug) {
     if (!slug) { dropSkeleton(); return; }
     var base = "/api/public-profile/" + encodeURIComponent(slug);
-    var photoReq = fetch(base + "/photo", { credentials: "same-origin", cache: "no-store" }).catch(function () { return null; });
-    return getJson(base).then(function (d) {
-      if (!d) { try { window.localStorage.removeItem(SLUG_KEY); } catch (e) { /* ignore */ } dropSkeleton(); return; }
-      try { window.localStorage.setItem(SLUG_KEY, slug); } catch (e) { /* ignore */ }
+    return Promise.all([getJson(base), own]).then(function (r) {
+      var d = r[0], mine = r[1];
+      if (!d || !mine) { try { window.localStorage.removeItem(SLUG_KEY); window.localStorage.removeItem(PORTRAIT_KEY); } catch (e) { /* ignore */ } dropSkeleton(); return; }
+      var portrait = PORTRAIT_RE.test(mine.hero_portrait || "") ? mine.hero_portrait : null;
+      try { window.localStorage.setItem(SLUG_KEY, slug); if (portrait) { window.localStorage.setItem(PORTRAIT_KEY, portrait); } else { window.localStorage.removeItem(PORTRAIT_KEY); } } catch (e) { /* ignore */ }
+      if (portrait) { hero(d, slug, true, true, portrait); return; }
       var hasPhoto = !!(d.photo && d.photo.present);
-      return (hasPhoto ? photoReq : Promise.resolve(null)).then(function (r) {
-        var ok = hasPhoto && r && r.status === 200;
-        hero(d, slug, ok, ok && r.headers.get("X-Rithavo-Photo-Alpha") === "1");
-        if (ok) { r.blob().then(function (b) { var img = main.querySelector(".ph-photo"); if (img) { img.src = URL.createObjectURL(b); } }); }
+      if (!hasPhoto) { hero(d, slug, false, false, null); return; }
+      // the owner's own confirmed photograph: one request gives both the transparency flag and the image
+      return fetch(base + "/photo", { credentials: "same-origin", cache: "no-store" }).catch(function () { return null; }).then(function (res) {
+        var ok = res && res.status === 200;
+        hero(d, slug, ok, ok && res.headers.get("X-Rithavo-Photo-Alpha") === "1", null);
+        if (ok) { res.blob().then(function (b) { var img = main.querySelector(".ph-photo"); if (img) { img.src = URL.createObjectURL(b); } }); }
       });
     });
   }).catch(function () { dropSkeleton(); /* the page works exactly as before */ });
 
-  function hero(d, slug, hasPhoto, alpha) {
+  function hero(d, slug, hasPhoto, alpha, portrait) {
     var s = d.sections || {};
     var names = (s.capabilities && s.capabilities.length ? s.capabilities : (s.skills || [])).slice(0, 4);
     var chips = names.map(function (n, i) { return el("div", { "class": "ph-chip ph-chip--" + (i + 1) }, [svg(CHIP_ICONS[i % 4]), el("span", { text: n })]); });
     var stage;
-    if (hasPhoto) {
+    if (portrait) {
+      stage = portraitStage(portrait, d.name, chips);
+    } else if (hasPhoto) {
       var img = el("img", { "class": "ph-photo", src: "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==", alt: "Your confirmed photograph" });
       if (alpha) { stage = el("div", { "class": "ph-stage" }, [el("div", { "class": "ph-blob", "aria-hidden": "true" }), el("div", { "class": "ph-ring", "aria-hidden": "true" }), img].concat(chips)); }
       else {
