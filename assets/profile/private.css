@@ -89,3 +89,64 @@
 /* fixed bottom navigation (phones): content and keyboard focus are always scrolled clear of it */
 .pf-private-root { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px); }
 .pf-private-root body.has-bottom-nav { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 48px); }
+
+/* ---------- Portrait-led hero on the signed-in private profile (same composition as the public profile hero) ---------- */
+.pf-private-root body { --pf-violet: #8b5cf6; --pf-radius: 18px; --pf-display: "Manrope", ui-sans-serif, system-ui, sans-serif; --pf-data: "DM Mono", ui-monospace, monospace;
+  --pf-blob: linear-gradient(150deg, #5b3cf0 0%, #a53fe0 48%, #ff6f6a 100%); }
+.pf-private-root.ph-on .app-main > p.label, .pf-private-root.ph-on .app-main > h1.h2 { display: none; }
+.pf-private-root .ph-eyebrow { font: 700 0.78rem/1.2 var(--pf-data); letter-spacing: 0.16em; text-transform: uppercase; color: var(--pf-coral); margin: 0; }
+.pf-private-root .ph-actions, .pf-private-root .ph-meta, .pf-private-root .ph-badges { margin: 0; }
+.pf-private-root .ph-gradtext { background: var(--pf-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; margin: 0; }
+.pf-private-root .ph-name { margin: 0; color: var(--pf-text); }
+.pf-private-root .ph-ring { position: absolute; inset: 20% 0 2% 4%; border-radius: 50%; border: 1.5px solid rgba(255, 140, 220, 0.5); transform: rotate(-12deg) scaleY(0.55); opacity: 0.6; pointer-events: none; }
+.pf-private-root .ph-chip { color: var(--pf-text); font: 700 0.86rem/1.2 var(--pf-display); }
+.pf-private-root .ph-hero { margin-bottom: clamp(20px, 3vw, 36px); }
+
+.pf-private-root .ph-hero { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); gap: clamp(24px, 4vw, 64px); align-items: center; padding-block: clamp(36px, 6vw, 72px) clamp(28px, 4vw, 48px); }
+.pf-private-root .ph-hero__copy { display: grid; gap: 18px; min-width: 0; }
+.pf-private-root .ph-name { font: 800 clamp(2.5rem, 1.6rem + 4.2vw, 4.6rem)/1.04 var(--pf-display); letter-spacing: -0.03em; overflow-wrap: anywhere; text-wrap: balance; }
+.pf-private-root .ph-gradtext { background: var(--pf-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+@supports not (background-clip: text) { .ph-gradtext { color: var(--pf-violet); -webkit-text-fill-color: currentColor; } }
+.pf-private-root .ph-headline { font: 800 clamp(1.2rem, 1rem + 1.4vw, 1.9rem)/1.25 var(--pf-display); letter-spacing: -0.01em; overflow-wrap: anywhere; text-wrap: balance; }
+.pf-private-root .ph-lede { color: var(--pf-text-soft); max-width: 46ch; font-size: 1.05rem; }
+.pf-private-root .ph-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.pf-private-root .ph-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; color: var(--pf-text-soft); font-size: 0.95rem; }
+.pf-private-root .ph-meta span { display: inline-flex; align-items: center; gap: 8px; }
+.pf-private-root .ph-meta svg { width: 18px; height: 18px; color: var(--pf-muted); }
+.pf-private-root .ph-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pf-ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pf-ok) 22%, transparent); flex: none; }
+.pf-private-root .ph-feedback { min-height: 1.5em; color: var(--pf-ok); font-weight: 600; font-size: 0.92rem; }
+.pf-private-root .ph-feedback[data-kind="error"] { color: var(--pf-err); }
+.pf-private-root .ph-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-private-root .ph-badge { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--pf-border-strong); background: var(--pf-surface); font: 600 0.78rem/1 var(--pf-data); letter-spacing: 0.06em; text-transform: uppercase; color: var(--pf-text-soft); }
+.pf-private-root .ph-badge svg { width: 14px; height: 14px; color: var(--pf-ok); }
+
+/* portrait stage: organic gradient shape, optional cut-out, floating chips */
+.pf-private-root .ph-stage { position: relative; width: 100%; max-width: 520px; margin-inline: auto; aspect-ratio: 1 / 1.08; }
+.pf-private-root .ph-blob { position: absolute; inset: 10% 6% 0 12%; border-radius: 58% 42% 46% 54% / 46% 56% 44% 54%; background: var(--pf-blob); box-shadow: 0 40px 90px var(--pf-glow); }
+.pf-private-root .ph-blob::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: radial-gradient(60% 50% at 30% 20%, rgba(255, 255, 255, 0.28), transparent 70%); }
+.pf-private-root .ph-ring { position: absolute; inset: 20% 0 2% 4%; border-radius: 50%; border: 1.5px solid rgba(255, 140, 220, 0.5); transform: rotate(-12deg) scaleY(0.55); opacity: 0.6; pointer-events: none; }
+.pf-private-root .ph-photo { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); height: 104%; width: auto; max-width: 104%; object-fit: contain; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.4)); }
+.pf-private-root .ph-stage--framed .ph-blob { inset: 6% 4% 4% 10%; }
+.pf-private-root .ph-stage--framed .ph-frame { position: absolute; inset: 0 8% 4% 6%; border-radius: 26px; overflow: hidden; border: 1px solid var(--pf-border-strong); box-shadow: 0 30px 70px var(--pf-glow); background: var(--pf-bg-2); }
+.pf-private-root .ph-stage--framed .ph-photo { position: absolute; inset: 0; left: 0; transform: none; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: var(--pf-fx, 50%) var(--pf-fy, 20%); filter: none; }
+.pf-private-root .ph-stage--initial .ph-initial { position: absolute; inset: 14% 10% 4% 14%; display: grid; place-items: center; border-radius: 58% 42% 46% 54% / 46% 56% 44% 54%; background: var(--pf-blob); font: 800 clamp(5rem, 4rem + 8vw, 10rem)/1 var(--pf-display); color: rgba(255, 255, 255, 0.92); box-shadow: 0 40px 90px var(--pf-glow); }
+.pf-private-root .ph-chip { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 10px; max-width: 58%; min-height: 44px; padding: 8px 14px 8px 10px; border-radius: 14px; border: 1px solid var(--pf-border-strong); background: color-mix(in srgb, var(--pf-bg-2) 72%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--pf-shadow); font: 700 0.82rem/1.2 var(--pf-body); color: var(--pf-text); }
+.pf-private-root .ph-chip svg { width: 22px; height: 22px; flex: none; color: var(--pf-coral); }
+.pf-private-root .ph-chip span { overflow-wrap: anywhere; }
+.pf-private-root .ph-chip--1 { left: -2%; top: 6%; }
+.pf-private-root .ph-chip--2 { left: 2%; top: 44%; }
+.pf-private-root .ph-chip--3 { right: -3%; top: 18%; }
+.pf-private-root .ph-chip--4 { right: -1%; top: 58%; }
+@media (prefers-reduced-motion: no-preference) {
+  .pf-private-root .ph-chip { animation: ph-float 7s ease-in-out infinite; }
+  .pf-private-root .ph-chip--2 { animation-delay: -2s; } .pf-private-root .ph-chip--3 { animation-delay: -4s; } .pf-private-root .ph-chip--4 { animation-delay: -1s; }
+  @keyframes ph-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+}
+@media (max-width: 860px) {
+  .pf-private-root .ph-hero { grid-template-columns: 1fr; padding-block: 20px 24px; gap: 8px; }
+  .pf-private-root .ph-hero__portrait { order: -1; }
+  .pf-private-root .ph-stage { max-width: 380px; }
+  .pf-private-root .ph-chip { max-width: 52%; min-height: 40px; font-size: 0.78rem; padding: 6px 12px 6px 8px; }
+  .pf-private-root .ph-chip svg { width: 18px; height: 18px; }
+  .pf-private-root .ph-hero__copy { text-align: left; }
+}
