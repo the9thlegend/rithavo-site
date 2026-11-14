@@ -161,10 +161,10 @@ def test_profile_scripts_never_turn_server_text_into_markup():
 
 def test_the_profile_pages_use_the_same_logo_and_the_dark_default():
     for html in (SHELL_HTML, MANAGE_HTML):
-        assert 'data-theme-default="dark"' in html and 'href="/assets/profile/profile.css"' in html
+        assert 'data-theme-default="dark"' in html and 'href="/assets/profile/profile.css?v=' in html
         assert html.count('class="wordmark"') == 1 and "pf-theme" in html
-    assert 'src="/assets/profile/profile.js"' in SHELL_HTML and 'src="/assets/profile/manage.js"' in MANAGE_HTML
-    assert 'src="/assets/profile/common.js"' in SHELL_HTML and 'src="/assets/profile/common.js"' in MANAGE_HTML
+    assert 'src="/assets/profile/profile.js?v=' in SHELL_HTML and 'src="/assets/profile/manage.js?v=' in MANAGE_HTML
+    assert 'src="/assets/profile/common.js?v=' in SHELL_HTML and 'src="/assets/profile/common.js?v=' in MANAGE_HTML
 
 
 def test_manage_shell_has_no_inline_script_no_inline_style_and_no_external_host():

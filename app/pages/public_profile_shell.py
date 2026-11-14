@@ -26,7 +26,7 @@ _HEAD = """<!DOCTYPE html>
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="/assets/profile/bearing-tokens.css">
-<link rel="stylesheet" href="/assets/profile/profile.css">
+<link rel="stylesheet" href="/assets/profile/profile.css?v=@@V@@">
 <link rel="stylesheet" href="/pwa.css">
 </head>
 <body class="pf">
@@ -52,8 +52,8 @@ _HEAD = """<!DOCTYPE html>
 </main>
 <div class="pf-bar" id="pf-bar" role="region" aria-label="Profile actions"></div>
 <div class="pf-toast" id="pf-toast" role="status" aria-live="polite"></div>
-<script src="/assets/profile/common.js" defer></script>
-<script src="/assets/profile/@@SCRIPT@@" defer></script>
+<script src="/assets/profile/common.js?v=@@V@@" defer></script>
+<script src="/assets/profile/@@SCRIPT@@?v=@@V@@" defer></script>
 <script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>
@@ -74,8 +74,14 @@ _DEFS = r"""<svg width="0" height="0" style="position:absolute" aria-hidden="tru
 _LOCKUP = r"""<a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5 L12.5 12 L4 19" fill="none" stroke="url(#markGradSoft)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/><path d="M11 4 L21 12 L11 20" fill="none" stroke="url(#markGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rithavo</span></a>"""
 
 
+# Bump when profile.css / common.js / profile.js / manage.js change: the files are cached by browsers and the
+# service worker, so the URL has to change for visitors to get the new copy.
+ASSET_VERSION = "20261114a"
+
+
 def _page(title: str, skip: str, script: str) -> str:
     return (_HEAD.replace("@@TITLE@@", title).replace("@@SKIP@@", skip).replace("@@SCRIPT@@", script)
+            .replace("@@V@@", ASSET_VERSION)
             .replace("@@DEFS@@", _DEFS).replace("@@LOCKUP@@", _LOCKUP))
 
 
