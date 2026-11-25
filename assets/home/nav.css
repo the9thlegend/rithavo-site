@@ -1,0 +1,8 @@
+/* Header dropdowns on the public pages: they animate in, and only one is ever open (nav.js closes the others). */
+.navlinks .nav-dropdown-panel { animation: nav-dd 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: top center; }
+@keyframes nav-dd { from { opacity: 0; transform: translate(-50%, 8px) scale(0.98); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+.mobile-nav-links .nav-dropdown-panel { animation: none; }
+.navlinks .nav-dropdown summary { display: inline-flex; align-items: center; gap: 6px; }
+.navlinks .nav-dropdown summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform 0.25s; }
+.navlinks .nav-dropdown details[open] summary::after { transform: rotate(225deg); margin-top: 3px; }
+@media (prefers-reduced-motion: reduce) { .navlinks .nav-dropdown-panel { animation: none; } }
