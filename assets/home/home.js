@@ -15,10 +15,13 @@
     $all(".x-ln", g).forEach(function (l, i) { l.style.setProperty("--d", i); });
     $all("[data-x-reveal]", g).forEach(function (l, i) { l.style.setProperty("--d", i); });
   });
-  if (reduce || !("IntersectionObserver" in window)) { $all("[data-x]").forEach(function (g) { g.classList.add("x-in"); }); }
+  // a reveal element with no [data-x] ancestor is its own group, so nothing can be left hidden
+  var groups = $all("[data-x]").concat($all("[data-x-reveal]").filter(function (n) { return !n.closest("[data-x]") || n.hasAttribute("data-x"); }));
+  groups = groups.filter(function (n, i) { return groups.indexOf(n) === i; });
+  if (reduce || !("IntersectionObserver" in window)) { groups.forEach(function (g) { g.classList.add("x-in"); }); }
   else {
-    var rio = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("x-in"); rio.unobserve(e.target); } }); }, { threshold: 0.16, rootMargin: "0px 0px -6% 0px" });
-    $all("[data-x]").forEach(function (g) { rio.observe(g); });
+    var rio = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("x-in"); rio.unobserve(e.target); } }); }, { threshold: 0.12, rootMargin: "0px 0px -4% 0px" });
+    groups.forEach(function (g) { rio.observe(g); });
   }
 
   /* ---------- tone: the whole background changes colour as sections arrive ---------- */
@@ -104,7 +107,7 @@
       });
       c.addEventListener("pointerleave", function () { c.style.setProperty("--x-rx", "0deg"); c.style.setProperty("--x-ry", "0deg"); });
     });
-    $all(".x-btn--primary").forEach(function (b) {
+    $all(".x-btn").forEach(function (b) {
       b.addEventListener("pointermove", function (e) { var r = b.getBoundingClientRect(); b.style.transform = "translate(" + ((e.clientX - r.left - r.width / 2) * 0.14).toFixed(1) + "px," + ((e.clientY - r.top - r.height / 2) * 0.22).toFixed(1) + "px)"; });
       b.addEventListener("pointerleave", function () { b.style.transform = ""; });
     });
