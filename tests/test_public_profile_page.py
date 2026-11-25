@@ -90,13 +90,27 @@ def test_every_asset_the_shell_references_exists():
         assert (ROOT / ref.lstrip("/")).is_file(), ref
 
 
+def _home_logo_parts():
+    """The brand gradient defs (the first zero-size <svg>) and the nav wordmark lockup, found by pattern in the home page."""
+    home = (ROOT / "index.html").read_text(encoding="utf-8")
+    defs = re.search(r'<svg width="0" height="0" style="position:absolute" aria-hidden="true">.*?</svg>', home, re.S).group(0)
+    lockup = re.search(r'<a class="wordmark" href="/">.*?</a>', home, re.S).group(0).strip()
+    return defs, lockup
+
+
+def _home_logo_parts():
+    """The brand gradient defs (the first zero-size <svg>) and the nav wordmark lockup, found by pattern in the home page."""
+    home = (ROOT / "index.html").read_text(encoding="utf-8")
+    defs = re.search(r'<svg width="0" height="0" style="position:absolute" aria-hidden="true">.*?</svg>', home, re.S).group(0)
+    lockup = re.search(r'<a class="wordmark" href="/">.*?</a>', home, re.S).group(0).strip()
+    return defs, lockup
+
+
 def test_logo_is_the_existing_inline_svg_verbatim():
-    home = (ROOT / "index.html").read_text(encoding="utf-8").splitlines()
-    defs = "\n".join(home[39:51])
-    lockup = home[54].strip()
+    defs, lockup = _home_logo_parts()
     html = SHELL_HTML
-    assert defs in html, "gradient definitions differ from index.html:40-51"
-    assert lockup in html, "wordmark lockup differs from index.html:55"
+    assert defs in html, "gradient definitions differ from the home page's brand SVG defs"
+    assert lockup in html, "wordmark lockup differs from the home page's nav wordmark"
     for path_data in re.findall(r'<path d="([^"]+)"', lockup):
         assert path_data in html
     assert "Rithavo</span></a>" in html
@@ -104,7 +118,7 @@ def test_logo_is_the_existing_inline_svg_verbatim():
 
 def test_brand_gradient_names_appear_only_inside_the_logo_definitions():
     html = SHELL_HTML
-    outside = html.replace("\n".join((ROOT / "index.html").read_text(encoding="utf-8").splitlines()[39:51]), "")
+    outside = html.replace(_home_logo_parts()[0], "")
     assert "var(--g1)" not in outside and "var(--g2)" not in outside and "var(--g3)" not in outside
     assert "gradient" not in outside.lower().replace("lineargradient", "")
 

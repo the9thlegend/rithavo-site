@@ -51,7 +51,8 @@
     which_product: ["thoughtful", "explain"], card: ["thoughtful", "explain"], pricing: ["thoughtful", "explain"], technology_services: ["thoughtful", "look"],
     explore: ["encouraging", "walk"], discover_connect: ["encouraging", "walk"], mentorship: ["encouraging", "point"], join: ["encouraging", "point"],
     contact: ["warm", "point"],
-    product_studio: ["warm", "present"], business_transformation: ["analytical", "explain"], engagement_models: ["thoughtful", "explain"], business_enquiry: ["encouraging", "point"]
+    product_studio: ["warm", "present"], business_transformation: ["analytical", "explain"], engagement_models: ["thoughtful", "explain"], business_enquiry: ["encouraging", "point"],
+    product_examples: ["warm", "present"], collaboration: ["encouraging", "walk"], audience: ["warm", "point"]
   };
   var DEFAULT_LOOK = ["warm", "explain"], PENDING_LOOK = ["thoughtful", "observe"];
   var LOOK_REFUSED = ["observant", "look"], LOOK_UNKNOWN = ["thoughtful", "observe"], LOOK_CLARIFY = ["observant", "observe"];

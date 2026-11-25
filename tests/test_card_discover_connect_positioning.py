@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def _journey_steps():
-    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    html = (ROOT / "professionals" / "index.html").read_text(encoding="utf-8")
     steps = re.findall(r'<div class="journey-step">(.*?)</div>\s*(?=<div class="journey-step">|</div>\s*<)', html, re.S)
     return {re.search(r'journey-eyebrow">([^<]+)<', s).group(1): re.sub(r"<[^>]+>", " ", s) for s in steps}
 

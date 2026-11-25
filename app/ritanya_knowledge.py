@@ -16,9 +16,11 @@ asserts):
   * Availability is never asserted. Career Intelligence and Application Diagnostic are described only as "Not yet
     available for purchase." (founder decision, Gate 1.7), with no date and no commitment.
   * Career prices are hidden (founder decision, Gate 1.7). No price text exists in this module.
-  * The three pillars are Career, Product Studio and Business Transformation. Product Studio is Career products only;
-    technology and automation implementation is not offered. The Business Transformation answers describe only the four
-    approved capability areas and the six possible engagement models, and never promise results or timelines.
+  * Rithavo has two doors: Rithavo for Professionals (Career Intelligence and Application Diagnostic) and Rithavo for
+    Businesses (Product Studio and Business Transformation). Product Studio builds products for businesses as per their
+    requirement (founder direction, November 2026; it supersedes the Gate 1.7 "Career products only" wording). Examples are
+    examples, never a catalogue, price or timeline. The Business Transformation answers describe only the four approved
+    capability areas and the six possible engagement models, and never promise results or timelines.
 """
 
 from typing import NamedTuple
@@ -47,8 +49,11 @@ DESTINATIONS = {
     "contact":               Destination("Contact Rithavo", "/contact/", False),
     "privacy":               Destination("Read the Privacy page", "/privacy/", False),
     "terms":                 Destination("Read the Terms", "/terms/", False),
-    "systems":               Destination("See Product Studio", "/systems/", False),
-    "growth":                Destination("See Business Transformation", "/growth/", False),
+    "systems":               Destination("See Product Studio", "/businesses/#product-studio", False),
+    "growth":                Destination("See Business Transformation", "/businesses/#business-transformation", False),
+    "professionals":         Destination("See Rithavo for Professionals", "/professionals/", False),
+    "businesses":            Destination("See Rithavo for Businesses", "/businesses/", False),
+    "collaboration":         Destination("See collaboration ideas", "/businesses/#collaboration", False),
     "sign_up":               Destination("Join Rithavo", "/sign-up/", False),
     "sign_in":               Destination("Sign in", "/sign-in/", False),
     "career_intelligence":   Destination("Open Career Intelligence", "/career-intelligence/", True),
@@ -81,24 +86,24 @@ class Topic(NamedTuple):
 TOPICS = {t.id: t for t in (
     Topic(
         "overview",
-        "Rithavo is a digital products and services company with three pillars. Career is for individuals: "
-        "Career Intelligence and Application Diagnostic help you understand where you stand and what to do next. "
-        "Product Studio builds Rithavo's own products. Business Transformation works with businesses on how they perform.",
+        "Rithavo is a digital products and services company with two doors. For professionals, Career Intelligence and "
+        "Application Diagnostic help you understand where you stand and what to do next. For businesses, Product Studio "
+        "builds products to your requirement, and Business Transformation works with you on how your business performs.",
         "Every Rithavo product follows the same shape: a clear look at where things stand, a specific "
         "plan to improve it, and a practical next step. " + AVAILABILITY_NOTE,
-        ("career", "about"),
-        ("What is Product Studio?", "What is Business Transformation?", "What is Career Intelligence?"),
-        "about/index.html; career/index.html; systems/index.html (Product Studio); growth/index.html (Business Transformation)",
+        ("professionals", "businesses", "about"),
+        ("Who is Rithavo for?", "What is Product Studio?", "What is Career Intelligence?"),
+        "index.html (the two doors); professionals/index.html; businesses/index.html",
     ),
     Topic(
         "ritanya",
         "I'm Ritanya, Rithavo's guide. I answer from Rithavo's approved product information and point "
         "you to the right page. I'm not a live AI, I can't see your account or your information, and "
         "I can't give personal career advice.",
-        "That means I can explain what Rithavo's three pillars are, what its products do and how to start a business "
-        "enquiry, tell you where things are, and say so plainly when I don't know something.",
-        ("career",),
-        ("What is Rithavo?", "What can you help me with?", "Which one should I choose?"),
+        "That means I can explain what Rithavo does for professionals and for businesses, what its products do and how to "
+        "start a business enquiry, tell you where things are, and say so plainly when I don't know something.",
+        ("professionals", "businesses"),
+        ("What is Rithavo?", "What can you help me with?", "Who is Rithavo for?"),
         "design decision, Phase A (no model; fixed information only)",
     ),
     Topic(
@@ -227,13 +232,29 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "product_studio",
-        "Product Studio is where Rithavo builds its own products. Today it includes two products from Rithavo "
-        "Career, Career Intelligence and Application Diagnostic. Status: Not yet available for purchase.",
-        "Product Studio builds Rithavo's own products. Business Transformation is separate: it works with businesses "
-        "on how they perform. This part of the site was previously called Systems.",
-        ("systems", "career"),
-        ("What is Business Transformation?", "What is Career Intelligence?", "What is Application Diagnostic?"),
-        "systems/index.html (Product Studio); Gate 1.7: Product Studio is Career products only for now",
+        "Product Studio is where Rithavo builds products for businesses, as per their requirement. It is for small, "
+        "medium and large companies, and the products can be software or goods. It also builds Rithavo's own products, "
+        "which today are Career Intelligence and Application Diagnostic (not yet available for purchase).",
+        "What gets built, how and by when is agreed with you once Rithavo understands your requirement. I can't quote a "
+        "price or a timeline. Business Transformation is separate: it works with businesses on how they perform.",
+        ("systems", "contact"),
+        ("What can Product Studio build?", "What is Business Transformation?", "How do I start a business enquiry?"),
+        "businesses/index.html (Product Studio); founder direction, November 2026",
+    ),
+    Topic(
+        "product_examples",
+        "These are examples, not a fixed catalogue. For small businesses (low cost, fast setup, everyday tasks): a client "
+        "and lead tracker, an AI content and social media scheduler, a simple inventory and billing app, and daily-use or "
+        "eco-friendly goods. For medium businesses (process automation and multi-team alignment): a workflow and SOP "
+        "automation platform, a multi-channel customer engagement and analytics suite, a B2B distributor and order "
+        "management portal, and specialised components or equipment.",
+        "For large enterprises (enterprise integration, compliance, global scale): an AI copilot and knowledge hub with "
+        "strict access controls, supply chain and predictive operations software, an enterprise brand and campaign "
+        "localisation engine, and high-scale industrial or smart hardware. Each product is shaped around the requirement "
+        "you bring.",
+        ("systems", "contact"),
+        ("What is Product Studio?", "How do I start a business enquiry?", "What is Business Transformation?"),
+        "businesses/index.html (examples of what we can build); founder direction, November 2026",
     ),
     Topic(
         "business_transformation",
@@ -275,14 +296,39 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "technology_services",
-        "Right now, Product Studio builds Rithavo's own products, which today are Career Intelligence and Application "
-        "Diagnostic. Technology and automation implementation isn't part of what Rithavo offers at the moment. If you "
-        "have a business requirement, Business Transformation and the enquiry route are the best next step.",
+        "Yes, that is what Product Studio is for: Rithavo builds products for businesses, as per their requirement, "
+        "including software. The exact scope is agreed once Rithavo understands what you need, so the best next step is a "
+        "business enquiry.",
         "If your need is about how a business operates or performs, such as sales operations, processes or delivery, "
-        "Business Transformation is the place to start.",
-        ("growth", "contact"),
-        ("What is Product Studio?", "What is Business Transformation?", "How do I start a business enquiry?"),
-        "Gate 1.7: technology and automation implementation are not part of the current offering",
+        "Business Transformation is the place to start. I can't quote a price or a timeline.",
+        ("systems", "contact"),
+        ("What can Product Studio build?", "What is Business Transformation?", "How do I start a business enquiry?"),
+        "businesses/index.html (Product Studio); founder direction, November 2026",
+    ),
+    Topic(
+        "collaboration",
+        "Depending on the nature and scope of the work, a collaboration with Rithavo can run monthly, quarterly, "
+        "half-yearly or yearly. Ideas range from quick wins, such as co-hosted webinars, social takeovers and newsletter "
+        "swaps, to campaign-driven partnerships, operational and product integrations, and long-term strategic alliances.",
+        "Monthly: quick wins and low-friction experiments. Quarterly: campaign-driven and lead-generation partnerships, "
+        "such as bundles, co-authored reports and referral programs. Half-yearly: operational and product integrations, "
+        "such as API integrations, co-branded products and white-labelling. Yearly: strategic alliances, such as joint "
+        "ventures, exclusive distribution and shared research labs. The cadence is indicative and every collaboration is "
+        "scoped individually.",
+        ("collaboration", "contact"),
+        ("What is Business Transformation?", "How do I start a business enquiry?", "What is Product Studio?"),
+        "businesses/index.html (collaboration ideas); founder direction, November 2026",
+    ),
+    Topic(
+        "audience",
+        "Rithavo has two doors. If you are an individual who wants to understand your career or a specific job "
+        "application, start with Rithavo for Professionals. If you run or work in a business and want products built or "
+        "operations strengthened, start with Rithavo for Businesses.",
+        "I can't tell you which suits you personally, because I can't see your situation. The home page shows both doors "
+        "side by side.",
+        ("professionals", "businesses"),
+        ("What is Career Intelligence?", "What is Product Studio?", "What is Business Transformation?"),
+        "index.html (the two doors)",
     ),
     Topic(
         "contact",
@@ -358,8 +404,7 @@ UNKNOWN_REPEATED = (
 )
 
 NO_TOPIC_FOR_FOLLOWUP = "Which one do you mean? I can tell you about any of these."
-START_SUGGESTIONS = ("What is Rithavo?", "What is Career Intelligence?", "What is Application Diagnostic?",
-                     "Which one should I choose?")
+START_SUGGESTIONS = ("What is Rithavo?", "Who is Rithavo for?", "What is Career Intelligence?", "What is Product Studio?")
 
 # Messages the unavailable / rate-limited states show. Kept here so the wording is reviewed with the rest.
 BUSY = "I'm getting a lot of questions right now. Please try again in a minute."
@@ -380,6 +425,8 @@ DISCLOSURE_BROWSER = DISCLOSURE + " Your messages are answered in your browser a
 # real matcher in tests/test_ritanya_chat.py and must produce a reviewed topic answer, never "I don't know".
 PAGE_STARTERS = {
     "/":                                       START_SUGGESTIONS,
+    "/professionals/":                         ("What is Career Intelligence?", "What is Application Diagnostic?", "Which one should I choose?"),
+    "/businesses/":                            ("What is Product Studio?", "What can Product Studio build?", "What is Business Transformation?"),
     "/career/":                                ("What is Career Intelligence?", "What is Application Diagnostic?", "Which one should I choose?"),
     "/career/career-intelligence/":            ("What is Career Intelligence?", "Which one should I choose?", "Can I buy it yet?"),
     "/career/application-diagnostic/":         ("What is Application Diagnostic?", "Which one should I choose?", "Can I buy it yet?"),

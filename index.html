@@ -1,19 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="hx">
 <head>
 <meta charset="UTF-8">
-<title>Rithavo — Move forward.</title>
-<meta name="description" content="Digital products and services designed to help people and businesses take their next step. Starting with Rithavo Career.">
+<title>Rithavo — Welcome to the world of Rithavo</title>
+<meta name="description" content="Rithavo helps people understand their careers and helps businesses build and run better. Choose Rithavo for Professionals or Rithavo for Businesses.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="canonical" href="https://rithavo.com/">
+<meta property="og:title" content="Rithavo — Welcome to the world of Rithavo">
+<meta property="og:description" content="Rithavo helps people understand their careers and helps businesses build and run better. Choose Rithavo for Professionals or Rithavo for Businesses.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rithavo.com/">
 <link rel="preload" href="/assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="/styles.css?v=20261106">
+<link rel="stylesheet" href="/assets/home/home.css?v=20261125a">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='f' x1='0' y1='1' x2='1' y2='0'><stop offset='0%' stop-color='%234b3bd4'/><stop offset='52%' stop-color='%23a24bd6'/><stop offset='100%' stop-color='%23f2734a'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(%23f)'/><path d='M22 16 L40 32 L22 48' fill='none' stroke='%23faf9f6' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0b0a12">
 <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -49,362 +53,66 @@
     </linearGradient>
   </defs>
 </svg>
-
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="hxGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#7c6bf0"/><stop offset="55%" stop-color="#c46be8"/><stop offset="100%" stop-color="#ff9166"/></linearGradient></defs></svg>
 <nav class="site">
   <div class="wrap inner">
     <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5 L12.5 12 L4 19" fill="none" stroke="url(#markGradSoft)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/><path d="M11 4 L21 12 L11 20" fill="none" stroke="url(#markGrad)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Rithavo</span></a>
-    <ul class="navlinks">
-      <li><a href="/career/">Career</a></li>
-      <li class="nav-dropdown"><details><summary aria-haspopup="true">Learn Products</summary><div class="nav-dropdown-panel"><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li>
-      <li><a href="/systems/">Product Studio</a></li>
-      <li><a href="/growth/">Business Transformation</a></li>
-      <li><a href="/about/">About</a></li>
-      <li><a href="/contact/">Contact</a></li>
-    </ul>
+    <ul class="navlinks"><li class="nav-dropdown"><details><summary aria-haspopup="true">Professionals</summary><div class="nav-dropdown-panel"><a href="/professionals/">For professionals</a><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li><li class="nav-dropdown"><details><summary aria-haspopup="true">Businesses</summary><div class="nav-dropdown-panel"><a href="/businesses/">For businesses</a><a href="/businesses/#product-studio">Product Studio</a><a href="/businesses/#business-transformation">Business Transformation</a><a href="/businesses/#collaboration">Collaboration</a></div></details></li><li><a href="/about/">About</a></li><li><a href="/contact/">Contact</a></li></ul>
     <a class="btn btn-ghost header-signin-cta" href="/sign-in/" style="padding:10px 18px; font-size:0.85rem;">Sign In</a>
-    <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mobileNav" aria-label="Open menu">
-      <span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span>
-    </button>
+    <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="mobileNav" aria-label="Open menu"><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span></button>
     <a class="btn btn-primary" href="/sign-up/" style="padding:10px 20px; font-size:0.85rem;">Join Rithavo</a>
   </div>
   <div class="mobile-nav" id="mobileNav" data-open="false">
-    <ul class="mobile-nav-links">
-      <li><a href="/career/">Career</a></li>
-      <li class="nav-dropdown"><details><summary aria-haspopup="true">Learn Products</summary><div class="nav-dropdown-panel"><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li>
-      <li><a href="/systems/">Product Studio</a></li>
-      <li><a href="/growth/">Business Transformation</a></li>
-      <li><a href="/about/">About</a></li>
-      <li><a href="/contact/">Contact</a></li>
-          <li><a href="/sign-in/" class="mobile-card-cta">Sign In</a></li>
-          <li><a href="/sign-up/" class="mobile-card-cta">Join Rithavo</a></li>
-</ul>
+    <ul class="mobile-nav-links"><li class="nav-dropdown"><details><summary aria-haspopup="true">Professionals</summary><div class="nav-dropdown-panel"><a href="/professionals/">For professionals</a><a href="/career/career-intelligence/">Career Intelligence</a><a href="/career/application-diagnostic/">Application Diagnostic</a></div></details></li><li class="nav-dropdown"><details><summary aria-haspopup="true">Businesses</summary><div class="nav-dropdown-panel"><a href="/businesses/">For businesses</a><a href="/businesses/#product-studio">Product Studio</a><a href="/businesses/#business-transformation">Business Transformation</a><a href="/businesses/#collaboration">Collaboration</a></div></details></li><li><a href="/about/">About</a></li><li><a href="/contact/">Contact</a></li><li><a href="/sign-in/" class="mobile-card-cta">Sign In</a></li><li><a href="/sign-up/" class="mobile-card-cta">Join Rithavo</a></li></ul>
   </div>
 </nav>
 
-<!-- ============ 1. HERO ============ -->
-<section class="hero" style="padding-top:120px; padding-bottom:100px;">
-  <div class="ambient" aria-hidden="true">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
+<main id="main">
+<section class="hx-stage" aria-labelledby="hx-title">
+  <div class="hx-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="hx-grid" aria-hidden="true"></div>
+  <div class="hx-welcome">
+    <p class="hx-eyebrow">Where would you like to begin?</p>
+    <h1 class="hx-title" id="hx-title"><span class="hx-word" style="--i:0">Welcome</span> <span class="hx-word" style="--i:1">to</span> <span class="hx-word" style="--i:2">the</span> <span class="hx-word" style="--i:3">world</span> <span class="hx-word" style="--i:4">of</span> <span class="hx-word hx-grad" style="--i:5">Rithavo</span></h1>
+    <p class="hx-sub">Rithavo helps people understand their careers, and helps businesses build and run better. Choose the door that fits you.</p>
   </div>
+  <div class="hx-choices">
+    <a class="hx-card" href="/professionals/" aria-label="Rithavo for Professionals: Know where you stand. Move forward.">
+      <span class="hx-card-kicker">Rithavo for</span>
+      <h2>Professionals</h2>
+      <p>Know where you stand. Move forward. A clear, honest read on your career and on a specific job application, with a next step you can act on.</p>
+      <ul class="hx-card-points"><li>Career Intelligence</li><li>Application Diagnostic</li><li>Rithavo Profile</li></ul>
+      <span class="hx-card-go">Explore for professionals <span aria-hidden="true"><svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+      <svg class="hx-card-art hx-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="42"/><circle class="bar" cx="50" cy="50" r="42"/><text x="50" y="52" text-anchor="middle">82</text><text class="sub" x="50" y="64" text-anchor="middle">SAMPLE SCORE</text></svg>
+    </a>
+    <a class="hx-card" href="/businesses/" aria-label="Rithavo for Businesses: Product Studio and Business Transformation">
+      <span class="hx-card-kicker">Rithavo for</span>
+      <h2>Businesses</h2>
+      <p>We build the products your business needs, and work alongside your teams to strengthen how it runs. Small, medium and large.</p>
+      <ul class="hx-card-points"><li>Product Studio</li><li>Business Transformation</li></ul>
+      <span class="hx-card-go">Explore for businesses <span aria-hidden="true"><svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+      <svg class="hx-card-art hx-net" viewBox="0 0 120 100" aria-hidden="true">
+        <line x1="60" y1="50" x2="18" y2="20"/><line x1="60" y1="50" x2="104" y2="24"/><line x1="60" y1="50" x2="22" y2="82"/><line x1="60" y1="50" x2="100" y2="80"/>
+        <circle class="n" cx="18" cy="20" r="7"/><circle class="n" cx="104" cy="24" r="7"/><circle class="n" cx="22" cy="82" r="7"/><circle class="n" cx="100" cy="80" r="7"/>
+        <circle class="pulse" cx="60" cy="50" r="9"/><circle class="core" cx="60" cy="50" r="10"/>
+      </svg>
+    </a>
+  </div>
+</section>
+
+<section class="hx-section alt" aria-labelledby="glance-h">
   <div class="wrap">
-    <div class="grid-2" style="align-items:center;">
-      <div class="hero-copy">
-        <span class="label reveal">Rithavo</span>
-        <h1 class="display mt-16 reveal reveal-delay-1">Know where you stand. <span class="grad-text">Move forward.</span></h1>
-        <p class="lede mt-24 reveal reveal-delay-2">Rithavo helps you understand your career and your applications — clearly, honestly, with a specific next step. Join Rithavo now and be part of the community. Career Intelligence and Application Diagnostic: Not yet available for purchase.</p>
-        <div class="row gap-16 mt-40 reveal reveal-delay-3">
-          <a class="btn btn-primary" href="/sign-up/">Join Rithavo<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
-          <a class="btn btn-ghost btn-ghost-accent" href="/sign-in/">Sign In</a>
-        </div>
-      </div>
-      <div class="hero-visual reveal reveal-delay-2">
-        <div class="hero-mock">
-          <svg class="hero-mock-rings" viewBox="0 0 100 100" aria-hidden="true">
-            <circle class="ring ring-1" cx="50" cy="50" r="47"/>
-            <circle class="ring ring-2" cx="50" cy="50" r="35"/>
-            <circle class="ring ring-3" cx="50" cy="50" r="23"/>
-          </svg>
-          <div class="hero-mock-core hero-mock-core-ritanya" aria-hidden="true"></div>
-          <img class="hero-ritanya" src="/assets/ritanya/art/portrait-hero.webp" width="1600" height="2000" alt="Ritanya, Rithavo's guide" fetchpriority="high" decoding="async">
-          <div class="hero-mock-card card hero-mock-card-1" aria-hidden="true">
-            <span class="hero-mock-dot" style="background:var(--g1);"></span>
-            <div><span class="label">Career Intelligence</span><strong>New Role · High Fit</strong></div>
-          </div>
-          <div class="hero-mock-card card hero-mock-card-2" aria-hidden="true">
-            <span class="hero-mock-dot" style="background:var(--g3);"></span>
-            <div><span class="label">Application Diagnostic</span><strong>Score 82 / 100</strong></div>
-          </div>
-          <div class="hero-mock-card card hero-mock-card-3" aria-hidden="true">
-            <span class="hero-mock-dot" style="background:var(--g2);"></span>
-            <div><span class="label">Rithavo Card</span><strong>Built from your Profile</strong></div>
-          </div>
-        </div>
-        <p class="hero-ritanya-caption"><span class="label">Ritanya</span> Rithavo's guide <button type="button" class="hero-ritanya-ask" data-ritanya-slot data-ritanya-open hidden>Ask Ritanya</button></p>
-      </div>
+    <div class="hx-head"><span class="hx-eyebrow">What Rithavo does</span><h2 id="glance-h">Three things, <span class="hx-grad-text">stated plainly.</span></h2>
+      <p>Rithavo is a digital products and services company. Here is what we actually do, and who it is for.</p></div>
+    <div class="hx-glance hx-stagger">
+      <div class="hx-tile"><span class="num">01 · FOR PROFESSIONALS</span><h3>Career Intelligence and Application Diagnostic</h3><p>Two products that show you where your career stands, and where a specific job application stands, with a clear next step.</p><a class="more" href="/professionals/">See how they work &rarr;</a></div>
+      <div class="hx-tile"><span class="num">02 · FOR BUSINESSES</span><h3>Product Studio</h3><p>Where Rithavo builds products for businesses, shaped around your requirement: software and goods, for small, medium and large companies.</p><a class="more" href="/businesses/#product-studio">See what we build &rarr;</a></div>
+      <div class="hx-tile"><span class="num">03 · FOR BUSINESSES</span><h3>Business Transformation</h3><p>We work with businesses to strengthen operations, support delivery commitments and pursue growth opportunities. Every engagement begins with your requirements.</p><a class="more" href="/businesses/#business-transformation">See how we work &rarr;</a></div>
     </div>
+    <p class="hx-fine" style="margin-top:34px;">Not sure where you fit? Ritanya, Rithavo's guide, can explain what we do and point you to the right page. <button type="button" class="btn btn-ghost" data-ritanya-slot data-ritanya-open hidden>Ask Ritanya</button></p>
   </div>
 </section>
-
-<!-- ============ 1A. BRAND POSITIONING AND THE THREE PILLARS ============ -->
-<section class="brand-strip-section">
-  <div class="wrap">
-    <p class="brand-strip reveal">Understand. Explore. Connect. Grow.</p>
-  </div>
-</section>
-
-<section class="pillars">
-  <div class="wrap">
-    <span class="label reveal">Three pillars</span>
-    <div class="grid-3 mt-40 reveal reveal-delay-1" style="gap:24px;">
-      <div class="card card-body">
-        <span class="label" style="color:var(--ink);">Career</span>
-        <p class="h3" style="margin:4px 0 0;">Make informed decisions about your professional journey.</p>
-        <p>Explore career intelligence and tools designed to help you understand your direction and move forward with greater clarity.</p>
-        <a class="btn btn-ghost mt-16" href="/career/" style="width:fit-content;">Explore Career</a>
-      </div>
-      <div class="card card-body">
-        <span class="label" style="color:var(--ink);">Product Studio</span>
-        <p class="h3" style="margin:4px 0 0;">Building products that solve real problems.</p>
-        <p>Product Studio is where Rithavo builds its own products. Today that means Career Intelligence and Application Diagnostic.</p>
-        <a class="btn btn-ghost mt-16" href="/systems/" style="width:fit-content;">Explore Product Studio</a>
-      </div>
-      <div class="card card-body">
-        <span class="label" style="color:var(--ink);">Business Transformation</span>
-        <p class="h3" style="margin:4px 0 0;">Turning business potential into measurable performance.</p>
-        <p>Rithavo works with businesses to strengthen sales operations, improve processes, support delivery commitments and pursue growth objectives.</p>
-        <a class="btn btn-ghost mt-16" href="/growth/" style="width:fit-content;">Explore Business Transformation</a>
-      </div>
-    </div>
-    <div class="card mt-40 reveal reveal-delay-2" style="padding:32px;">
-      <span class="label">Work With Rithavo</span>
-      <p class="body-md mt-8" style="max-width:62ch;">Have a business requirement or want to understand where Rithavo could help? Your enquiry will be reviewed by Rithavo. If appropriate, a Rithavo specialist will get in touch to understand your requirements.</p>
-      <a class="btn btn-primary mt-16" href="/contact/">Work With Rithavo</a>
-    </div>
-  </div>
-</section>
-
-<!-- ============ 1B. PRODUCTS (P0: what Rithavo does, right below the hero) ============ -->
-<section class="products-intro">
-  <div class="wrap">
-    <span class="label reveal">Two products. Not yet available for purchase.</span>
-    <div class="grid-2 mt-40 reveal reveal-delay-1" style="gap:32px;">
-      <div class="card card-body">
-        <span class="label" style="color:var(--ink);">Career Intelligence</span>
-        <p class="h3" style="margin:4px 0 0;">Not yet available for purchase.</p>
-        <p>Understand whether you're doing well in your current career, whether you could do better in another company or role, and what opportunities exist across different roles and industries.</p>
-        <ul class="app-list" style="flex-direction:row; flex-wrap:wrap; gap:8px; margin-top:8px;">
-          <li class="pill">Stay</li><li class="pill">New Role</li><li class="pill">New Industry</li><li class="pill">Major Transition</li>
-        </ul>
-        <a class="btn btn-ghost mt-16" href="/career/career-intelligence/" style="width:fit-content;">Learn more</a>
-      </div>
-      <div class="card card-body">
-        <span class="label" style="color:var(--ink);">Application Diagnostic</span>
-        <p class="h3" style="margin:4px 0 0;">Not yet available for purchase.</p>
-        <p>A one-time diagnosis for a single job opportunity — not a subscription. Rithavo evaluates the complete job description against your Rithavo Profile and leads to a tailored resume for that role.</p>
-        <a class="btn btn-ghost mt-16" href="/career/application-diagnostic/" style="width:fit-content;">Learn more</a>
-      </div>
-    </div>
-    <p class="body-md mt-40 reveal reveal-delay-2" style="max-width:60ch;">You can get started now. <a href="/sign-up/">Join Rithavo</a> for access to Explore — continuously refreshed professional and business news — and build your Rithavo Profile.</p>
-  </div>
-</section>
-
-<!-- ============ 2. PROBLEM ============ -->
-<section class="problem">
-  <div class="wrap-narrow">
-    <span class="label reveal">The gap</span>
-    <h2 class="h1 mt-16 reveal reveal-delay-1">Applying isn't the same<br>as being <span class="grad-text">positioned.</span></h2>
-    <p class="lede mt-24 reveal reveal-delay-2">Most effort goes into doing the work. Very little goes into showing it clearly, to the right audience, at the right moment. That gap — between what you've done and how it reads to someone deciding fast — is where opportunities quietly disappear.</p>
-  </div>
-</section>
-
-<!-- ============ 3. PHILOSOPHY ============ -->
-<section class="philosophy section-muted">
-  <div class="wrap center">
-    <span class="label reveal">How we think about it</span>
-    <div class="row gap-24 mt-40 reveal reveal-delay-1" style="justify-content:center; flex-wrap:wrap;">
-      <h2 class="h1">Understand</h2>
-      <span class="h1" style="color:var(--ink-faint); font-weight:400;">→</span>
-      <h2 class="h1">Improve</h2>
-      <span class="h1" style="color:var(--ink-faint); font-weight:400;">→</span>
-      <h2 class="h1"><span class="grad-text">Move forward</span></h2>
-    </div>
-    <p class="lede mx-auto mt-40 reveal reveal-delay-2">Every Rithavo product follows the same shape: a clear-eyed look at where things stand, a specific plan to improve it, and a practical next step — never a guess dressed up as advice.</p>
-  </div>
-</section>
-
-<!-- ============ 4. PRODUCT ECOSYSTEM ============ -->
-<section id="ecosystem" class="ecosystem">
-  <div class="wrap">
-    <span class="label reveal">The ecosystem</span>
-    <h2 class="h1 mt-16 reveal reveal-delay-1">One connected journey.</h2>
-    <p class="lede mt-16 reveal reveal-delay-2">Not five unrelated products — one way of moving forward, in five steps.</p>
-
-    <!-- connector -->
-    <svg class="connector mt-56 reveal reveal-delay-2" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="rithavo-line-gradient" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="var(--g1)"/>
-          <stop offset="52%" stop-color="var(--g2)"/>
-          <stop offset="100%" stop-color="var(--g3)"/>
-        </linearGradient>
-      </defs>
-      <path d="M20,30 C 250,-10 350,70 500,30 C 650,-10 750,70 980,30"/>
-    </svg>
-
-    <div class="journey mt-24 reveal reveal-delay-3">
-      <div class="journey-step">
-        <span class="journey-mark" style="background:linear-gradient(135deg, var(--g1), color-mix(in srgb, var(--g1) 60%, var(--g2)));">1</span>
-        <span class="label journey-eyebrow">Understand</span>
-        <a class="journey-title" href="/career/career-intelligence/">Career Intelligence</a>
-        <p class="journey-desc">See where you stand, your capabilities, and where you can realistically go.</p>
-      </div>
-      <div class="journey-step">
-        <span class="journey-mark" style="background:linear-gradient(135deg, color-mix(in srgb, var(--g1) 60%, var(--g2)), var(--g2));">2</span>
-        <span class="label journey-eyebrow">Diagnose</span>
-        <a class="journey-title" href="/career/application-diagnostic/">Application Diagnostic</a>
-        <p class="journey-desc">Find out exactly why an application isn't landing, and what to fix.</p>
-      </div>
-      <div class="journey-step">
-        <span class="journey-mark" style="background:linear-gradient(135deg, var(--g2), color-mix(in srgb, var(--g2) 55%, var(--g3)));">3</span>
-        <span class="label journey-eyebrow">Represent</span>
-        <span class="journey-title">Rithavo Card</span>
-        <p class="journey-desc">The foundation of your professional identity, built from your Profile. Completing it is mandatory for every member. Planned; not yet available.</p>
-      </div>
-      <div class="journey-step">
-        <span class="journey-mark" style="background:linear-gradient(135deg, color-mix(in srgb, var(--g2) 55%, var(--g3)), var(--g3));">4</span>
-        <span class="label journey-eyebrow">Discover</span>
-        <span class="journey-title">Relevant professionals</span>
-        <p class="journey-desc">Find professionals who are relevant to you, and understand why — never a popularity feed. Planned; not yet available.</p>
-      </div>
-      <div class="journey-step">
-        <span class="journey-mark" style="background:linear-gradient(135deg, var(--g3), color-mix(in srgb, var(--g3) 70%, var(--ink)));">5</span>
-        <span class="label journey-eyebrow">Connect</span>
-        <span class="journey-title">Professional connections</span>
-        <p class="journey-desc">Request a connection, the other person accepts or declines, and you exchange professional identities through your Rithavo Cards. Planned; not yet available.</p>
-      </div>
-    </div>
-
-    <p class="lede journey-close reveal reveal-delay-3" style="max-width:56ch;">Not another feed to scroll — a professional network built on relevance and trust.</p>
-    <a class="btn btn-primary reveal reveal-delay-3" href="/sign-up/" style="margin-top:24px;">Join Rithavo now</a>
-  </div>
-</section>
-
-<!-- ============ 5. APPLICATION DIAGNOSTIC SHOWCASE ============ -->
-<section class="showcase section-muted">
-  <div class="wrap">
-    <div class="grid-2 grid-2-gap-lg" style="align-items:center;">
-      <div class="reveal">
-        <span class="label">Rithavo Career · Application Diagnostic</span>
-        <h2 class="h1 mt-16">See exactly where<br>your application <span class="grad-text">stands.</span></h2>
-        <p class="lede mt-24">Submit your resume and the role you're targeting. Rithavo scores six dimensions of your application, in plain language, with a prioritized list of what to fix first.</p>
-        <a class="btn btn-primary mt-40" href="/career/application-diagnostic/">See how scoring works</a>
-      </div>
-
-      <div class="card reveal reveal-delay-1" style="padding:0; overflow:hidden;">
-        <div class="row" style="justify-content:space-between; padding:22px 26px; border-bottom:1px solid var(--line);">
-          <span class="label">Example / Demonstration</span>
-          <span class="label" style="color:var(--ink-faint);">Not your actual score</span>
-        </div>
-        <div style="padding:26px;">
-          <div class="row" style="justify-content:space-between; align-items:flex-end; margin-bottom:22px;">
-            <span class="body-md" style="font-weight:600; color:var(--ink);">Application Score</span>
-            <span class="display grad-text" style="font-size:2.6rem;">72<span style="font-size:1.1rem; color:var(--ink-faint); -webkit-text-fill-color:var(--ink-faint);">/100</span></span>
-          </div>
-
-          <div class="stack gap-16">
-            <div data-score="72" data-max="100">
-              <div class="score-row"><span>Role Alignment</span><span class="mono" style="font-weight:600;">72</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
-            </div>
-            <div data-score="58" data-max="100">
-              <div class="score-row"><span>Achievement Strength</span><span class="mono" style="font-weight:600;">58</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-weak"></div></div>
-            </div>
-            <div data-score="81" data-max="100">
-              <div class="score-row"><span>Keyword Alignment</span><span class="mono" style="font-weight:600;">81</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-strong"></div></div>
-            </div>
-            <div data-score="61" data-max="100">
-              <div class="score-row"><span>Evidence &amp; Impact</span><span class="mono" style="font-weight:600;">61</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
-            </div>
-            <div data-score="86" data-max="100">
-              <div class="score-row"><span>ATS Structure</span><span class="mono" style="font-weight:600;">86</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-strong"></div></div>
-            </div>
-            <div data-score="74" data-max="100">
-              <div class="score-row"><span>Positioning</span><span class="mono" style="font-weight:600;">74</span></div>
-              <div class="score-track"><div class="sc-fill score-fill tone-mid"></div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ 6. HOW IT WORKS ============ -->
-<section class="how">
-  <div class="wrap">
-    <span class="label reveal">How it works</span>
-    <h2 class="h1 mt-16 reveal reveal-delay-1">Four steps. No guesswork.</h2>
-    <div class="grid-4 mt-64">
-      <div class="reveal">
-        <span class="mono" style="color:var(--ink-faint); font-size:0.85rem;">01</span>
-        <h3 class="h3 mt-16">Submit</h3>
-        <p class="body-md mt-8">Your resume and the specific job you're targeting.</p>
-      </div>
-      <div class="reveal reveal-delay-1">
-        <span class="mono" style="color:var(--ink-faint); font-size:0.85rem;">02</span>
-        <h3 class="h3 mt-16">Analyze</h3>
-        <p class="body-md mt-8">Six dimensions scored against your resume and that role.</p>
-      </div>
-      <div class="reveal reveal-delay-2">
-        <span class="mono" style="color:var(--ink-faint); font-size:0.85rem;">03</span>
-        <h3 class="h3 mt-16">Understand</h3>
-        <p class="body-md mt-8">A report showing exactly what's working and what isn't.</p>
-      </div>
-      <div class="reveal reveal-delay-3">
-        <span class="mono" style="color:var(--ink-faint); font-size:0.85rem;">04</span>
-        <h3 class="h3 mt-16">Improve</h3>
-        <p class="body-md mt-8">A prioritized plan — critical to low — so you know what to fix first.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ 7. WHY RITHAVO ============ -->
-<section class="why section-muted">
-  <div class="wrap">
-    <span class="label reveal">Why Rithavo</span>
-    <h2 class="h1 mt-16 reveal reveal-delay-1">Built to be trusted<br>with something real.</h2>
-    <div class="grid-2 mt-64">
-      <div class="reveal">
-        <h3 class="h3">Structured methodology</h3>
-        <p class="body-md mt-8">Every score traces back to explicit, written criteria — not a vibe.</p>
-      </div>
-      <div class="reveal reveal-delay-1">
-        <h3 class="h3">Practical outputs</h3>
-        <p class="body-md mt-8">A prioritized action plan, not a wall of generic advice.</p>
-      </div>
-      <div class="reveal reveal-delay-2">
-        <h3 class="h3">Real automation</h3>
-        <p class="body-md mt-8">Fast, consistent delivery — without cutting corners on accuracy.</p>
-      </div>
-      <div class="reveal reveal-delay-3">
-        <h3 class="h3">Multi-stage quality control</h3>
-        <p class="body-md mt-8">Every report is checked against your own material before delivery — nothing invented, nothing generic.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ 8. FUTURE ECOSYSTEM ============ -->
-<section class="future">
-  <div class="wrap center">
-    <span class="label reveal">Three pillars</span>
-    <h2 class="h1 mt-16 reveal reveal-delay-1">One Rithavo, <span class="grad-text">three ways to move forward.</span></h2>
-    <p class="lede mx-auto mt-24 reveal reveal-delay-2">Career helps individuals decide with evidence. Product Studio builds Rithavo's own products. Business Transformation works with businesses on how they perform.</p>
-  </div>
-</section>
-
-<!-- ============ 9. FINAL CTA ============ -->
-<section id="contact" class="final center">
-  <div class="ambient" aria-hidden="true">
-    <div class="blob blob-1" style="opacity:0.22;"></div>
-    <div class="blob blob-2" style="opacity:0.18;"></div>
-  </div>
-  <div class="wrap">
-    <span class="label reveal">Start here</span>
-    <h2 class="display mt-16 reveal reveal-delay-1">Start with your <span class="grad-text">next move.</span></h2>
-    <div class="row gap-16 mt-40 reveal reveal-delay-2" style="justify-content:center;">
-      <a class="btn btn-primary" href="/career/#products">Explore Career<span class="btn-arrow" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7H12M12 7L8 3M12 7L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
-    </div>
-  </div>
-</section>
-
+</main>
 <footer id="about" class="site">
   <div class="wrap">
     <div class="foot-grid">
@@ -413,9 +121,10 @@
         <p class="foot-note">Digital products and services designed to help people and businesses take their next step.</p>
       </div>
       <ul class="foot-links">
-        <li><a href="/career/">Career</a></li>
-        <li><a href="/systems/">Product Studio</a></li>
-        <li><a href="/growth/">Business Transformation</a></li>
+        <li><a href="/professionals/">Professionals</a></li>
+        <li><a href="/businesses/">Businesses</a></li>
+        <li><a href="/businesses/#product-studio">Product Studio</a></li>
+        <li><a href="/businesses/#business-transformation">Business Transformation</a></li>
         <li><a href="/privacy/">Privacy</a></li>
         <li><a href="/terms/">Terms</a></li>
         <li><a href="/contact/">Contact</a></li>
@@ -427,6 +136,7 @@
 </footer>
 
 <script src="/script.js"></script>
+<script src="/assets/home/home.js?v=20261125a" defer></script>
 <script src="/pwa.js?v=20261106" defer></script>
 </body>
 </html>

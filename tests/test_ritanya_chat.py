@@ -191,6 +191,8 @@ TOPIC_QUESTIONS = {
     "launch": "Can I buy it yet?", "join": "How do I join?", "product_studio": "What is Product Studio?",
     "business_transformation": "What is Business Transformation?", "engagement_models": "What are the engagement models?",
     "business_enquiry": "How do I start a business enquiry?", "technology_services": "Can you build custom software for us?",
+    "product_examples": "What can Product Studio build for small businesses?", "collaboration": "What collaboration ideas do you have?",
+    "audience": "Who is Rithavo for?",
     "contact": "How do I contact Rithavo?", "privacy": "Is my data safe?", "method": "How does Rithavo work?",
 }
 

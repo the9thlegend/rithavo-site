@@ -33,7 +33,7 @@ CONTENT_PAGES = {
     "career/career-intelligence/index.html": "/career/career-intelligence/",
     "career/application-diagnostic/index.html": "/career/application-diagnostic/",
     "career/career-intelligence/demo/index.html": "/career/career-intelligence/demo/",
-    "systems/index.html": "/systems/", "growth/index.html": "/growth/", "privacy/index.html": "/privacy/", "terms/index.html": "/terms/",
+    "professionals/index.html": "/professionals/", "businesses/index.html": "/businesses/", "privacy/index.html": "/privacy/", "terms/index.html": "/terms/",
 }
 
 
@@ -53,27 +53,33 @@ def customer_files():
 
 # ------------------------------------------------------------------ Product Studio and Business Transformation, in place
 
-def test_the_pillar_routes_are_the_existing_ones_with_no_new_routes_and_no_redirects():
-    assert (ROOT / "systems" / "index.html").is_file() and (ROOT / "growth" / "index.html").is_file()
+def test_the_two_doors_have_their_routes_and_the_old_pillar_routes_forward_to_them():
+    """Founder direction, November 2026: Rithavo has two doors, /professionals/ and /businesses/. /systems/ and /growth/ stay as
+    tiny noindex pages that forward to the matching section of /businesses/ (no server route changes)."""
+    assert (ROOT / "professionals" / "index.html").is_file() and (ROOT / "businesses" / "index.html").is_file()
     assert not (ROOT / "product-studio").exists() and not (ROOT / "business-transformation").exists()
+    assert 'url=/businesses/#product-studio' in read("systems/index.html") and 'url=/businesses/#business-transformation' in read("growth/index.html")
     vercel = json.loads(read("vercel.json"))
-    assert not [r for r in vercel["routes"] if "systems" in json.dumps(r) or "growth" in json.dumps(r)]   # no redirects for the pillar routes
+    assert not [r for r in vercel["routes"] if "systems" in json.dumps(r) or "growth" in json.dumps(r)]   # no server redirect rules
 
 
-def test_systems_is_product_studio_career_products_only():
-    page = visible(ROOT / "systems" / "index.html")
-    assert "Product Studio" in page and "Building products that solve real problems" in page
-    assert "Talk to Rithavo about Product Studio" in page and ENQUIRY_SENTENCE in page
-    assert 'href="/contact/">Talk to Rithavo about Product Studio' in read("systems/index.html")
-    for product in ("Career Intelligence", "Application Diagnostic"):
-        assert product in page
-    assert page.count(STATUS) == 3        # the site banner and the two product cards
-    assert not re.search(r"Rithavo Systems|automation|custom software|integration|dashboard|productivity templates|toolkit|small teams", page, re.I)
+def test_businesses_is_product_studio_building_to_requirements_for_every_size():
+    page = visible(ROOT / "businesses" / "index.html")
+    assert "Product Studio" in page and "What is a product studio?" in page
+    assert "builds products for businesses" in page and "as per their requirement" in page
+    for size in ("Small businesses", "Medium businesses", "Large enterprises"):
+        assert size in page
+    for example in ("All-in-one client & lead tracker", "Workflow & SOP automation platform", "AI copilot & knowledge hub"):
+        assert example in page
+    assert "These are examples, not a fixed catalogue" in page
+    assert ENQUIRY_SENTENCE in page and "approved by Rithavo's Founder" in page
+    assert page.count(STATUS) == 1        # only the site banner: the businesses page makes no availability claim of its own
+    assert 'href="/contact/">Start a business enquiry' in read("businesses/index.html")
 
 
-def test_growth_is_business_transformation_with_the_four_capabilities_and_six_models():
-    page = visible(ROOT / "growth" / "index.html")
-    assert "Turning business potential into measurable performance" in page
+def test_businesses_is_business_transformation_with_the_four_capabilities_and_six_models():
+    page = visible(ROOT / "businesses" / "index.html")
+    assert "What is Business Transformation?" in page
     for capability in ("Sales and revenue operations", "Business process and operational management",
                        "Taking ownership of selected business functions", "Business development and revenue growth"):
         assert capability in page
@@ -81,10 +87,11 @@ def test_growth_is_business_transformation_with_the_four_capabilities_and_six_mo
                   "Dedicated resources or team deployment", "End-to-end ownership of an agreed business function",
                   "A performance-linked engagement with agreed targets"):
         assert model in page
-    assert "not standard packages" in page and "Discuss Your Business Requirements" in page and ENQUIRY_SENTENCE in page
-    assert "approved by Rithavo's Founder" in page
-    # nothing unapproved: no technology/automation/dashboard offer, no guarantee other than the sentence that denies one, no figures, no times
-    assert not re.search(r"Rithavo Growth|automation|technology implementation|dashboard|marketing, content|₹|\d\s?%|within \d+ (day|hour|week)|24.48", page, re.I)
+    assert "not standard packages" in page
+    for stage in ("Monthly", "Quarterly", "Half-yearly", "Yearly"):
+        assert stage in page
+    # nothing unapproved: no price, no figure that looks like a result, no turnaround time, no guarantee other than the sentence that denies one
+    assert not re.search(r"Rithavo Growth|₹|\d\s?%|within \d+ (day|hour|week)|24.48", page, re.I)
     assert re.findall(r"guarantee\w*", page, re.I) == ["guaranteed"] and "does not promise guaranteed growth" in page
 
 
@@ -99,13 +106,22 @@ def test_navigation_uses_the_new_pillar_names_everywhere():
     assert "In development" not in pwa and "Systems" not in pwa and "Growth" not in pwa
 
 
-def test_the_homepage_presents_the_three_pillars_and_the_brand_positioning():
+def test_the_homepage_presents_the_two_doors():
     home = visible(ROOT / "index.html")
-    assert "Understand. Explore. Connect. Grow." in home
-    for card in ("Explore Career", "Explore Product Studio", "Explore Business Transformation", "Work With Rithavo"):
-        assert card in home
+    assert "Welcome to the world of" in home and "Rithavo for" in home
+    for door in ("Professionals", "Businesses", "Product Studio", "Business Transformation", "Career Intelligence", "Application Diagnostic"):
+        assert door in home
     raw = read("index.html")
-    assert 'href="/systems/" style="width:fit-content;">Explore Product Studio' in raw and 'href="/growth/" style="width:fit-content;">Explore Business Transformation' in raw
+    assert 'href="/professionals/"' in raw and 'href="/businesses/"' in raw
+    assert 'href="/businesses/#product-studio"' in raw and 'href="/businesses/#business-transformation"' in raw
+
+
+def test_the_professionals_page_keeps_the_brand_positioning_and_the_approved_journey():
+    page = visible(ROOT / "professionals" / "index.html")
+    assert "Know where you stand." in page and "Move forward." in page
+    for product in ("Career Intelligence", "Application Diagnostic"):
+        assert product in page
+    assert page.count(STATUS) >= 1 and "One connected journey." in page
 
 
 # ------------------------------------------------------------------ Career: price, availability, name
@@ -239,8 +255,15 @@ def answer(text):
 def test_ritanya_explains_product_studio_and_the_products_in_it():
     r = answer("What is Product Studio?")
     assert r["topic"] == "product_studio" and not r["unknown"]
-    assert "Career Intelligence" in r["reply"] and "Application Diagnostic" in r["reply"] and STATUS in r["reply"]
+    # founder direction, November 2026: Product Studio builds products for businesses as per their requirement; Rithavo's own
+    # career products are still named, with the approved availability wording, and no price or timeline is given
+    assert "builds products for businesses" in r["reply"] and "as per their requirement" in r["reply"]
+    assert "Career Intelligence" in r["reply"] and "Application Diagnostic" in r["reply"] and "not yet available for purchase" in r["reply"]
+    assert not re.search(r"₹|\d", r["reply"])
     assert answer("Is Rithavo Systems live?")["topic"] == "product_studio"          # the old page name still reaches the right answer
+    ex = answer("What can Product Studio build?")
+    assert ex["topic"] == "product_examples" and "not a fixed catalogue" in ex["reply"]
+    assert not re.search(r"₹|\bRs\b|\$|\d\s?%|\d+\s?(days?|weeks?|months?)", ex["reply"])   # no price, no figure, no timeline
 
 
 def test_ritanya_explains_business_transformation_without_guaranteeing_anything():
@@ -275,10 +298,13 @@ def test_ritanya_explains_how_to_start_an_enquiry_and_that_the_founder_approves_
     assert "No response time is promised" in rc.answer("tell me more", last_topic="business_enquiry")["reply"]
 
 
-def test_ritanya_is_honest_that_technology_and_automation_implementation_is_not_offered():
+def test_ritanya_points_software_and_automation_requests_to_product_studio_without_quoting_anything():
+    """Replaces the Gate 1.7 "technology implementation is not offered" check (superseded by the November 2026 founder direction)."""
     for question in ("I want to build custom software", "Can you automate our workflows?"):
         r = answer(question)
-        assert r["topic"] == "technology_services" and "isn't part of what Rithavo offers" in r["reply"]
+        assert r["topic"] == "technology_services" and "that is what Product Studio is for" in r["reply"]
+        assert "business enquiry" in r["reply"] and not re.search(r"₹|\d", r["reply"]) and "guarantee" not in r["reply"].lower()
+        assert "I can't quote a price or a timeline" in r["reply"] + K.TOPICS["technology_services"].more
 
 
 def test_ritanya_never_states_a_price_or_a_launch_commitment():
@@ -302,3 +328,11 @@ def test_the_starter_questions_on_the_pillar_pages_are_answered_by_reviewed_topi
         for question in K.PAGE_STARTERS[page]:
             r = answer(question)
             assert not r["unknown"] and not r["refused"], (page, question)
+
+
+def test_ritanya_answers_what_rithavo_does_in_the_words_a_first_time_visitor_uses():
+    for question in ("What do you do?", "What does Rithavo do?", "What services do you offer?", "what you do"):
+        r = answer(question)
+        assert r["topic"] in {"overview", "technology_services"} and not r["unknown"], question
+    assert answer("What do you do?")["topic"] == "overview"
+    assert {a["id"] for a in answer("What do you do?")["actions"]} == {"professionals", "businesses", "about"}

@@ -305,6 +305,8 @@ _TOPIC_RULES = [(topic, _rx(pattern)) for topic, pattern in (
     ("contact", r"refund|billing|invoice|order status|customer support|\bsupport\b|contact|email|reach (you|rithavo|out)|hello@|talk to (a |an )?(human|person|someone|team)|speak to"),
     ("pricing", r"\b(price|prices|pricing|cost|costs|how much|fee|fees|charge|charges|pay|paid|cheap|expensive|free|discount|rupees?|inr|afford)\b|₹"),
     ("launch", r"launch|availab|when (will|can|does|is)|live yet|open yet|coming soon|can i (buy|purchase|order|get)|\bbuy\b|purchase|\border\b"),
+    ("collaboration", r"collaborat|partnership|partner with|co ?host|webinar|newsletter swap|joint venture|white ?label|referral program|affiliate|co ?marketing|strategic alliance|bundled offer"),
+    ("product_examples", r"what can (product studio|rithavo|you) (build|make)|examples? of (products|what)|(products|things) (you|rithavo|product studio) (can )?(build|make)|small (business|businesses)|medium (business|businesses)|large (business|businesses|enterprises?)|enterprises?\b|lead tracker|inventory|billing app|\bcopilot\b|supply chain|dealer portal|distributor"),
     # Product Studio and Business Transformation (Gate 1.7). Specific before general; "systems" and "growth" are the old names of the two pages.
     ("technology_services", r"custom (software|app|application|development)|(build|develop|create|make) (me |us )?(a |an |our )?(custom )?(app|application|software|website|platform|tool)\b|software development|app development|web development|website development|automat(e|ed|ion)|integrations?\b|technology (consulting|implementation|services)"),
     ("business_enquiry", r"enquir|inquir|work with (rithavo|you)|business requirements?|scope of work|\bscope\b|who approves|founder approv(es|al)|approved by (the )?founder|quotation|\bquote\b|proposal|\bagreement\b|specialist|engage (rithavo|you)|hire (rithavo|you)"),
@@ -324,7 +326,8 @@ _TOPIC_RULES = [(topic, _rx(pattern)) for topic, pattern in (
     ("privacy", r"privacy|my data|data (safe|secure|stored|collected|shared|protected)|are my messages|do you (store|save|log|keep|record|remember)|who (sees|can see|reads)|third part|sell my|tracking|cookies?|ai (service|provider|model)|train(ed|ing)? on"),
     ("method", r"how (does|do|did) (it|rithavo|this|that|they) (work|think|score|decide)|methodology|how (are|is) .{0,25}scored|\bats\b|evidence ?based"),
     ("ritanya", r"who are you|what are you|your name|are you (a |an |the )?(real|human|bot|ai|robot|chatbot|person|live)|what can you (do|help|answer)|how can you help|help me with|what do you know|are you (live|an ai)"),
-    ("overview", r"what is rithavo|about rithavo|tell me about rithavo|what does rithavo|rithavo (is|does)|show me around|what s this|what is this|what do you offer|products|overview|how rithavo works|what rithavo"),
+    ("audience", r"who (is|are) (rithavo|this|it|you) (for|aimed)|is rithavo for|(for|aimed at) (professionals|individuals|businesses|companies|people)|which door|rithavo for (professionals|businesses)|am i (a )?(professional|business)"),
+    ("overview", r"what (do|does) (you|rithavo|your company|this company|the company) (do|offer|provide|sell)|what you (do|offer|provide|sell)|what (services|solutions) |what is rithavo|about rithavo|tell me about rithavo|what does rithavo|rithavo (is|does)|show me around|what s this|what is this|what do you offer|products|overview|how rithavo works|what rithavo"),
 )]
 
 _GREETING = _rx(r"^(hi|hello|hey|hiya|namaste|good (morning|afternoon|evening))( there| ritanya)?$")
