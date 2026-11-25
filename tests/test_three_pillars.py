@@ -34,6 +34,7 @@ CONTENT_PAGES = {
     "career/application-diagnostic/index.html": "/career/application-diagnostic/",
     "career/career-intelligence/demo/index.html": "/career/career-intelligence/demo/",
     "professionals/index.html": "/professionals/", "businesses/index.html": "/businesses/", "privacy/index.html": "/privacy/", "terms/index.html": "/terms/",
+    "contact/business/index.html": "/contact/business/", "contact/help/index.html": "/contact/help/", "careers/index.html": "/careers/",
 }
 
 
@@ -74,7 +75,7 @@ def test_businesses_is_product_studio_building_to_requirements_for_every_size():
     assert "These are examples, not a fixed catalogue" in page
     assert ENQUIRY_SENTENCE in page and "approved by Rithavo's Founder" in page
     assert page.count(STATUS) == 1        # only the site banner: the businesses page makes no availability claim of its own
-    assert 'href="/contact/">Start a business enquiry' in read("businesses/index.html")
+    assert 'href="/contact/business/">Start a business enquiry' in read("businesses/index.html")
 
 
 def test_businesses_is_business_transformation_with_the_four_capabilities_and_six_models():

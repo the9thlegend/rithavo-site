@@ -47,6 +47,7 @@ DESTINATIONS = {
     "career":                Destination("See Rithavo Career", "/career/", False),
     "about":                 Destination("About Rithavo", "/about/", False),
     "contact":               Destination("Contact Rithavo", "/contact/", False),
+    "business_enquiry":      Destination("Start a business enquiry", "/contact/business/", False),
     "privacy":               Destination("Read the Privacy page", "/privacy/", False),
     "terms":                 Destination("Read the Terms", "/terms/", False),
     "systems":               Destination("See Product Studio", "/businesses/#product-studio", False),
@@ -285,12 +286,12 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "business_enquiry",
-        "To start, email hello@rithavo.com and describe what you are looking to achieve. Your enquiry will be "
+        "To start, use the business enquiry form or email hello@rithavo.com and describe what you are looking to achieve. Your enquiry will be "
         "reviewed by Rithavo. If appropriate, a Rithavo specialist will get in touch to understand your requirements. "
         "Any scope of work is approved by Rithavo's Founder before it is agreed.",
         "A specialist can discuss your objectives and existing commitments, but nothing is committed until the scope "
         "has been approved by the Founder and both sides agree. No response time is promised.",
-        ("contact", "growth"),
+        ("business_enquiry", "growth"),
         ("What are the engagement models?", "What is Business Transformation?", "How do I contact Rithavo?"),
         "contact/index.html; growth/index.html; Gate 1.7: enquiry wording and Founder approval of scope",
     ),
@@ -333,8 +334,9 @@ TOPICS = {t.id: t for t in (
     Topic(
         "contact",
         "The fastest way to reach Rithavo is email: hello@rithavo.com. That covers questions about the products, "
-        "orders and billing, business requirements and feedback. For refunds, see the Terms first.",
-        "I can't send a message for you.",
+        "orders and billing, business requirements and feedback. The Contact page also has a business enquiry form, a help and "
+        "feedback form, and a careers page. For refunds, see the Terms first.",
+        "I can't send a message for you. The forms only prepare an email in your own mail app; nothing is sent until you press send there.",
         ("contact", "terms"),
         ("What is Rithavo?", "How much does it cost?", "How do I join?"),
         "contact/index.html",

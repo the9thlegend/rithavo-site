@@ -24,7 +24,7 @@ from .conftest import login_via_magic_link, seed_minimal_profile
 
 ROOT = Path(__file__).resolve().parent.parent
 INTERNAL = {"design-lab", "ritanya-handoff", "tests", "app", "api", "tools", "node_modules", ".git", "storage", ".claude", ".vercel", "__pycache__"}
-THIRD_PARTY_OK = {"sdk.cashfree.com", "www.w3.org"}
+THIRD_PARTY_OK = {"sdk.cashfree.com", "www.w3.org", "www.wix.com", "mail.google.com"}   # the last two: founder-specified Enterprise link, optional Gmail fallback
 
 # A Rithavo host that is not the canonical one: any subdomain of rithavo.com, or another rithavo.* domain.
 OTHER_RITHAVO_HOST = re.compile(r"(?<![a-z0-9-])(?:[a-z0-9-]+\.rithavo\.com|rithavo\.(?!com\b)[a-z]{2,}|[a-z0-9-]+\.rithavo\.[a-z]{2,})(?![a-z0-9-])", re.I)

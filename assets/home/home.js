@@ -40,7 +40,7 @@
 
   /* ---------- scroll-linked values: page progress, timelines, drifting words, footer wordmark, mini-nav ---------- */
   var progress = doc.querySelector(".x-progress"), dock = doc.querySelector(".x-dock");
-  var lines = $all(".x-line"), marks = $all(".x-mark-word");
+  var lines = $all(".x-line");
   var ticking = false;
   function frac(el) { var r = el.getBoundingClientRect(), h = window.innerHeight; return clamp((h - r.top) / (h + r.height), 0, 1); }
   function onScroll() {
@@ -49,7 +49,6 @@
     if (progress) { progress.style.setProperty("--p", (clamp(y / max, 0, 1) * 100).toFixed(2) + "%"); }
     if (dock) { dock.classList.toggle("is-on", y > window.innerHeight * 0.75); }
     if (reduce) { return; }
-    marks.forEach(function (m) { m.style.setProperty("--p", frac(m).toFixed(3)); });
     lines.forEach(function (l) {
       var r = l.getBoundingClientRect(), h = window.innerHeight, p = clamp((h * 0.86 - r.top) / (r.height + h * 0.1), 0, 1);
       l.style.setProperty("--p", p.toFixed(3));
@@ -138,6 +137,24 @@
     });
     select(0, false);
   });
+
+  /* ---------- footer wordmark: the cursor lights the letters it passes over ---------- */
+  var markEl = doc.querySelector(".x-mark");
+  if (markEl && fine && !reduce) {
+    var letters = $all(".x-mark-word i", markEl);
+    markEl.addEventListener("pointermove", function (e) { letters.forEach(function (l) { var r = l.getBoundingClientRect(); l.style.setProperty("--lx", (e.clientX - r.left).toFixed(0) + "px"); l.style.setProperty("--ly", (e.clientY - r.top).toFixed(0) + "px"); }); });
+    markEl.addEventListener("pointerleave", function () { letters.forEach(function (l) { l.style.removeProperty("--lx"); l.style.removeProperty("--ly"); }); });
+  }
+
+  /* ---------- legal pages: the contents list follows the section being read ---------- */
+  var toc = $all(".x-toc a");
+  if (toc.length && "IntersectionObserver" in window) {
+    var byId = {}; toc.forEach(function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+    var tio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting && byId[e.target.id]) { toc.forEach(function (a) { a.classList.remove("is-on"); }); byId[e.target.id].classList.add("is-on"); } });
+    }, { rootMargin: "-18% 0px -70% 0px" });
+    $all(".x-doc section[id]").forEach(function (s) { tio.observe(s); });
+  }
 
   /* ---------- starfield ---------- */
   var cv = doc.querySelector(".x-stars");

@@ -94,7 +94,8 @@ def _home_logo_parts():
     """The brand gradient defs (the first zero-size <svg>) and the nav wordmark lockup, found by pattern in the home page."""
     home = (ROOT / "index.html").read_text(encoding="utf-8")
     defs = re.search(r'<svg width="0" height="0" style="position:absolute" aria-hidden="true">.*?</svg>', home, re.S).group(0)
-    lockup = re.search(r'<a class="wordmark" href="/">.*?</a>', home, re.S).group(0).strip()
+    mark = re.search(r'<a class="x-brand" href="/" aria-label="Rithavo home">(<svg class="mark"(?:(?!</svg>).)*</svg>)<span>Rithavo</span></a>', home, re.S).group(1)
+    lockup = '<a class="wordmark" href="/">' + mark + "<span>Rithavo</span></a>"
     return defs, lockup
 
 
@@ -102,7 +103,8 @@ def _home_logo_parts():
     """The brand gradient defs (the first zero-size <svg>) and the nav wordmark lockup, found by pattern in the home page."""
     home = (ROOT / "index.html").read_text(encoding="utf-8")
     defs = re.search(r'<svg width="0" height="0" style="position:absolute" aria-hidden="true">.*?</svg>', home, re.S).group(0)
-    lockup = re.search(r'<a class="wordmark" href="/">.*?</a>', home, re.S).group(0).strip()
+    mark = re.search(r'<a class="x-brand" href="/" aria-label="Rithavo home">(<svg class="mark"(?:(?!</svg>).)*</svg>)<span>Rithavo</span></a>', home, re.S).group(1)
+    lockup = '<a class="wordmark" href="/">' + mark + "<span>Rithavo</span></a>"
     return defs, lockup
 
 
