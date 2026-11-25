@@ -186,10 +186,11 @@ html.hx2:not(.x-js) [data-x-reveal] { opacity: 1; transform: none; }
 
 /* drifting statement */
 .x-drift { overflow: hidden; padding: clamp(14px, 2.6vw, 34px) 0; border-block: 1px solid var(--x-line); }
-.x-drift-in { display: flex; align-items: center; gap: 0.5em; width: max-content; font-weight: 700; text-transform: uppercase; letter-spacing: -0.05em; line-height: 0.9; white-space: nowrap; font-size: clamp(2rem, 0.8rem + 4.6vw, 5.4rem);
-  transform: translateX(calc(var(--p, 0) * -16vw)); will-change: transform; }
-.x-drift.rev .x-drift-in { transform: translateX(calc(-16vw + var(--p, 0) * 16vw)); }
-.x-drift-in span:nth-child(even) { color: transparent; -webkit-text-stroke: 1.5px rgba(244, 242, 251, 0.6); }
+.x-drift-in { display: flex; width: max-content; font-weight: 700; text-transform: uppercase; letter-spacing: -0.05em; line-height: 0.9; white-space: nowrap; font-size: clamp(2rem, 0.8rem + 4.6vw, 5.4rem); animation: x-belt 44s linear infinite; will-change: transform; }
+.x-drift-half { display: flex; align-items: center; gap: 0.5em; flex: none; padding-right: 0.5em; }
+@keyframes x-belt { to { transform: translateX(-50%); } }
+.x-drift:hover .x-drift-in { animation-play-state: paused; }
+.x-drift-half span:nth-of-type(even) { color: transparent; -webkit-text-stroke: 1.5px rgba(244, 242, 251, 0.6); }
 .x-drift-in i { font-style: normal; color: var(--x-coral); font-size: 0.6em; }
 
 /* split sections */
@@ -337,7 +338,7 @@ html.hx2 .hero-mock-card .label { color: var(--x-muted); }
   html.hx2 { transition: none; scroll-behavior: auto; }
   .x-ln > span, [data-x-reveal] { transform: none; opacity: 1; transition: none; }
   .x-planet::after, .x-door::after, .x-slab::after, .x-roll-win span { animation: none; }
-  .x-drift-in { transform: none; }
+  .x-drift-in { animation: none; }
   .x-bar .t i, html.hx2.x-js .x-bar .t i { width: var(--w); transition: none; }
   .x-line::after { transform: none; }
   .x-menu, .x-dock, .x-dd-panel { transition: none; }

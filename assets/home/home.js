@@ -40,7 +40,7 @@
 
   /* ---------- scroll-linked values: page progress, timelines, drifting words, footer wordmark, mini-nav ---------- */
   var progress = doc.querySelector(".x-progress"), dock = doc.querySelector(".x-dock");
-  var drifts = $all(".x-drift"), lines = $all(".x-line"), marks = $all(".x-mark-word");
+  var lines = $all(".x-line"), marks = $all(".x-mark-word");
   var ticking = false;
   function frac(el) { var r = el.getBoundingClientRect(), h = window.innerHeight; return clamp((h - r.top) / (h + r.height), 0, 1); }
   function onScroll() {
@@ -49,7 +49,6 @@
     if (progress) { progress.style.setProperty("--p", (clamp(y / max, 0, 1) * 100).toFixed(2) + "%"); }
     if (dock) { dock.classList.toggle("is-on", y > window.innerHeight * 0.75); }
     if (reduce) { return; }
-    drifts.forEach(function (d) { d.style.setProperty("--p", frac(d).toFixed(3)); });
     marks.forEach(function (m) { m.style.setProperty("--p", frac(m).toFixed(3)); });
     lines.forEach(function (l) {
       var r = l.getBoundingClientRect(), h = window.innerHeight, p = clamp((h * 0.86 - r.top) / (r.height + h * 0.1), 0, 1);
