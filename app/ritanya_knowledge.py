@@ -233,8 +233,8 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "product_studio",
-        "Product Studio is where Rithavo builds products for businesses, as per their requirement. It is for small, "
-        "medium and large companies, and the products can be software or goods. It also builds Rithavo's own products, "
+        "Product Studio is where Rithavo builds products for businesses, as per their requirement. It is for "
+        "organisations of every size and type, depending on the scope of work and the collaboration you choose, and the products can be software or goods. It also builds Rithavo's own products, "
         "which today are Career Intelligence and Application Diagnostic (not yet available for purchase).",
         "What gets built, how and by when is agreed with you once Rithavo understands your requirement. I can't quote a "
         "price or a timeline. Business Transformation is separate: it works with businesses on how they perform.",
@@ -244,12 +244,12 @@ TOPICS = {t.id: t for t in (
     ),
     Topic(
         "product_examples",
-        "These are examples, not a fixed catalogue. For small businesses (low cost, fast setup, everyday tasks): a client "
+        "These are examples, not a fixed catalogue, and Rithavo offers them to organisations of every size and type, depending on the scope of work and the collaboration you choose. Examples: a client "
         "and lead tracker, an AI content and social media scheduler, a simple inventory and billing app, and daily-use or "
-        "eco-friendly goods. For medium businesses (process automation and multi-team alignment): a workflow and SOP "
+        "eco-friendly goods; a workflow and SOP "
         "automation platform, a multi-channel customer engagement and analytics suite, a B2B distributor and order "
         "management portal, and specialised components or equipment.",
-        "For large enterprises (enterprise integration, compliance, global scale): an AI copilot and knowledge hub with "
+        "Also an AI copilot and knowledge hub with "
         "strict access controls, supply chain and predictive operations software, an enterprise brand and campaign "
         "localisation engine, and high-scale industrial or smart hardware. Each product is shaped around the requirement "
         "you bring.",

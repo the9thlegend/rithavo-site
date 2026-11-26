@@ -139,7 +139,7 @@ html.hx2:not(.x-js) [data-x-reveal] { opacity: 1; transform: none; }
 
 /* ---------- layout ---------- */
 .x-wrap { width: 100%; max-width: 1480px; margin-inline: auto; padding-inline: var(--x-pad); }
-.x-section { position: relative; padding: clamp(80px, 11vw, 170px) 0; }
+.x-section { position: relative; padding: clamp(52px, 7.5vw, 112px) 0; }
 .x-hero { position: relative; display: grid; align-content: space-between; min-height: calc(100dvh - 4px); padding: clamp(18px, 3vw, 28px) 0 clamp(36px, 5vw, 56px); isolation: isolate; overflow: hidden; }
 .x-hero .x-head { position: absolute; inset: 0 0 auto 0; }
 .x-hero-body { padding-top: clamp(110px, 16vh, 190px); display: grid; gap: clamp(24px, 4vh, 44px); }
@@ -475,3 +475,13 @@ fieldset.x-field { border: 0; margin: 0; padding: 0; min-width: 0; }
 .x-doc strong { color: var(--x-ink); }
 .x-note { margin: 18px 0 0; padding: 18px 20px; border-radius: 18px; border: 1px solid rgba(255, 138, 92, 0.4); background: rgba(255, 138, 92, 0.07); color: var(--x-ink); line-height: 1.55; }
 @media (max-width: 900px) { .x-legal { grid-template-columns: 1fr; } .x-toc { position: static; padding: 0 0 18px; border-left: 0; border-bottom: 1px solid var(--x-line); grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; gap: 18px; } .x-toc h2 { display: none; } .x-toc a::before { display: none; } .x-toc a.is-on { transform: none; color: var(--x-coral); } }
+
+/* ---------- round 4: split headline never runs into the form; required markers and inline errors ---------- */
+.x-split-side .x-h2 { font-size: clamp(1.9rem, 0.9rem + 2.5vw, 3.4rem); overflow-wrap: anywhere; }
+.x-split-side, .x-split > div { min-width: 0; }
+.x-field .req, .x-reqnote .req { font-style: normal; color: var(--x-coral); font-weight: 700; letter-spacing: 0; }
+.x-reqnote { margin: 0; color: var(--x-muted); font-size: 0.92rem; line-height: 1.4; }
+.x-err { margin: 0; color: #ffb4a0; font: 500 0.82rem/1.35 var(--x-font); }
+.x-field.has-error input, .x-field.has-error textarea { border-color: #ff8f73; box-shadow: 0 0 0 4px rgba(255, 143, 115, 0.18); }
+.x-formerr { display: none; margin: 0; padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255, 143, 115, 0.55); background: rgba(255, 143, 115, 0.09); color: var(--x-ink); font-size: 0.95rem; line-height: 1.45; }
+.x-formerr.is-on { display: block; }

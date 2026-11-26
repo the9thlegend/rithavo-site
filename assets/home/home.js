@@ -20,7 +20,7 @@
   groups = groups.filter(function (n, i) { return groups.indexOf(n) === i; });
   if (reduce || !("IntersectionObserver" in window)) { groups.forEach(function (g) { g.classList.add("x-in"); }); }
   else {
-    var rio = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("x-in"); rio.unobserve(e.target); } }); }, { threshold: 0.12, rootMargin: "0px 0px -4% 0px" });
+    var rio = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("x-in"); rio.unobserve(e.target); } }); }, { threshold: 0.04, rootMargin: "0px 0px 12% 0px" });
     groups.forEach(function (g) { rio.observe(g); });
   }
 

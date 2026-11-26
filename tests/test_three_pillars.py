@@ -68,8 +68,8 @@ def test_businesses_is_product_studio_building_to_requirements_for_every_size():
     page = visible(ROOT / "businesses" / "index.html")
     assert "Product Studio" in page and "What is a product studio?" in page
     assert "builds products for businesses" in page and "as per their requirement" in page
-    for size in ("Small businesses", "Medium businesses", "Large enterprises"):
-        assert size in page
+    assert "organisations of every size and type" in page and "scope of work and the collaboration you choose" in page
+    assert "Small businesses" not in page and "Large enterprises" not in page          # no size tiers: the offer is the same for every organisation
     for example in ("All-in-one client & lead tracker", "Workflow & SOP automation platform", "AI copilot & knowledge hub"):
         assert example in page
     assert "These are examples, not a fixed catalogue" in page

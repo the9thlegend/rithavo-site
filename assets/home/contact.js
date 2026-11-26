@@ -70,6 +70,35 @@
   function mailto(d) { return "mailto:" + TO + "?subject=" + encodeURIComponent(d.subject) + "&body=" + encodeURIComponent(d.body); }
   function gmail(d) { return "https://mail.google.com/mail/?view=cm&fs=1&to=" + encodeURIComponent(TO) + "&su=" + encodeURIComponent(d.subject) + "&body=" + encodeURIComponent(d.body); }
 
+  /* ---------- required fields: inline messages, never an alert ---------- */
+  function problem(el) {
+    var v = (el.value || "").replace(/^\s+|\s+$/g, "");
+    if (!v) { return "This is needed so we can reply."; }
+    if (el.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { return "Enter an email address like name@company.com."; }
+    if (el.type === "tel" && v.replace(/\D/g, "").length < 7) { return "Enter a number we can reach you on, with the country code."; }
+    return "";
+  }
+  function setError(el, msg) {
+    var wrap = el.closest(".x-field"), note = wrap.querySelector(".x-err");
+    if (!msg) { wrap.classList.remove("has-error"); el.removeAttribute("aria-invalid"); el.removeAttribute("aria-describedby"); if (note) { note.remove(); } return; }
+    wrap.classList.add("has-error"); el.setAttribute("aria-invalid", "true");
+    if (!note) { note = doc.createElement("p"); note.className = "x-err"; note.id = el.id + "-err"; wrap.appendChild(note); }
+    note.textContent = msg; el.setAttribute("aria-describedby", note.id);
+  }
+  function validate(form) {
+    var bad = [], banner = form.querySelector(".x-formerr");
+    $all("[required]", form).forEach(function (el) { var m = problem(el); setError(el, m); if (m) { bad.push(el); } });
+    if (!banner) { banner = doc.createElement("p"); banner.className = "x-formerr"; banner.setAttribute("role", "alert"); form.insertBefore(banner, form.querySelector(".x-form-foot")); }
+    banner.textContent = bad.length ? "Please complete the " + bad.length + " highlighted " + (bad.length === 1 ? "field" : "fields") + " marked with *." : "";
+    banner.classList.toggle("is-on", bad.length > 0);
+    if (bad.length) { bad[0].focus(); }
+    return bad.length === 0;
+  }
+  $all("form[data-x-compose] [required]").forEach(function (el) {
+    el.addEventListener("input", function () { var wrap = el.closest(".x-field"); if (wrap.classList.contains("has-error") && !problem(el)) { setError(el, ""); } });
+    el.addEventListener("blur", function () { if ((el.value || "").length) { setError(el, problem(el)); } });
+  });
+
   $all("form[data-x-compose]").forEach(function (form) {
     var kind = form.getAttribute("data-x-compose"), build = BUILDERS[kind];
     var tray = form.parentNode.querySelector("[data-x-draft]");
@@ -85,6 +114,7 @@
     }
     form.addEventListener("submit", function (e) {
       e.preventDefault();
+      if (!validate(form)) { tray.classList.remove("is-on"); return; }
       var d = prepare();
       tray.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
       window.location.href = mailto(d);
