@@ -34,7 +34,7 @@ CONTENT_PAGES = {
     "career/application-diagnostic/index.html": "/career/application-diagnostic/",
     "career/career-intelligence/demo/index.html": "/career/career-intelligence/demo/",
     "professionals/index.html": "/professionals/", "businesses/index.html": "/businesses/", "privacy/index.html": "/privacy/", "terms/index.html": "/terms/",
-    "contact/business/index.html": "/contact/business/", "contact/help/index.html": "/contact/help/", "careers/index.html": "/careers/",
+    "contact/business/index.html": "/contact/business/", "contact/enterprise/index.html": "/contact/enterprise/", "contact/help/index.html": "/contact/help/", "careers/index.html": "/careers/",
 }
 
 

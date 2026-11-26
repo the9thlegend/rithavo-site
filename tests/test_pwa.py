@@ -121,9 +121,9 @@ def test_service_worker_policy_in_node():
 
 # Hosts a customer's browser may contact from a Rithavo page. Third-party libraries and fonts only; every
 # Rithavo address must be rithavo.com itself. Adding a host here is a deliberate, reviewed decision.
-# www.wix.com: the Contact page's "Discover Enterprise Solutions" option, a link the founder specified. mail.google.com: the optional "Open Gmail" fallback on the
+# mail.google.com: the optional "Open Gmail" fallback on the
 # enquiry forms, opened only when the visitor presses it.
-ALLOWED_THIRD_PARTY_HOSTS = {"sdk.cashfree.com", "www.w3.org", "www.wix.com", "mail.google.com"}
+ALLOWED_THIRD_PARTY_HOSTS = {"sdk.cashfree.com", "www.w3.org", "mail.google.com"}
 FORBIDDEN_RITHAVO = re.compile(r"\b(?:[a-z0-9-]+\.rithavo\.com|rithavo\.app|rithavo\.applications\.com|rithavo\.in|rithavo\.co)\b", re.I)
 # Pages allowed to name the sibling host in visible text: none (the contact page's mention was removed).
 KNOWN_VISIBLE_MENTION = set()

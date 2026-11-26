@@ -16,7 +16,7 @@
     $all("[data-x-reveal]", g).forEach(function (l, i) { l.style.setProperty("--d", i); });
   });
   // a reveal element with no [data-x] ancestor is its own group, so nothing can be left hidden
-  var groups = $all("[data-x]").concat($all("[data-x-reveal]").filter(function (n) { return !n.closest("[data-x]") || n.hasAttribute("data-x"); }));
+  var groups = $all("[data-x]").filter(function (n) { return !n.classList.contains("x-mark"); }).concat($all("[data-x-reveal]").filter(function (n) { return !n.closest("[data-x]") || n.hasAttribute("data-x"); }));
   groups = groups.filter(function (n, i) { return groups.indexOf(n) === i; });
   if (reduce || !("IntersectionObserver" in window)) { groups.forEach(function (g) { g.classList.add("x-in"); }); }
   else {
@@ -137,6 +137,15 @@
     });
     select(0, false);
   });
+
+  /* ---------- footer wordmark: plays every time it comes into view, resets once it has left ---------- */
+  var markIn = doc.querySelector(".x-mark");
+  if (markIn) {
+    if (reduce || !("IntersectionObserver" in window)) { markIn.classList.add("x-in"); }
+    else { new IntersectionObserver(function (es) { es.forEach(function (e) {
+      if (e.intersectionRatio >= 0.3) { markIn.classList.add("x-in"); } else if (e.intersectionRatio === 0) { markIn.classList.remove("x-in"); }
+    }); }, { threshold: [0, 0.3] }).observe(markIn); }
+  }
 
   /* ---------- footer wordmark: the cursor lights the letters it passes over ---------- */
   var markEl = doc.querySelector(".x-mark");

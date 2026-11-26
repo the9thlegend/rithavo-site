@@ -47,6 +47,16 @@
       add("My name", val(f, "name")); add("Reply to", val(f, "email"));
       return { subject: kind + " - Rithavo", body: lines.join("\n") };
     },
+    enterprise: function (f) {
+      var org = val(f, "org"), lines = [];
+      function add(label, v) { if (v) { lines.push(label + ": " + v); } }
+      lines.push("Hello Rithavo,", "", "I would like to talk about enterprise solutions.", "");
+      add("Organisation", org); add("Where we operate", val(f, "region")); add("Looking at", checked(f, "interest")); add("Timeline", checked(f, "timeline")); lines.push("");
+      add("My name", val(f, "name")); add("Role", val(f, "role")); add("Email", val(f, "email")); add("Phone", val(f, "phone"));
+      var msg = val(f, "message");
+      if (msg) { lines.push("", "What we would like to achieve:", msg); }
+      return { subject: "Enterprise enquiry" + (org ? " - " + org : ""), body: lines.join("\n") };
+    },
     careers: function (f) {
       var lines = [], role = val(f, "area");
       function add(label, v) { if (v) { lines.push(label + ": " + v); } }
