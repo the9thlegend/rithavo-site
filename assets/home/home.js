@@ -155,6 +155,14 @@
     orbitEl.addEventListener("pointerleave", function () { scn.style.setProperty("--px", "0"); scn.style.setProperty("--py", "0"); });
   }
 
+  /* ---------- About imagery: each picture leans gently toward the pointer ---------- */
+  if (fine && !reduce) {
+    $all(".ab-art").forEach(function (a) {
+      a.addEventListener("pointermove", function (e) { var r = a.getBoundingClientRect(); a.style.setProperty("--tx", (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3)); a.style.setProperty("--ty", (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3)); });
+      a.addEventListener("pointerleave", function () { a.style.setProperty("--tx", "0"); a.style.setProperty("--ty", "0"); });
+    });
+  }
+
   /* ---------- footer wordmark: the cursor lights the letters it passes over ---------- */
   var markEl = doc.querySelector(".x-mark");
   if (markEl && fine && !reduce) {
