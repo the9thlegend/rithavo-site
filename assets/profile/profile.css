@@ -170,18 +170,6 @@ body.pf.has-bar { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
 .pf-stage--framed .pf-frame { position: absolute; inset: 0 8% 4% 6%; border-radius: 26px; overflow: hidden; border: 1px solid var(--pf-border-strong); box-shadow: 0 30px 70px var(--pf-glow); background: var(--pf-bg-2); }
 .pf-stage--framed .pf-photo { position: absolute; inset: 0; left: 0; transform: none; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: var(--pf-fx, 50%) var(--pf-fy, 20%); filter: none; }
 .pf-stage--initial .pf-initial { position: absolute; inset: 14% 10% 4% 14%; display: grid; place-items: center; border-radius: 58% 42% 46% 54% / 46% 56% 44% 54%; background: var(--pf-blob); font: 800 clamp(5rem, 4rem + 8vw, 10rem)/1 var(--pf-display); color: rgba(255, 255, 255, 0.92); box-shadow: 0 40px 90px var(--pf-glow); }
-.pf-chip { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 10px; max-width: 58%; min-height: 44px; padding: 8px 14px 8px 10px; border-radius: 14px; border: 1px solid var(--pf-border-strong); background: color-mix(in srgb, var(--pf-bg-2) 72%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: var(--pf-shadow); font: 700 0.82rem/1.2 var(--pf-body); color: var(--pf-text); }
-.pf-chip svg { width: 22px; height: 22px; flex: none; color: var(--pf-coral); }
-.pf-chip span { overflow-wrap: anywhere; }
-.pf-chip--1 { left: -2%; top: 6%; }
-.pf-chip--2 { left: 2%; top: 44%; }
-.pf-chip--3 { right: -3%; top: 18%; }
-.pf-chip--4 { right: -1%; top: 58%; }
-@media (prefers-reduced-motion: no-preference) {
-  .pf-chip { animation: pf-float 7s ease-in-out infinite; }
-  .pf-chip--2 { animation-delay: -2s; } .pf-chip--3 { animation-delay: -4s; } .pf-chip--4 { animation-delay: -1s; }
-  @keyframes pf-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-}
 
 /* ---------- fact tiles (supported data only) ---------- */
 .pf-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; padding-bottom: clamp(28px, 4vw, 48px); }
@@ -255,15 +243,12 @@ body.pf.has-bar { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   .pf-hero { grid-template-columns: 1fr; padding-block: 20px 24px; gap: 8px; }
   .pf-hero__portrait { order: -1; }
   .pf-stage { max-width: 380px; }
-  .pf-chip { max-width: 52%; min-height: 40px; font-size: 0.78rem; padding: 6px 12px 6px 8px; }
-  .pf-chip svg { width: 18px; height: 18px; }
   .pf-hero__copy { text-align: left; }
 }
 @media (max-width: 480px) {
   .pf-actions .pf-btn { flex: 1 1 calc(50% - 6px); padding-inline: 14px; }
   .pf-facts { grid-template-columns: 1fr 1fr; gap: 12px; }
   .pf-tile { flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; min-height: 0; }
-  .pf-chip--2 { left: -2%; } .pf-chip--4 { right: -2%; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -336,7 +321,6 @@ body.bar-on .pf-toast { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 .pf-logo-card__initial { font: 800 clamp(4rem, 3rem + 6vw, 8rem)/1 var(--pf-display); background: var(--pf-grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
 .pf-prose { padding: clamp(18px, 3vw, 28px); max-width: 78ch; }
 .pf-prose p { color: var(--pf-text-soft); white-space: pre-line; overflow-wrap: anywhere; font-size: 1.05rem; }
-.pf-stage--biz .pf-chip--1 { left: 0; top: 8%; } .pf-stage--biz .pf-chip--2 { left: -2%; top: 72%; } .pf-stage--biz .pf-chip--3 { right: 0; top: 14%; } .pf-stage--biz .pf-chip--4 { right: -2%; top: 78%; }
 
 .pf-tabs { display: inline-flex; gap: 6px; padding: 4px; border: 1px solid var(--pf-border-strong); border-radius: 999px; background: var(--pf-surface); justify-self: start; }
 .pf-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; text-decoration: none; font-weight: 700; color: var(--pf-text-soft); }
@@ -430,7 +414,6 @@ select.pf-input { appearance: auto; }
   /* the portrait leans toward the pointer; the blob breathes */
   .pf-blob { translate: calc(var(--px, 0) * -14px) calc(var(--py, 0) * -10px); transition: translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); animation: pf-breathe 14s ease-in-out infinite; }
   .pf-photo, .pf-frame, .pf-initial { translate: calc(var(--px, 0) * 12px) calc(var(--py, 0) * 8px); transition: translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
-  .pf-chip { translate: calc(var(--px, 0) * 22px) calc(var(--py, 0) * 14px); }
   .pf-ring { animation: pf-spin 40s linear infinite; }
   .pf-headline.pf-gradtext { background-size: 200% auto; animation: pf-shift 8s ease-in-out infinite alternate; }
   .pf-timeline__item:first-child::before { animation: pf-ping 2.4s ease-out infinite; }
@@ -445,4 +428,34 @@ select.pf-input { appearance: auto; }
 @keyframes pf-shine { to { transform: translateX(130%); } }
 
 body.pf { overflow-x: clip; }
-.pf-hero { overflow-x: clip; }
+
+/* =====================================================================================================================
+   Capability balloons circle the portrait in 3D, the same orbit as Ritanya on the professionals page: four chips on a
+   tilted ring that turns slowly, nearer ones larger and brighter, farther ones passing behind the portrait. Hover
+   pauses it; the pointer tilts it. --W is the stage width in px, set by profile.js. Reduced motion: still ring.
+   ===================================================================================================================== */
+@property --pf-s { syntax: "<angle>"; initial-value: 0deg; inherits: true; }
+.pf-stage { --W: 480px; --R: calc(var(--W) * 0.41); perspective: calc(var(--W) * 2.3); perspective-origin: 50% 36%; transform-style: preserve-3d; }
+.pf-orbit { position: absolute; left: 50%; top: 60%; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(-15deg) rotateY(calc(var(--px, 0) * 9deg)); transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
+.pf-stage--biz .pf-orbit { top: 52%; }
+.pf-orbit__track { position: absolute; left: calc(var(--R) * -1); top: calc(var(--R) * -1); width: calc(var(--R) * 2); height: calc(var(--R) * 2); border-radius: 50%; border: 1px dashed rgba(169, 139, 255, 0.4); transform: rotateX(90deg); }
+.pf-chip {
+  --ang: calc(var(--a, 0deg) + var(--pf-s));
+  --cw: max(150px, calc(var(--W) * 0.38));
+  position: absolute; left: 0; top: 0; width: var(--cw); margin: calc(max(30px, var(--W) * 0.046) * -1) 0 0 calc(var(--cw) / -2);
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 18px; pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2); background: linear-gradient(160deg, rgba(40, 30, 82, 0.96), rgba(20, 14, 44, 0.96));
+  box-shadow: 0 18px 36px -12px rgba(8, 4, 24, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: #f4f2fb; font: 700 max(12.5px, calc(var(--W) * 0.027))/1.22 var(--pf-body); text-wrap: balance;
+  transform: rotateY(var(--ang)) translateZ(var(--R)) rotateY(calc(var(--ang) * -1)) rotateX(15deg);
+  opacity: calc(0.4 + 0.6 * (1 + cos(var(--ang))) / 2);
+}
+.pf-chip svg { flex: none; width: 22px; height: 22px; color: var(--pf-coral); filter: drop-shadow(0 0 8px currentColor); }
+.pf-chip span { min-width: 0; overflow-wrap: break-word; hyphens: none; }
+.pf-chip:nth-child(2) svg { color: #ff8a5c; } .pf-chip:nth-child(3) svg { color: #5ee6d4; } .pf-chip:nth-child(4) svg { color: #c46bd0; }
+@media (max-width: 560px) { .pf-stage { --R: calc(var(--W) * 0.33); } .pf-chip { padding: 10px 12px; } .pf-chip svg { width: 18px; height: 18px; } }
+@media (prefers-reduced-motion: no-preference) {
+  .pf-orbit { animation: pf-orbit-turn 28s linear infinite; }
+  .pf-stage:hover .pf-orbit { animation-play-state: paused; }
+}
+@keyframes pf-orbit-turn { to { --pf-s: 360deg; } }

@@ -130,6 +130,27 @@
       el("div", { class: "pf-section__lead" }, [el("p", { class: "pf-eyebrow pf-eyebrow--sec", text: eyebrow }), el("h2", { class: "pf-section__title", id: id, text: title })]),
       note ? el("p", { class: "pf-section__note", text: note }) : null]);
   }
+  /* up to four capabilities, balloons on a turning 3D ring around the portrait; returns [] or [ring] for concat */
+  function orbit(names) {
+    var list = (names || []).slice(0, 4);
+    if (!list.length) { return []; }
+    var kids = list.map(function (name, i) {
+      var chip = el("div", { class: "pf-chip" }, [svg(PF.CHIP_ICONS[i % PF.CHIP_ICONS.length]), el("span", { text: name })]);
+      chip.style.setProperty("--a", Math.round(i * 360 / list.length) + "deg");
+      return chip;
+    });
+    return [el("div", { class: "pf-orbit", "aria-hidden": "true" }, [el("span", { class: "pf-orbit__track" })].concat(kids))];
+  }
+  /* the orbit is sized from the stage width in pixels */
+  var fitRO = null;
+  function fitOrbit() {
+    var stage = document.querySelector(".pf-stage");
+    if (!stage) { return; }
+    var set = function () { stage.style.setProperty("--W", Math.round(stage.getBoundingClientRect().width) + "px"); };
+    set();
+    if (fitRO) { fitRO.disconnect(); }
+    if ("ResizeObserver" in window) { fitRO = new ResizeObserver(set); fitRO.observe(stage); }
+  }
   var COLLAB_ICONS = ["layers", "chart", "users", "target"];
   function present(sections, key) { var v = sections[key]; return Array.isArray(v) ? v.length > 0 : !!v; }
 
@@ -139,9 +160,7 @@
     var order = (d.section_order || []).filter(function (k) { return present(s, k); });
 
     // hero
-    var chips = (s.capabilities || []).slice(0, 4).map(function (name, i) {
-      return el("div", { class: "pf-chip pf-chip--" + (i + 1) }, [svg(PF.CHIP_ICONS[i % PF.CHIP_ICONS.length]), el("span", { text: name })]);
-    });
+    var chips = orbit(s.capabilities);
     var stage;
     var alpha = state.photo && state.photo.alpha;
     if (state.photo) {
@@ -259,9 +278,7 @@
     var d = state.data, rel = d.relationship || {};
     var nodes = [], links = [["pf-overview", "Overview"]];
     var expertise = splitList(d.areas_of_expertise);
-    var chips = expertise.slice(0, 4).map(function (name, i) {
-      return el("div", { class: "pf-chip pf-chip--" + (i + 1) }, [svg(PF.CHIP_ICONS[i % PF.CHIP_ICONS.length]), el("span", { text: name })]);
-    });
+    var chips = orbit(expertise);
     var face = state.photo
       ? el("img", { class: "pf-logo-card__img", src: state.photo.url, alt: "Logo of " + (d.name || "this business") })
       : el("span", { class: "pf-logo-card__initial", "aria-hidden": "true", text: (d.name || "B").trim().charAt(0).toUpperCase() });
@@ -349,6 +366,7 @@
     PF.watchActionBar();
     spy();
     footer(built.links);
+    fitOrbit();
     motion();
   }
 
