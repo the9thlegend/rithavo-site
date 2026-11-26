@@ -516,3 +516,89 @@ fieldset.x-field { border: 0; margin: 0; padding: 0; min-width: 0; }
 @media (max-width: 960px) { .x-orbit-wrap { order: -1; } }
 @media (max-width: 560px) { .x-orbit { --R: 33cqw; } .x-orbit-q { padding: 10px 12px; } }
 @media (prefers-reduced-motion: reduce) { .x-orbit-ring { animation: none; } .x-orbit-scene { transition: none; } }
+
+/* ---------- About: every message gets a drawn visual, no photographs ---------- */
+.ab-sec .x-split { align-items: center; }
+.ab-copy { display: grid; gap: 18px; min-width: 0; }
+.ab-text { display: grid; gap: 18px; max-width: 62ch; }
+.ab-text p { margin: 0; color: var(--x-muted); font-size: clamp(1rem, 0.94rem + 0.3vw, 1.14rem); line-height: 1.72; text-wrap: pretty; }
+.ab-copy .x-h2 { font-size: clamp(2rem, 0.9rem + 3.4vw, 4.2rem); }
+.ab-vis { position: relative; border-radius: 28px; border: 1px solid var(--x-line); background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)); padding: clamp(14px, 2.2vw, 30px); overflow: hidden; }
+.ab-vis svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ab-cap { display: flex; gap: 22px; justify-content: center; margin-top: 10px; color: var(--x-muted); font: 500 0.82rem/1 var(--x-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.ab-cap i { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; }
+.ab-cap .c { border-radius: 50%; background: var(--x-violet); } .ab-cap .s { border-radius: 3px; background: var(--x-coral); }
+.ab-node, .ab-way circle, .ab-spark { transform-box: fill-box; transform-origin: center; }
+.ab-link { fill: none; stroke: url(#abg); stroke-width: 1.4; opacity: 0.7; }
+.ab-person { fill: var(--x-violet); } .ab-biz { fill: var(--x-coral); } .ab-mid { fill: var(--x-ink); }
+.ab-climb { fill: none; stroke: url(#abg2); stroke-width: 3.2; stroke-linecap: round; }
+.ab-floor { stroke: var(--x-line); stroke-width: 1; }
+.ab-way circle { fill: var(--x-ink); } .ab-way .halo { fill: none; stroke: var(--x-coral); stroke-width: 1.4; }
+.ab-way-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; }
+.ab-way-list li { display: grid; gap: 4px; color: var(--x-ink); font: 600 0.92rem/1.3 var(--x-font); }
+.ab-way-list b { color: var(--x-coral); font: 500 0.74rem/1 var(--x-mono); letter-spacing: 0.1em; }
+.ab-ring { fill: rgba(255, 255, 255, 0.035); stroke-width: 2; transform-box: fill-box; transform-origin: center; }
+.ab-ring.a { stroke: var(--x-violet); } .ab-ring.b { stroke: var(--x-coral); }
+.ab-lens { fill: rgba(255, 244, 236, 0.2); }
+.ab-spark { fill: var(--x-ink); }
+.ab-pillars { aspect-ratio: 520 / 450; padding: 0; }
+.ab-pillars svg { position: absolute; inset: 0; height: 100%; }
+.ab-tri { fill: rgba(169, 139, 255, 0.07); stroke: url(#abg3); stroke-width: 2; }
+.ab-tri.t2 { fill: none; opacity: 0.8; }
+.ab-core { fill: rgba(255, 138, 92, 0.16); stroke: var(--x-coral); stroke-width: 1.5; transform-box: fill-box; transform-origin: center; }
+.ab-pillar { position: absolute; transform: translate(-50%, -50%); display: grid; gap: 4px; padding: 12px 16px; max-width: 38%; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.2); background: linear-gradient(160deg, rgba(40, 30, 82, 0.96), rgba(20, 14, 44, 0.96)); color: var(--x-ink); text-decoration: none; text-align: center; box-shadow: 0 16px 32px -14px rgba(8, 4, 24, 0.7); transition: border-color 0.3s, translate 0.4s var(--x-ease); }
+.ab-pillar:hover { border-color: var(--x-coral); translate: 0 -4px; }
+.ab-pillar small { color: var(--x-muted); font: 500 0.66rem/1 var(--x-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.ab-pillar b { font: 700 clamp(0.82rem, 0.6rem + 0.9vw, 1.05rem)/1.2 var(--x-font); }
+.ab-pillar.p1 { left: 50%; top: 17%; } .ab-pillar.p2 { left: 19%; top: 80%; } .ab-pillar.p3 { left: 81%; top: 80%; }
+.ab-center { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); text-align: center; color: var(--x-ink); font: 700 clamp(0.78rem, 0.5rem + 1vw, 1.02rem)/1.15 var(--x-font); letter-spacing: -0.01em; pointer-events: none; }
+.ab-views { display: grid; justify-items: center; gap: 22px; padding-block: clamp(34px, 5vw, 64px); }
+.ab-views-row { display: flex; gap: clamp(8px, 1.6vw, 18px); justify-content: center; position: relative; z-index: 1; }
+.ab-shape { width: clamp(38px, 7.4vw, 62px); aspect-ratio: 1; }
+.ab-shape svg { stroke-width: 2; fill-opacity: 0.2; }
+.ab-shape:nth-child(3n+1) svg { stroke: var(--x-violet); fill: var(--x-violet); }
+.ab-shape:nth-child(3n+2) svg { stroke: var(--x-coral); fill: var(--x-coral); }
+.ab-shape:nth-child(3n) svg { stroke: var(--x-cyan); fill: var(--x-cyan); }
+.ab-views-beam { position: absolute; left: 50%; top: 0; width: 80%; height: 70%; transform: translateX(-50%); background: radial-gradient(ellipse at 50% 0, rgba(255, 244, 236, 0.28), transparent 68%); pointer-events: none; }
+.ab-pin { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 10px; margin: 0; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--x-line); background: var(--x-glass); color: var(--x-ink); font: 600 0.9rem/1 var(--x-font); }
+.ab-pin-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--x-coral); }
+@media (max-width: 960px) { .ab-split, .ab-split.flip { grid-template-columns: 1fr; } .ab-split.flip > div:first-child { order: 2; } }
+@media (prefers-reduced-motion: no-preference) {
+  .ab-vis.x-in .ab-link { stroke-dasharray: 700; animation: ab-draw 1.8s var(--x-ease) calc(0.4s + var(--i) * 0.14s) both, ab-fade 5s ease-in-out 3s infinite; }
+  .ab-vis.x-in .ab-node { animation: ab-pop 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) calc(var(--i) * 0.09s) both, ab-bob 6s ease-in-out calc(1s + var(--i) * 0.4s) infinite; }
+  .ab-vis.x-in .ab-climb { stroke-dasharray: 560; animation: ab-draw 2.4s var(--x-ease) 0.3s both; }
+  .ab-vis.x-in .ab-way { animation: ab-pop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.5s + var(--i) * 0.55s) both; transform-box: fill-box; transform-origin: center; }
+  .ab-vis.x-in .ab-way .halo { animation: ab-halo 2.8s ease-out calc(1.6s + var(--i) * 0.5s) infinite; }
+  .ab-vis.x-in .ab-way-list li { animation: ab-rise 0.7s var(--x-ease) calc(0.5s + var(--i) * 0.55s) both; }
+  .ab-vis.x-in .ab-ring.a { animation: ab-in-l 1.2s var(--x-ease) both, ab-sway-l 7s ease-in-out 1.2s infinite; }
+  .ab-vis.x-in .ab-ring.b { animation: ab-in-r 1.2s var(--x-ease) both, ab-sway-r 7s ease-in-out 1.2s infinite; }
+  .ab-vis.x-in .ab-lens { animation: ab-fade 1s ease 0.8s both; }
+  .ab-vis.x-in .ab-spark { animation: ab-spark 4.2s ease-in-out infinite; }
+  .ab-vis.x-in .ab-spark.s2 { animation-delay: 1.4s; } .ab-vis.x-in .ab-spark.s3 { animation-delay: 2.8s; }
+  .ab-vis.x-in .ab-tri { stroke-dasharray: 1000; animation: ab-draw 2.2s var(--x-ease) 0.2s both; }
+  .ab-vis.x-in .ab-tri.t2 { stroke-dasharray: 5 14; animation: ab-fade 1s ease 1.6s both, ab-dash 18s linear infinite; }
+  .ab-vis.x-in .ab-core { animation: ab-pop 0.8s cubic-bezier(0.3, 1.5, 0.5, 1) 0.9s both, ab-throb 3.4s ease-in-out 1.7s infinite; }
+  .ab-vis.x-in .ab-pillar, .ab-vis.x-in .ab-center { animation: ab-rise-c 0.8s var(--x-ease) 0.9s both; }
+  .ab-vis.x-in .ab-shape { animation: ab-settle 1.3s var(--x-ease) calc(var(--i) * 0.11s) both, ab-float 5s ease-in-out calc(1.6s + var(--i) * 0.3s) infinite; }
+  .ab-shape:nth-child(1) { --dx: -90px; --dy: -70px; --r: -60deg; } .ab-shape:nth-child(2) { --dx: -40px; --dy: 80px; --r: 40deg; } .ab-shape:nth-child(3) { --dx: -10px; --dy: -90px; --r: 90deg; }
+  .ab-shape:nth-child(4) { --dx: 20px; --dy: 90px; --r: -80deg; } .ab-shape:nth-child(5) { --dx: 60px; --dy: -80px; --r: 50deg; } .ab-shape:nth-child(6) { --dx: 100px; --dy: 70px; --r: -45deg; }
+  .ab-vis.x-in .ab-views-beam { animation: ab-fade 1.6s ease 1.2s both; }
+  .ab-vis.x-in .ab-pin-dot { animation: ab-ping 2.4s ease-out 1.6s infinite; }
+}
+@keyframes ab-draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+@keyframes ab-fade { from { opacity: 0; } 50% { opacity: 1; } to { opacity: 0.7; } }
+@keyframes ab-pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes ab-bob { 50% { transform: translateY(-5px); } }
+@keyframes ab-halo { from { transform: scale(1); opacity: 0.9; } to { transform: scale(3); opacity: 0; } }
+@keyframes ab-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes ab-rise-c { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ab-in-l { from { transform: translateX(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ab-in-r { from { transform: translateX(-60px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ab-sway-l { 50% { transform: translateX(-14px); } }
+@keyframes ab-sway-r { 50% { transform: translateX(14px); } }
+@keyframes ab-spark { 0% { transform: translateX(-70px); opacity: 0; } 25% { opacity: 1; } 50% { transform: translateX(70px); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(-70px); opacity: 0; } }
+@keyframes ab-dash { to { stroke-dashoffset: -380; } }
+@keyframes ab-throb { 50% { transform: scale(1.14); } }
+@keyframes ab-settle { from { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes ab-float { 50% { transform: translateY(-7px); } }
+@keyframes ab-ping { 0% { box-shadow: 0 0 0 0 rgba(255, 138, 92, 0.6); } 100% { box-shadow: 0 0 0 12px rgba(255, 138, 92, 0); } }
