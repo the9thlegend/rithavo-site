@@ -155,6 +155,52 @@
     orbitEl.addEventListener("pointerleave", function () { scn.style.setProperty("--px", "0"); scn.style.setProperty("--py", "0"); });
   }
 
+  /* ---------- About: words light up as you read, progress rails fill, panels glow under the pointer ---------- */
+  var abWords = $all("[data-x-words]"), abProg = $all("[data-x-prog]");
+  if (abProg.length) {
+    abWords.forEach(function (p) {
+      p._w = p.textContent.split(/\s+/).filter(Boolean).map(function (t) { var s = doc.createElement("span"); s.className = "w"; s.textContent = t + " "; return s; });
+      p.textContent = ""; p._w.forEach(function (s) { p.appendChild(s); });
+    });
+    var abOn = !reduce;
+    if (abOn) { doc.documentElement.classList.add("ab-js"); }
+    var abTick = function () {
+      var vh = window.innerHeight || 800;
+      abProg.forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        var pr = Math.max(0, Math.min(1, (vh * 0.82 - r.top) / (r.height * 0.7 + vh * 0.22)));
+        if (!abOn) { pr = 1; }
+        el.style.setProperty("--p", pr.toFixed(3));
+        if (el._w) { var lit = Math.round(pr * el._w.length); el._w.forEach(function (s, i) { s.classList.toggle("lit", i < lit); }); }
+        if (el.classList.contains("ab-rail")) { var li = el.children; for (var k = 0; k < li.length; k++) { li[k].classList.toggle("on", pr >= (k + 0.6) / (li.length + 0.4)); } }
+      });
+    };
+    var abBusy = false, abReq = function () { if (!abBusy) { abBusy = true; window.requestAnimationFrame(function () { abBusy = false; abTick(); }); } };
+    window.addEventListener("scroll", abReq, { passive: true }); window.addEventListener("resize", abReq); abTick();
+  }
+  if (fine && !reduce) {
+    $all(".ab-panel").forEach(function (a) {
+      a.addEventListener("pointermove", function (e) { var r = a.getBoundingClientRect(); a.style.setProperty("--mx", (e.clientX - r.left).toFixed(0) + "px"); a.style.setProperty("--my", (e.clientY - r.top).toFixed(0) + "px"); });
+    });
+  }
+
+  /* ---------- footer wordmark: plays every time it comes into view, resets once it has left ---------- */
+  var markIn = doc.querySelector(".x-mark");
+  if (markIn) {
+    if (reduce || !("IntersectionObserver" in window)) { markIn.classList.add("x-in"); }
+    else { new IntersectionObserver(function (es) { es.forEach(function (e) {
+      if (e.intersectionRatio >= 0.3) { markIn.classList.add("x-in"); } else if (e.intersectionRatio === 0) { markIn.classList.remove("x-in"); }
+    }); }, { threshold: [0, 0.3] }).observe(markIn); }
+  }
+
+  /* ---------- Ritanya hero: the scene leans gently toward the pointer ---------- */
+  var orbitEl = doc.querySelector(".x-orbit");
+  if (orbitEl && fine && !reduce) {
+    var scn = orbitEl.querySelector(".x-orbit-scene");
+    orbitEl.addEventListener("pointermove", function (e) { var r = orbitEl.getBoundingClientRect(); scn.style.setProperty("--px", (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3)); scn.style.setProperty("--py", (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3)); });
+    orbitEl.addEventListener("pointerleave", function () { scn.style.setProperty("--px", "0"); scn.style.setProperty("--py", "0"); });
+  }
+
   /* ---------- About imagery: each picture leans gently toward the pointer ---------- */
   if (fine && !reduce) {
     $all(".ab-art").forEach(function (a) {
