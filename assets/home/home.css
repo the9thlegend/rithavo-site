@@ -520,7 +520,7 @@ fieldset.x-field { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* ---------- About: type and motion only. Numbered sections, scroll-lit words, kinetic headlines, glowing panels ---------- */
 .ab-sec { overflow-x: clip; }
 .ab-head { display: flex; align-items: center; gap: 18px; margin-bottom: clamp(26px, 4vw, 56px); color: var(--x-muted); font: 500 0.82rem/1 var(--x-mono); letter-spacing: 0.14em; text-transform: uppercase; }
-.ab-head b { color: var(--x-coral); font-weight: 500; }
+.ab-head b { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--x-coral); box-shadow: 0 0 0 0 rgba(255, 138, 92, 0.6); animation: ab-ping 2.6s ease-out infinite; }
 .ab-head i { flex: 1; height: 1px; background: linear-gradient(90deg, var(--x-line), transparent); transform-origin: left; transform: scaleX(0); transition: transform 1.4s var(--x-ease) 0.2s; }
 .ab-head.x-in i { transform: scaleX(1); }
 .ab-big { font-size: clamp(2.3rem, 0.8rem + 5.6vw, 6.4rem); margin: 0 0 clamp(28px, 4vw, 56px); }
