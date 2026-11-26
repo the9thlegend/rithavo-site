@@ -61,6 +61,11 @@
     }).then(function () { state.busy = false; renderActions(); });
   }
 
+  function linkButton() {
+    var b = el("button", { type: "button", class: "pf-iconlink", "aria-label": "Copy profile link", title: "Copy profile link" }, [svg("link")]);
+    b.addEventListener("click", copyLink);
+    return b;
+  }
   function shareCard(email, phone) {
     PF.api("POST", "/api/public-profile/" + slug + "/share", { share_email: !!email, share_phone: !!phone }).then(function (res) {
       var code = res.data && res.data.code;
@@ -119,6 +124,13 @@
   }
 
   /* ---------- composition ---------- */
+  /* eyebrow label, title and a short line on the right: the same head for every section */
+  function head(id, eyebrow, title, note) {
+    return el("div", { class: "pf-section__head" }, [
+      el("div", { class: "pf-section__lead" }, [el("p", { class: "pf-eyebrow pf-eyebrow--sec", text: eyebrow }), el("h2", { class: "pf-section__title", id: id, text: title })]),
+      note ? el("p", { class: "pf-section__note", text: note }) : null]);
+  }
+  var COLLAB_ICONS = ["layers", "chart", "users", "target"];
   function present(sections, key) { var v = sections[key]; return Array.isArray(v) ? v.length > 0 : !!v; }
 
   function build() {
@@ -188,20 +200,21 @@
     order.forEach(function (k) {
       if (k === "capabilities") {
         secs.push(el("section", { class: "pf-section", id: "pf-expertise", "aria-labelledby": "pf-h-exp" }, [
-          el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-exp", text: "What I work on" })]),
+          head("pf-h-exp", "About my work", "What I work on", "The areas I work in."),
           el("ul", { class: "pf-pills" }, s.capabilities.map(function (c, i) { return el("li", { class: "pf-pill" }, [svg(PF.CHIP_ICONS[i % 4]), c]); }))]));
         links.push(["pf-expertise", "Expertise"]);
       } else if (k === "professional_intent") {
         secs.push(el("section", { class: "pf-section", id: "pf-open", "aria-labelledby": "pf-h-open" }, [
-          el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-open", text: "Open to" })]),
-          el("ul", { class: "pf-pills" }, s.professional_intent.map(function (c) { return el("li", { class: "pf-pill pf-pill--warm" }, [svg("spark"), c]); }))]));
-        links.push(["pf-open", "Open to"]);
+          head("pf-h-open", "Services and collaboration", "How I can collaborate", "Open to meaningful projects, advisory and collaboration opportunities."),
+          el("ul", { class: "pf-collab" }, s.professional_intent.map(function (c, i) { return el("li", { class: "pf-collab__card" }, [el("span", { class: "pf-collab__icon" }, [svg(COLLAB_ICONS[i % 4])]), el("span", { class: "pf-collab__name", text: c })]); }))]));
+        links.push(["pf-open", "Collaborate"]);
       }
     });
     // the owner's own experience, education and skills (shown after the ordered sections; same visibility switches)
+    var duo = [];
     if ((s.experience || []).length) {
-      secs.push(el("section", { class: "pf-section", id: "pf-experience", "aria-labelledby": "pf-h-xp" }, [
-        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-xp", text: "Professional journey" })]),
+      duo.push(el("section", { class: "pf-section", id: "pf-experience", "aria-labelledby": "pf-h-xp" }, [
+        head("pf-h-xp", "Experience", "My professional journey"),
         el("ol", { class: "pf-timeline" }, s.experience.map(function (x) {
           var who = [x.company, x.location].filter(Boolean).join(" • ");
           return el("li", { class: "pf-timeline__item" }, [
@@ -213,14 +226,15 @@
       links.push(["pf-experience", "Experience"]);
     }
     if ((s.education || []).length) {
-      secs.push(el("section", { class: "pf-section", id: "pf-education", "aria-labelledby": "pf-h-ed" }, [
-        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-ed", text: "Education and certifications" })]),
+      duo.push(el("section", { class: "pf-section", id: "pf-education", "aria-labelledby": "pf-h-ed" }, [
+        head("pf-h-ed", "Education and certifications", "Learning and credentials"),
         el("ul", { class: "pf-edu" }, s.education.map(function (e) { return el("li", { class: "pf-card pf-edu__item" }, [svg("check"), el("span", { text: e })]); }))]));
       links.push(["pf-education", "Education"]);
     }
+    if (duo.length) { secs.push(el("div", { class: "pf-duo" + (duo.length === 1 ? " pf-duo--one" : "") }, duo)); }
     if ((s.skills || []).length) {
       secs.push(el("section", { class: "pf-section", id: "pf-skills", "aria-labelledby": "pf-h-sk" }, [
-        el("div", { class: "pf-section__head" }, [el("h2", { class: "pf-section__title", id: "pf-h-sk", text: "Skills" })]),
+        head("pf-h-sk", "Toolkit", "Skills", "Tools and methods I use."),
         el("ul", { class: "pf-pills pf-pills--sm" }, s.skills.map(function (k) { return el("li", { class: "pf-pill" }, [k]); }))]));
       links.push(["pf-skills", "Skills"]);
     }
@@ -230,7 +244,7 @@
     var cta = el("section", { class: "pf-cta", "aria-label": "Follow", "data-action-surface": "" }, [
       el("div", {}, [el("h2", { text: rel.is_self ? "Your profile, as members see it" : "Let's stay in touch" }),
         el("p", { text: rel.is_self ? "Only signed-in Rithavo members can open this page, and only while your profile is visible." : "Follow " + firstName(d.name) + " to keep up with their profile. Only signed-in Rithavo members can see it." })]),
-      el("div", { class: "pf-actions", id: "pf-cta-actions" })]);
+      el("div", { class: "pf-cta__side" }, [el("div", { class: "pf-actions", id: "pf-cta-actions" }), linkButton()])]);
     nodes.push(cta);
     return { nodes: nodes, links: links };
   }
@@ -334,6 +348,48 @@
     setBusy(false);
     PF.watchActionBar();
     spy();
+    footer(built.links);
+    motion();
+  }
+
+  /* the footer: this page's own links and the year, drawn once */
+  function footer(links) {
+    var old = document.getElementById("pf-foot"); if (old && old.parentNode) { old.parentNode.removeChild(old); }
+    var f = el("footer", { class: "pf-foot", id: "pf-foot" }, [el("div", { class: "pf-wrap pf-foot__in" }, [
+      el("a", { class: "pf-foot__brand", href: "/home/", text: "Rithavo" }),
+      el("nav", { class: "pf-foot__links", "aria-label": "Page sections" }, links.map(function (l) { return el("a", { href: "#" + l[0], text: l[1] }); })),
+      el("p", { class: "pf-foot__copy", text: "\u00a9 " + new Date().getFullYear() + " Rithavo. All rights reserved." })])]);
+    main.parentNode.insertBefore(f, main.nextSibling);
+  }
+
+  /* motion: sections and cards rise in every time they scroll into view; cards follow the pointer with a soft light;
+     the portrait leans toward the pointer. Skipped entirely for reduced motion. */
+  var rio = null;
+  function motion() {
+    var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (calm || !("IntersectionObserver" in window)) { return; }
+    if (rio) { rio.disconnect(); }
+    rio = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("pf-in"); } else { e.target.classList.remove("pf-in"); } });
+    }, { threshold: [0, 0.06], rootMargin: "0px 0px 10% 0px" });
+    var sel = ".pf-hero__copy > *, .pf-hero__portrait, .pf-tile, .pf-section__head, .pf-pill, .pf-collab__card, .pf-timeline__item, .pf-edu__item, .pf-cta, .pf-foot__in";
+    document.querySelectorAll(sel).forEach(function (n) {
+      var sib = n.parentNode ? Array.prototype.indexOf.call(n.parentNode.children, n) : 0;
+      n.style.setProperty("--i", String(Math.min(sib, 8)));
+      n.classList.add("pf-rv");
+      rio.observe(n);
+    });
+    var fine = window.matchMedia && window.matchMedia("(pointer: fine)").matches;
+    if (!fine) { return; }
+    document.querySelectorAll(".pf-tile, .pf-collab__card, .pf-edu__item, .pf-pill").forEach(function (n) {
+      n.addEventListener("pointermove", function (ev) { var r = n.getBoundingClientRect(); n.style.setProperty("--mx", (ev.clientX - r.left) + "px"); n.style.setProperty("--my", (ev.clientY - r.top) + "px"); });
+    });
+    var stage = document.querySelector(".pf-stage");
+    if (stage) {
+      var hero = stage.closest(".pf-hero") || stage;
+      hero.addEventListener("pointermove", function (ev) { var r = hero.getBoundingClientRect(); stage.style.setProperty("--px", (((ev.clientX - r.left) / r.width) - 0.5).toFixed(3)); stage.style.setProperty("--py", (((ev.clientY - r.top) / r.height) - 0.5).toFixed(3)); });
+      hero.addEventListener("pointerleave", function () { stage.style.setProperty("--px", "0"); stage.style.setProperty("--py", "0"); });
+    }
   }
 
   /* current-section marker in the header links */

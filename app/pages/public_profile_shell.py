@@ -76,7 +76,7 @@ _LOCKUP = r"""<a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24"
 
 # Bump when profile.css / common.js / profile.js / manage.js change: the files are cached by browsers and the
 # service worker, so the URL has to change for visitors to get the new copy.
-ASSET_VERSION = "20261114a"
+ASSET_VERSION = "20261126a"
 
 
 def _page(title: str, skip: str, script: str) -> str:

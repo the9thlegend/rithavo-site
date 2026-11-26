@@ -357,3 +357,92 @@ select.pf-input { appearance: auto; }
 .pf-edu { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
 .pf-edu__item { display: flex; align-items: center; gap: 12px; padding: 16px 20px; overflow-wrap: anywhere; }
 .pf-edu__item svg { flex: none; width: 20px; height: 20px; }
+
+/* =====================================================================================================================
+   Public profile, concept layout (v2): section heads with a label and a line on the right, experience and education side by
+   side, collaboration cards, a closing band with a copy-link button, a footer; and the site's motion (replaying rises,
+   pointer light on cards, a portrait that leans toward the pointer, a slowly breathing blob). Same data, same tokens.
+   ===================================================================================================================== */
+.pf-nav__links a { white-space: nowrap; }
+.pf-section__lead { display: grid; gap: 6px; min-width: 0; }
+.pf-eyebrow--sec { font-size: 0.72rem; }
+.pf-section__head { align-items: end; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--pf-border); }
+.pf-section__note { margin: 0; text-align: right; }
+
+/* experience and education share a row */
+.pf-duo { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: start; }
+.pf-duo--one { grid-template-columns: minmax(0, 1fr); }
+.pf-duo .pf-edu { grid-template-columns: 1fr; }
+.pf-duo .pf-section__head { border-bottom: 0; padding-bottom: 0; margin-bottom: 18px; }
+.pf-duo > .pf-section + .pf-section { padding-left: clamp(0px, 3vw, 40px); border-left: 1px solid var(--pf-border); }
+@media (max-width: 860px) { .pf-duo { grid-template-columns: 1fr; } .pf-duo > .pf-section + .pf-section { padding-left: 0; border-left: 0; } .pf-section__note { text-align: left; } }
+
+/* education rows read as a list of credentials */
+.pf-edu__item { position: relative; overflow: hidden; border-radius: 16px; }
+.pf-edu__item svg { width: 22px; height: 22px; padding: 10px; box-sizing: content-box; border-radius: 14px; background: color-mix(in srgb, var(--pf-violet) 22%, transparent); color: #c9b5ff; }
+
+/* collaboration cards */
+.pf-collab { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; }
+.pf-collab__card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; min-height: 84px; padding: 16px 20px; border-radius: 18px; border: 1px solid var(--pf-border); background: var(--pf-surface); font: 700 1rem/1.3 var(--pf-display); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, box-shadow 0.4s; }
+.pf-collab__icon { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: color-mix(in srgb, var(--pf-coral) 20%, transparent); color: var(--pf-coral); }
+.pf-collab__icon svg { width: 24px; height: 24px; }
+.pf-collab__name { min-width: 0; overflow-wrap: anywhere; }
+.pf-collab__card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--pf-coral) 60%, var(--pf-border)); box-shadow: 0 18px 40px -18px rgba(255, 123, 92, 0.45); }
+
+/* a soft light that follows the pointer across cards */
+.pf-tile, .pf-collab__card, .pf-edu__item, .pf-pill { position: relative; overflow: hidden; isolation: isolate; }
+.pf-tile::before, .pf-collab__card::before, .pf-edu__item::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity 0.35s; pointer-events: none;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(169, 139, 255, 0.22), transparent 62%); }
+.pf-tile:hover::before, .pf-collab__card:hover::before, .pf-edu__item:hover::before { opacity: 1; }
+.pf-tile { transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, box-shadow 0.4s; }
+.pf-tile:hover { transform: translateY(-4px); border-color: var(--pf-border-strong); box-shadow: 0 18px 40px -20px rgba(124, 92, 255, 0.55); }
+.pf-pill { transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, background 0.3s; }
+.pf-pill:hover { transform: translateY(-3px); border-color: var(--pf-coral); }
+
+/* closing band */
+.pf-cta__side { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pf-iconlink { display: inline-grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.55); background: rgba(0, 0, 0, 0.14); color: #fff; cursor: pointer; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s; }
+.pf-iconlink svg { width: 20px; height: 20px; }
+.pf-iconlink:hover { background: rgba(0, 0, 0, 0.3); transform: scale(1.08) rotate(-8deg); }
+.pf-iconlink:focus-visible { outline: 3px solid var(--pf-focus); outline-offset: 3px; }
+.pf-cta { position: relative; overflow: hidden; }
+.pf-cta::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.16) 50%, transparent 62%); transform: translateX(-130%); }
+
+/* footer */
+.pf-foot { border-top: 1px solid var(--pf-border); margin-top: clamp(32px, 5vw, 64px); }
+.pf-foot__in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 28px; padding-block: 22px 28px; }
+.pf-foot__brand { font: 600 1.25rem/1 var(--pf-wordmark); color: var(--pf-text); text-decoration: none; }
+.pf-foot__links { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.pf-foot__links a { color: var(--pf-text-soft); text-decoration: none; font-weight: 600; font-size: 0.88rem; min-height: 44px; display: inline-flex; align-items: center; }
+.pf-foot__links a:hover { color: var(--pf-text); }
+.pf-foot__copy { margin: 0; color: var(--pf-muted); font-size: 0.84rem; }
+.has-bar .pf-foot { padding-bottom: 72px; }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .pf-rv { opacity: 0; transform: translateY(26px); transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i, 0) * 70ms), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i, 0) * 70ms); }
+  .pf-rv.pf-in { opacity: 1; transform: none; }
+  .pf-hero__portrait.pf-rv { transform: translateY(34px) scale(0.96); }
+  .pf-hero__portrait.pf-rv.pf-in { transform: none; }
+  /* once risen, cards keep their hover motion */
+  .pf-tile.pf-rv.pf-in:hover, .pf-collab__card.pf-rv.pf-in:hover { transform: translateY(-4px); transition-delay: 0s; }
+  .pf-pill.pf-rv.pf-in:hover { transform: translateY(-3px); transition-delay: 0s; }
+  /* the portrait leans toward the pointer; the blob breathes */
+  .pf-blob { translate: calc(var(--px, 0) * -14px) calc(var(--py, 0) * -10px); transition: translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); animation: pf-breathe 14s ease-in-out infinite; }
+  .pf-photo, .pf-frame, .pf-initial { translate: calc(var(--px, 0) * 12px) calc(var(--py, 0) * 8px); transition: translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .pf-chip { translate: calc(var(--px, 0) * 22px) calc(var(--py, 0) * 14px); }
+  .pf-ring { animation: pf-spin 40s linear infinite; }
+  .pf-headline.pf-gradtext { background-size: 200% auto; animation: pf-shift 8s ease-in-out infinite alternate; }
+  .pf-timeline__item:first-child::before { animation: pf-ping 2.4s ease-out infinite; }
+  .pf-cta.pf-in::after { animation: pf-shine 2.2s ease 0.5s both; }
+  .pf-pill svg, .pf-tile__icon, .pf-collab__icon { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .pf-pill:hover svg, .pf-tile:hover .pf-tile__icon, .pf-collab__card:hover .pf-collab__icon { transform: scale(1.15) rotate(-6deg); }
+}
+@keyframes pf-breathe { 0%, 100% { border-radius: 58% 42% 46% 54% / 46% 56% 44% 54%; } 50% { border-radius: 46% 54% 58% 42% / 56% 44% 54% 46%; } }
+@keyframes pf-spin { to { rotate: 360deg; } }
+@keyframes pf-shift { to { background-position: 100% 0; } }
+@keyframes pf-ping { 0% { box-shadow: 0 0 0 0 rgba(208, 69, 45, 0.55); } 100% { box-shadow: 0 0 0 12px rgba(208, 69, 45, 0); } }
+@keyframes pf-shine { to { transform: translateX(130%); } }
+
+body.pf { overflow-x: clip; }
+.pf-hero { overflow-x: clip; }
