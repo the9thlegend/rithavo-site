@@ -161,8 +161,8 @@ def test_the_profile_css_keeps_its_accessibility_rules():
     assert "prefers-reduced-motion: reduce" in code and "animation: none !important" in code
     assert ":focus-visible" in code and "outline: 3px solid var(--pf-focus)" in code
     assert "min-height: 44px" in code and "forced-colors: active" in code
-    # the floating indicators only animate when motion is allowed
-    anim = code.index("animation: pf-float")
+    # the orbiting balloons only turn when motion is allowed
+    anim = code.index("animation: pf-orbit-turn")
     assert "@media (prefers-reduced-motion: no-preference)" in code[:anim]
 
 
