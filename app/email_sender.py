@@ -77,6 +77,23 @@ class ZohoSMTPEmailSender:
             server.send_message(msg)
 
 
+class EmailNotConfigured(RuntimeError):
+    """Raised when a deployed environment has no real email backend."""
+
+
+class UnconfiguredEmailSender:
+    """Used on a deployed environment (Vercel) that has no SMTP settings.
+
+    The console sender used to be chosen here too. It reported success while
+    sending nothing, so people waited for a sign-in link that never came and
+    nothing in the logs said why. This sender fails loudly instead."""
+
+    sent = []
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        raise EmailNotConfigured("no SMTP settings on this deployment")
+
+
 def get_email_sender():
     host = os.environ.get("RITHAVO_WEB_ZOHO_SMTP_HOST")
     username = os.environ.get("RITHAVO_WEB_ZOHO_SMTP_USERNAME")
@@ -84,4 +101,6 @@ def get_email_sender():
     port = int(os.environ.get("RITHAVO_WEB_ZOHO_SMTP_PORT", "587"))
     if host and username and password:
         return ZohoSMTPEmailSender(host, port, username, password)
+    if os.environ.get("VERCEL") or os.environ.get("RITHAVO_REQUIRE_EMAIL"):
+        return UnconfiguredEmailSender()
     return ConsoleEmailSender()

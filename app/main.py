@@ -36,7 +36,7 @@ from app.card_handoff import issue_card_handoff_token
 from app.career_intelligence import get_career_intelligence_view, resume_inputs_for_view
 from app.db import Database
 from app.diagnosis_engine import InvalidJobDescriptionError, cta_for_verdict, evaluate, verdict_for_score
-from app.email_sender import get_email_sender
+from app.email_sender import EmailNotConfigured, UnconfiguredEmailSender, get_email_sender
 from app.payment_gateway import get_gateway
 from app.photo_access import fetch_selected_photo, issue_photo_access_token
 from app.profile_proxy import proxy_profile_edit
@@ -65,6 +65,8 @@ app.state.db = Database(config.DATABASE_URL or config.DB_PATH)
 app.state.db.init_schema()
 bootstrap_super_admin(app.state.db, config.SUPER_ADMIN_EMAIL, config.SUPER_ADMIN_PASSWORD)
 app.state.email_sender = get_email_sender()
+if isinstance(app.state.email_sender, UnconfiguredEmailSender):
+    logger.error("startup: no SMTP settings, so sign-in and password emails cannot be sent from this deployment")
 app.state.payment_gateway = get_gateway()
 app.state.auth_rate_limiter = RateLimiter()
 # P0 (conventional sign-in rework): a separate instance/budget from
@@ -131,12 +133,19 @@ def auth_start(request: Request, email: str = Form(...)):
             subject="Your Rithavo sign-in link",
             body=body,
         )
-    except Exception:
+    except EmailNotConfigured:
+        logger.error("auth_start email_not_configured: this deployment has no SMTP settings")
+        raise HTTPException(
+            status_code=503,
+            detail="Email sign-in is not set up on this site yet, so no link was sent. Please sign in another way.",
+        )
+    except Exception as exc:
         # Never leak provider internals (host, credentials, SMTP response
-        # text) to the client, and never log the token or the link itself
-        # — only that a send attempt failed, which is enough to diagnose
-        # from server-side provider logs.
-        logger.warning("auth_start email_send_failed to_domain=%s", normalized_email.split("@")[-1])
+        # text) to the client, and never log the token or the link itself.
+        # The exception class (for example SMTPAuthenticationError, which
+        # means the mailbox password was rotated or revoked) is safe to log
+        # and is what tells a mail outage from a configuration problem.
+        logger.error("auth_start email_send_failed type=%s to_domain=%s", type(exc).__name__, normalized_email.split("@")[-1])
         raise HTTPException(
             status_code=502,
             detail="We couldn't send your sign-in email right now. Please try again in a moment.",
@@ -312,8 +321,10 @@ def auth_password_forgot(request: Request, email: str = Body(..., embed=True)):
                 subject="Set your Rithavo password" if is_first_setup else "Reset your Rithavo password",
                 body=body,
             )
-        except Exception:
-            logger.exception("password_reset_email_send_failed")
+        except EmailNotConfigured:
+            logger.error("password_reset_email_not_configured: this deployment has no SMTP settings")
+        except Exception as exc:
+            logger.error("password_reset_email_send_failed type=%s", type(exc).__name__)
     return {"status": "ok", "message": _GENERIC_RESET_REQUESTED_MESSAGE}
 
 
