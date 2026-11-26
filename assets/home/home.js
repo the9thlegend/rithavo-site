@@ -147,6 +147,14 @@
     }); }, { threshold: [0, 0.3] }).observe(markIn); }
   }
 
+  /* ---------- Ritanya hero: the scene leans gently toward the pointer ---------- */
+  var orbitEl = doc.querySelector(".x-orbit");
+  if (orbitEl && fine && !reduce) {
+    var scn = orbitEl.querySelector(".x-orbit-scene");
+    orbitEl.addEventListener("pointermove", function (e) { var r = orbitEl.getBoundingClientRect(); scn.style.setProperty("--px", (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3)); scn.style.setProperty("--py", (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3)); });
+    orbitEl.addEventListener("pointerleave", function () { scn.style.setProperty("--px", "0"); scn.style.setProperty("--py", "0"); });
+  }
+
   /* ---------- footer wordmark: the cursor lights the letters it passes over ---------- */
   var markEl = doc.querySelector(".x-mark");
   if (markEl && fine && !reduce) {

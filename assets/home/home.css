@@ -485,3 +485,34 @@ fieldset.x-field { border: 0; margin: 0; padding: 0; min-width: 0; }
 .x-field.has-error input, .x-field.has-error textarea { border-color: #ff8f73; box-shadow: 0 0 0 4px rgba(255, 143, 115, 0.18); }
 .x-formerr { display: none; margin: 0; padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255, 143, 115, 0.55); background: rgba(255, 143, 115, 0.09); color: var(--x-ink); font-size: 0.95rem; line-height: 1.45; }
 .x-formerr.is-on { display: block; }
+
+/* ---------- Ritanya in the middle of four questions circling her in 3D ---------- */
+@property --s { syntax: "<angle>"; initial-value: 0deg; inherits: true; }
+.x-orbit-wrap { display: grid; justify-items: center; }
+.x-orbit { --R: 41cqw; container-type: inline-size; position: relative; width: min(580px, 100%); }
+.x-orbit-glow { position: absolute; left: 50%; top: 44%; width: 74%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(124, 92, 255, 0.55), rgba(255, 138, 92, 0.16) 52%, transparent 70%); filter: blur(10px); pointer-events: none; }
+.x-orbit-stage { position: relative; aspect-ratio: 1 / 1.02; perspective: 230cqw; perspective-origin: 50% 36%; }
+.x-orbit-scene { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(calc(var(--px, 0) * 9deg)) rotateX(calc(var(--py, 0) * -5deg)); transition: transform 0.7s var(--x-ease); }
+.x-orbit-her { position: absolute; left: 50%; bottom: 0; height: 100%; width: auto; max-width: none; transform: translateX(-50%); user-select: none; -webkit-user-drag: none; filter: drop-shadow(0 24px 40px rgba(8, 4, 24, 0.55)); }
+.x-orbit-ring { position: absolute; left: 50%; top: 60%; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(-15deg); animation: x-orbit-turn 28s linear infinite; }
+@keyframes x-orbit-turn { to { --s: 360deg; } }
+.x-orbit:hover .x-orbit-ring { animation-play-state: paused; }
+.x-orbit-track { position: absolute; left: calc(var(--R) * -1); top: calc(var(--R) * -1); width: calc(var(--R) * 2); height: calc(var(--R) * 2); border-radius: 50%; border: 1px dashed rgba(169, 139, 255, 0.4); transform: rotateX(90deg); pointer-events: none; }
+.x-orbit-q {
+  --ang: calc(var(--a) + var(--s));
+  position: absolute; left: 0; top: 0; width: max(118px, 31cqw); margin: calc(max(30px, 4.6cqw) * -1) 0 0 calc(max(118px, 31cqw) / -2);
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.2); background: linear-gradient(160deg, rgba(40, 30, 82, 0.96), rgba(20, 14, 44, 0.96));
+  box-shadow: 0 18px 36px -12px rgba(8, 4, 24, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: var(--x-ink); font: 700 max(12.5px, 2.9cqw)/1.22 var(--x-font); text-wrap: balance;
+  transform: rotateY(var(--ang)) translateZ(var(--R)) rotateY(calc(var(--ang) * -1)) rotateX(15deg);
+  opacity: calc(0.4 + 0.6 * (1 + cos(var(--ang))) / 2);
+  backface-visibility: visible;
+}
+.x-orbit-q i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--x-violet); box-shadow: 0 0 14px currentColor; color: var(--x-violet); }
+.x-orbit-q[data-c="coral"] i { background: var(--x-coral); color: var(--x-coral); }
+.x-orbit-q[data-c="cyan"] i { background: var(--x-cyan); color: var(--x-cyan); }
+.x-orbit-q[data-c="mix"] i { background: linear-gradient(135deg, var(--x-violet), var(--x-coral)); color: var(--x-coral); }
+@media (max-width: 960px) { .x-orbit-wrap { order: -1; } }
+@media (max-width: 560px) { .x-orbit { --R: 33cqw; } .x-orbit-q { padding: 10px 12px; } }
+@media (prefers-reduced-motion: reduce) { .x-orbit-ring { animation: none; } .x-orbit-scene { transition: none; } }
