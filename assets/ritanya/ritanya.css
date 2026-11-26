@@ -130,3 +130,92 @@
 @media (prefers-reduced-motion: reduce) {
   .rtn-in, .rtn-launcher, .rtn-pose { animation: none !important; transition: none !important; }
 }
+
+/* =====================================================================================================================
+   Ritanya on the redesigned pages (html.hx2): the same deep violet and warm coral as the rest of the site, glass surfaces,
+   and motion that matches the page: the launcher arrives, floats and breathes; the panel opens from the launcher;
+   messages and choices rise in one after another. Pages without the redesign keep the rules above.
+   ===================================================================================================================== */
+html.hx2 .rtn-launcher, html.hx2 .rtn-root {
+  --surface: #150c33; --surface-muted: rgba(255, 255, 255, 0.07); --bg: #0b0718;
+  --ink: #f4f2fb; --ink-soft: #c4bfdc; --ink-faint: #8d88a8;
+  --line: rgba(255, 255, 255, 0.1); --line-strong: rgba(255, 255, 255, 0.22);
+  --g1: #7c5cff; --g2: #ff8a5c; --g3: #ff8a5c;
+  --gradient: linear-gradient(120deg, #7c5cff 0%, #c46bd0 52%, #ff8a5c 100%);
+  --gradient-soft: linear-gradient(120deg, rgba(124, 92, 255, 0.22), rgba(255, 138, 92, 0.14));
+  --gradient-soft-strong: linear-gradient(120deg, rgba(124, 92, 255, 0.4), rgba(255, 138, 92, 0.3));
+  --rtn-ease: cubic-bezier(0.2, 0.8, 0.2, 1); --rtn-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html.hx2 .rtn-launcher {
+  background: rgba(21, 12, 51, 0.82); border-color: rgba(255, 255, 255, 0.24); color: #f4f2fb;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 40px -12px rgba(8, 4, 28, 0.9), 0 0 34px -6px rgba(124, 92, 255, 0.55);
+  font-family: inherit; letter-spacing: 0.01em;
+}
+html.hx2 .rtn-launcher:hover { box-shadow: 0 18px 46px -12px rgba(8, 4, 28, 0.9), 0 0 46px -4px rgba(255, 138, 92, 0.6); border-color: rgba(255, 138, 92, 0.7); }
+html.hx2 .rtn-launcher:focus-visible, html.hx2 .rtn-iconbtn:focus-visible, html.hx2 .rtn-send:focus-visible,
+html.hx2 .rtn-chip:focus-visible, html.hx2 .rtn-action:focus-visible, html.hx2 .rtn-input:focus-visible { outline: 3px solid #ffd24d; outline-offset: 3px; }
+html.hx2 .rtn-avatar-launcher { position: relative; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.18); }
+html.hx2 .rtn-launcher::after { content: ""; position: absolute; left: 36px; bottom: 8px; width: 10px; height: 10px; border-radius: 50%; background: #55dbe0; box-shadow: 0 0 0 2px #150c33; pointer-events: none; }
+
+html.hx2 .rtn-panel {
+  background: linear-gradient(180deg, rgba(30, 16, 74, 0.96) 0%, rgba(14, 8, 36, 0.97) 100%);
+  backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  border-color: rgba(255, 255, 255, 0.18); border-radius: 26px; color-scheme: dark;
+  box-shadow: 0 40px 90px -30px rgba(6, 3, 20, 0.95), 0 0 80px -20px rgba(124, 92, 255, 0.5);
+}
+html.hx2 .rtn-backdrop { background: rgba(7, 6, 12, 0.6); }
+html.hx2 .rtn-head { background: linear-gradient(120deg, rgba(124, 92, 255, 0.3), rgba(255, 138, 92, 0.16)); border-bottom-color: rgba(255, 255, 255, 0.12); }
+html.hx2 .rtn-title { font-family: inherit; font-weight: 700; letter-spacing: -0.015em; }
+html.hx2 .rtn-subtitle { font-family: "DM Mono", ui-monospace, Menlo, monospace; color: #ffa882; }
+html.hx2 .rtn-stage { background: radial-gradient(70% 90% at 50% 100%, rgba(255, 138, 92, 0.26), transparent 70%), linear-gradient(180deg, rgba(124, 92, 255, 0.28), rgba(124, 92, 255, 0.06)); border-bottom-color: rgba(255, 255, 255, 0.1); }
+html.hx2 .rtn-disclosure { background: rgba(255, 255, 255, 0.045); border-bottom-color: rgba(255, 255, 255, 0.08); color: #aaa5c4; }
+html.hx2 .rtn-iconbtn:hover { background: rgba(255, 255, 255, 0.1); }
+html.hx2 .rtn-ritanya .rtn-bubble { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #f4f2fb; border-radius: 18px; border-top-left-radius: 5px; }
+html.hx2 .rtn-user .rtn-bubble { background: linear-gradient(120deg, #ff8a5c, #ffa882); color: #170709; font-weight: 600; border-radius: 18px; border-top-right-radius: 5px; box-shadow: 0 8px 24px -10px rgba(255, 138, 92, 0.7); }
+html.hx2 .rtn-action { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.2); border-radius: 16px; color: #f4f2fb; }
+html.hx2 .rtn-action:hover { background: rgba(255, 138, 92, 0.16); border-color: #ff8a5c; }
+html.hx2 .rtn-chip { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.22); color: #f4f2fb; transition: background 0.25s, border-color 0.25s, transform 0.3s var(--rtn-ease); }
+html.hx2 .rtn-chip:hover { background: rgba(255, 138, 92, 0.18); border-color: #ff8a5c; transform: translateY(-2px); }
+html.hx2 .rtn-chip:active { transform: scale(0.97); }
+html.hx2 .rtn-form { background: rgba(255, 255, 255, 0.03); border-top-color: rgba(255, 255, 255, 0.1); }
+html.hx2 .rtn-input { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.22); color: #f4f2fb; transition: border-color 0.25s, box-shadow 0.25s; }
+html.hx2 .rtn-input::placeholder { color: #8d88a8; }
+html.hx2 .rtn-input:focus { border-color: #ff8a5c; box-shadow: 0 0 0 4px rgba(255, 138, 92, 0.18); }
+html.hx2 .rtn-send { background: linear-gradient(120deg, #ff8a5c, #ffa882); color: #170709; box-shadow: 0 0 22px -4px rgba(255, 138, 92, 0.6); transition: transform 0.3s var(--rtn-spring), box-shadow 0.3s, opacity 0.2s; }
+html.hx2 .rtn-send:hover:not([disabled]) { transform: scale(1.08) rotate(-8deg); box-shadow: 0 0 34px -2px rgba(255, 138, 92, 0.85); }
+html.hx2 .rtn-status { color: #aaa5c4; }
+html.hx2 .rtn-log { scrollbar-color: rgba(255, 255, 255, 0.25) transparent; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html.hx2 .rtn-launcher { animation: rtn-arrive 0.9s var(--rtn-spring) 0.6s both, rtn-float 6s ease-in-out 1.6s infinite; }
+  html.hx2 .rtn-launcher::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; border: 1.5px solid #ff8a5c; opacity: 0; pointer-events: none; animation: rtn-ring 3.4s ease-out 2.2s infinite; }
+  html.hx2 .rtn-launcher:hover { animation-play-state: paused, paused; }
+  html.hx2 .rtn-launcher::after { animation: rtn-online 2.2s ease-in-out infinite; }
+  html.hx2 .rtn-panel { transform-origin: 100% 100%; animation: rtn-open 0.5s var(--rtn-spring) both; }
+  html.hx2 .rtn-backdrop { animation: rtn-fade 0.35s ease both; }
+  html.hx2 .rtn-head { animation: rtn-drop 0.55s var(--rtn-ease) 0.08s both; }
+  html.hx2 .rtn-pose { animation: rtn-pose 0.55s var(--rtn-spring) both; }
+  html.hx2 .rtn-in { animation: rtn-bubble 0.55s var(--rtn-spring) both; }
+  html.hx2 .rtn-chips .rtn-chip, html.hx2 .rtn-actions .rtn-action { animation: rtn-rise2 0.5s var(--rtn-ease) both; }
+  html.hx2 .rtn-chips .rtn-chip:nth-child(1), html.hx2 .rtn-actions .rtn-action:nth-child(1) { animation-delay: 0.25s; }
+  html.hx2 .rtn-chips .rtn-chip:nth-child(2), html.hx2 .rtn-actions .rtn-action:nth-child(2) { animation-delay: 0.33s; }
+  html.hx2 .rtn-chips .rtn-chip:nth-child(3), html.hx2 .rtn-actions .rtn-action:nth-child(3) { animation-delay: 0.41s; }
+  html.hx2 .rtn-chips .rtn-chip:nth-child(4), html.hx2 .rtn-actions .rtn-action:nth-child(4) { animation-delay: 0.49s; }
+  html.hx2 .rtn-chips .rtn-chip:nth-child(n+5), html.hx2 .rtn-actions .rtn-action:nth-child(n+5) { animation-delay: 0.57s; }
+}
+@keyframes rtn-arrive { from { opacity: 0; transform: translateY(26px) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes rtn-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes rtn-ring { 0% { opacity: 0.8; transform: scale(1); } 100% { opacity: 0; transform: scale(1.35); } }
+@keyframes rtn-online { 0%, 100% { box-shadow: 0 0 0 2px #150c33, 0 0 0 2px rgba(85, 219, 224, 0.6); } 50% { box-shadow: 0 0 0 2px #150c33, 0 0 0 7px rgba(85, 219, 224, 0); } }
+@keyframes rtn-open { from { opacity: 0; transform: translateY(18px) scale(0.86); } to { opacity: 1; transform: none; } }
+@keyframes rtn-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rtn-drop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes rtn-pose { from { opacity: 0; transform: translateY(16px) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes rtn-bubble { from { opacity: 0; transform: translateY(12px) scale(0.94); } to { opacity: 1; transform: none; } }
+@keyframes rtn-rise2 { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html.hx2 .rtn-launcher::before { display: none; }
+  html.hx2 .rtn-panel, html.hx2 .rtn-head, html.hx2 .rtn-chip, html.hx2 .rtn-action, html.hx2 .rtn-launcher::after { animation: none !important; }
+}
